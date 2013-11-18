@@ -3,7 +3,7 @@ type liststr is [int]|string
 int len(liststr l) {
     if(l is string) {
         string s = (string) l;
-        return |str|;
+        return |s|;
     } else {
         [int] ls = ([int]) l;
         return |ls|;
