@@ -36,7 +36,7 @@ public class JavaScriptValidTests {
 		String classPath = "../../src";
 		
 		// First, we need to compile the given test into javascript
-		String errors = TestUtils.exec(classPath, testdir, "whilelang.Main", "-js", name + ".while");
+		String errors = TestUtils.exec(classPath, testdir, "wyscript.Main", "-js", name + ".while");
 		
 		if(!errors.equals("")) {
 			System.err.println(errors);

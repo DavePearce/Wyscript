@@ -31,6 +31,12 @@ import wyscript.util.Attribute;
 import wyscript.util.Pair;
 import wyscript.util.SyntaxError;
 
+/**
+ * Responsible for parsing a sequence of tokens into an Abstract Syntax Tree.
+ * 
+ * @author David J. Pearce
+ * 
+ */
 public class Parser {
 
 	private String filename;

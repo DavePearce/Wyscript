@@ -23,7 +23,7 @@ public class InterpreterValidTests {
 		String classPath = "../../src";
 				
 		// First, execute the While program using the interpreter		
-		String output = TestUtils.exec(classPath, testdir, "whilelang.Main", name + ".while");
+		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".while");
 		
 		// Second, compare the output!
 		TestUtils.compare(output, sampleOutputFile);
