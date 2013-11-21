@@ -1,13 +1,11 @@
-package whilelang.util;
-
-import static whilelang.util.SyntaxError.internalFailure;
+package wyscript.util;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import whilelang.lang.*;
-import static whilelang.util.SyntaxError.*;
+import wyscript.lang.*;
+import static wyscript.util.SyntaxError.*;
 
 /**
  * <p>
@@ -24,34 +22,34 @@ import static whilelang.util.SyntaxError.*;
  * 
  */
 public class TypeChecker {
-	private WhileFile file;
-	private WhileFile.FunDecl function;
-	private HashMap<String,WhileFile.FunDecl> functions; 
+	private WyscriptFile file;
+	private WyscriptFile.FunDecl function;
+	private HashMap<String,WyscriptFile.FunDecl> functions; 
 	
-	public void check(WhileFile wf) {
+	public void check(WyscriptFile wf) {
 		this.file = wf;
-		this.functions = new HashMap<String,WhileFile.FunDecl>();
+		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
 		
-		for(WhileFile.Decl declaration : wf.declarations) {
-			if(declaration instanceof WhileFile.FunDecl) {
-				WhileFile.FunDecl fd = (WhileFile.FunDecl) declaration;
+		for(WyscriptFile.Decl declaration : wf.declarations) {
+			if(declaration instanceof WyscriptFile.FunDecl) {
+				WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) declaration;
 				this.functions.put(fd.name(), fd);
 			}
 		}
 		
-		for(WhileFile.Decl declaration : wf.declarations) {
-			if(declaration instanceof WhileFile.FunDecl) {
-				check((WhileFile.FunDecl) declaration);
+		for(WyscriptFile.Decl declaration : wf.declarations) {
+			if(declaration instanceof WyscriptFile.FunDecl) {
+				check((WyscriptFile.FunDecl) declaration);
 			}
 		}
 	}
 	
-	public void check(WhileFile.FunDecl fd) {
+	public void check(WyscriptFile.FunDecl fd) {
 		this.function = fd;
 		
 		// First, initialise the typing environment
 		HashMap<String,Type> environment = new HashMap<String,Type>();
-		for (WhileFile.Parameter p : fd.parameters) {
+		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
 		
@@ -204,9 +202,9 @@ public class TypeChecker {
 	}
 	
 	public Type check(Expr.Invoke expr, Map<String,Type> environment) {
-		WhileFile.FunDecl fn = functions.get(expr.getName());
+		WyscriptFile.FunDecl fn = functions.get(expr.getName());
 		List<Expr> arguments = expr.getArguments();
-		List<WhileFile.Parameter> parameters = fn.parameters;
+		List<WyscriptFile.Parameter> parameters = fn.parameters;
 		if(arguments.size() != parameters.size()) {
 			syntaxError("incorrect number of arguments to function",
 					file.filename, expr);

@@ -16,7 +16,7 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.io;
+package wyscript.io;
 
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -28,7 +28,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-import whilelang.util.SyntaxError;
+import wyscript.util.SyntaxError;
 
 /**
  * Responsible for turning a stream of characters into a sequence of tokens.

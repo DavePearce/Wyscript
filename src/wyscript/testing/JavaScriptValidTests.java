@@ -1,11 +1,20 @@
-package whilelang.testing;
+package wyscript.testing;
 
+import static org.junit.Assert.fail;
+
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileReader;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.io.Reader;
 
 import org.junit.*;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Scriptable;
+import org.mozilla.javascript.ScriptableObject;
 
-
-public class ClassFileValidTests {
+public class JavaScriptValidTests {
 	/**
 	 * Path to test directory.
 	 */
@@ -15,7 +24,10 @@ public class ClassFileValidTests {
 	// Test Harness
 	// ======================================================================
 
-	private void runTest(String name) {		
+	private void runTest(String name) {
+		// The name of the file which contains the output for this test
+		String generatedJavaScriptFile = testdir + File.separatorChar + name
+				+ ".js";
 		// The name of the file which contains the output for this test
 		String sampleOutputFile = testdir + File.separatorChar + name
 				+ ".sysout";
@@ -24,15 +36,55 @@ public class ClassFileValidTests {
 		String classPath = "../../src";
 		
 		// First, we need to compile the given test into javascript
-		TestUtils.exec(classPath, testdir, "whilelang.Main", "-jvm", name + ".while");
+		String errors = TestUtils.exec(classPath, testdir, "whilelang.Main", "-js", name + ".while");
+		
+		if(!errors.equals("")) {
+			System.err.println(errors);
+			fail(errors);
+		}
 		
 		// Second, execute the generated JavaScript Program. 
-		String output = TestUtils.exec(testdir,testdir,name);
+		String output = execJavaScript(generatedJavaScriptFile);
 
 		// Third, compare the output!
 		TestUtils.compare(output,sampleOutputFile);
 	}
+	
+	/**
+	 * Execute the main() method on a given (generated) Javascript file, and
+	 * capture the output.
+	 * 
+	 * @param filename Filename of generated JavaScript source file.
+	 * @return
+	 */
+	private static String execJavaScript(String filename) {
+	    try {
+	      Reader file = new FileReader(new File(filename));
+	      Context cxt = Context.enter();
+	      Scriptable scope = cxt.initStandardObjects();
 
+	      OutputStream out = new ByteArrayOutputStream();
+	      Object sysout = Context.javaToJS(new PrintStream(out), scope);
+	      OutputStream err = new ByteArrayOutputStream();
+	      Object syserr = Context.javaToJS(new PrintStream(err), scope);
+
+	      ScriptableObject.putConstProperty(scope, "sysout", sysout);
+	      ScriptableObject.putConstProperty(scope, "syserr", syserr);
+	      cxt.evaluateReader(scope, file, filename, 1, null);
+	      cxt.evaluateString(scope, "main()", "main", 1, null);
+
+	      System.err.println(err);
+	      return out.toString();
+	    } catch (Exception ex) {
+	      ex.printStackTrace();
+	      fail("Problem running compiled test");
+	    } finally {
+	      Context.exit();
+	    }
+
+	    return null;
+	  }
+	
 	// ======================================================================
 	// Tests
 	// ======================================================================

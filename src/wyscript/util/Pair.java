@@ -16,7 +16,7 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.util;
+package wyscript.util;
 
 /**
  * This class represents a pair of items.

@@ -1,16 +1,16 @@
-package whilelang.io;
+package wyscript.io;
 
-import static whilelang.util.SyntaxError.internalFailure;
+import static wyscript.util.SyntaxError.internalFailure;
 
 import java.io.*;
 import java.util.List;
 
-import whilelang.lang.*;
-import whilelang.util.*;
+import wyscript.lang.*;
+import wyscript.util.*;
 
 public class JavaScriptFileWriter {
 	private PrintStream out;
-	private WhileFile file;
+	private WyscriptFile file;
 	
 	public JavaScriptFileWriter(File file) throws IOException {
 		this.out = new PrintStream(new FileOutputStream(file));
@@ -20,19 +20,19 @@ public class JavaScriptFileWriter {
 		out.close();
 	}
 	
-	public void write(WhileFile wf) {
+	public void write(WyscriptFile wf) {
 		this.file = wf;
-		for(WhileFile.Decl declaration : wf.declarations) {
-			if(declaration instanceof WhileFile.FunDecl) {
-				write((WhileFile.FunDecl) declaration);
+		for(WyscriptFile.Decl declaration : wf.declarations) {
+			if(declaration instanceof WyscriptFile.FunDecl) {
+				write((WyscriptFile.FunDecl) declaration);
 			}
 		}
 	}
 	
-	public void write(WhileFile.FunDecl fd) {
+	public void write(WyscriptFile.FunDecl fd) {
 		out.print("function " + fd.name + "(");
 		boolean firstTime = true;
-		for(WhileFile.Parameter p : fd.parameters) {
+		for(WyscriptFile.Parameter p : fd.parameters) {
 			if(!firstTime) {
 				out.print(", ");
 			}

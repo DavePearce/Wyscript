@@ -1,4 +1,4 @@
-package whilelang.testing;
+package wyscript.testing;
 
 import static org.junit.Assert.fail;
 

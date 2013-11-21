@@ -16,12 +16,12 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.lang;
+package wyscript.lang;
 
 import java.util.*;
 
-import whilelang.util.Attribute;
-import whilelang.util.SyntacticElement;
+import wyscript.util.Attribute;
+import wyscript.util.SyntacticElement;
 
 /**
  * <p>

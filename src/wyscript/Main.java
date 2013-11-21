@@ -16,15 +16,15 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang;
+package wyscript;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 
-import whilelang.io.*;
-import whilelang.lang.WhileFile;
-import whilelang.util.*;
+import wyscript.io.*;
+import wyscript.lang.WyscriptFile;
+import wyscript.util.*;
 
 public class Main {
 
@@ -38,7 +38,7 @@ public class Main {
 		}
 	}
 
-	private static enum Mode { interpret, jvm, x86, js };
+	private static enum Mode { interpret, js };
 	
 	public static boolean run(String[] args) {
 		boolean verbose = false;
@@ -56,8 +56,6 @@ public class Main {
 					System.exit(0);
 				} else if (arg.equals("-verbose")) {
 					verbose = true;
-				} else if (arg.equals("-jvm")) {
-					mode = Mode.jvm;
 				} else if (arg.equals("-js")) {
 					mode = Mode.js;
 				} else {
@@ -80,7 +78,7 @@ public class Main {
 			// First, lex and parse the source file
 			Lexer lexer = new Lexer(srcFile.getPath());
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
-			WhileFile ast = parser.read();
+			WyscriptFile ast = parser.read();
 			
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);
@@ -89,23 +87,14 @@ public class Main {
 			switch(mode) {
 			case interpret:
 				new Interpreter().run(ast);
-				break;
-			case jvm: {
-				File classFile = new File(filename.substring(0,filename.lastIndexOf('.')) + ".class");
-				ClassFileWriter cfw = new ClassFileWriter(classFile);
-				cfw.write(ast);				
-				break;
-			}
+				break;			
 			case js: {
 				File jsFile = new File(filename.substring(0,filename.lastIndexOf('.')) + ".js");
 				JavaScriptFileWriter jsfw = new JavaScriptFileWriter(jsFile);
 				jsfw.write(ast);	
 				jsfw.close();
 				break;
-			}
-			case x86:
-				System.out.println("Compiling to X86 Assembly Language...");
-				break;
+			}			
 			}
 			
 		} catch (SyntaxError e) {

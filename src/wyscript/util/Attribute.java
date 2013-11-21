@@ -16,7 +16,7 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.util;
+package wyscript.util;
 
 public interface Attribute {
 
@@ -36,9 +36,9 @@ public interface Attribute {
   }
   
   public static class Type implements Attribute {
-	  public final whilelang.lang.Type type;
+	  public final wyscript.lang.Type type;
 	  
-	  public Type(whilelang.lang.Type type) {
+	  public Type(wyscript.lang.Type type) {
 		  this.type = type;
 	  }
   }

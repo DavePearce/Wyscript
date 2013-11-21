@@ -16,7 +16,7 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.util;
+package wyscript.util;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;

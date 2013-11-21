@@ -16,12 +16,13 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang;
+package wyscript;
 
 import java.util.*;
-import whilelang.lang.*;
-import whilelang.util.Pair;
-import static whilelang.util.SyntaxError.*;
+
+import wyscript.lang.*;
+import wyscript.util.Pair;
+import static wyscript.util.SyntaxError.*;
 
 /**
  * A simple interpreter for WhileLang programs, which executes them in their
@@ -33,21 +34,21 @@ import static whilelang.util.SyntaxError.*;
  * 
  */
 public class Interpreter {
-	private HashMap<String, WhileFile.Decl> declarations;
-	private WhileFile file;
+	private HashMap<String, WyscriptFile.Decl> declarations;
+	private WyscriptFile file;
 	
-	public void run(WhileFile wf) {
+	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
-		declarations = new HashMap<String,WhileFile.Decl>();
-		for(WhileFile.Decl decl : wf.declarations) {
+		declarations = new HashMap<String,WyscriptFile.Decl>();
+		for(WyscriptFile.Decl decl : wf.declarations) {
 			declarations.put(decl.name(), decl);
 		}
 		this.file = wf;
 		
 		// Second, pick the main method (if one exits) and execute it
-		WhileFile.Decl main = declarations.get("main");
-		if(main instanceof WhileFile.FunDecl) {
-			WhileFile.FunDecl fd = (WhileFile.FunDecl) main;
+		WyscriptFile.Decl main = declarations.get("main");
+		if(main instanceof WyscriptFile.FunDecl) {
+			WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) main;
 			execute(fd);
 		} else {
 			System.out.println("Cannot find a main() function");
@@ -63,7 +64,7 @@ public class Interpreter {
 	 * @param arguments
 	 *            Array of argument values.
 	 */
-	private Object execute(WhileFile.FunDecl function, Object... arguments) {
+	private Object execute(WyscriptFile.FunDecl function, Object... arguments) {
 		
 		// First, sanity check the number of arguments
 		if(function.parameters.size() != arguments.length){
@@ -76,7 +77,7 @@ public class Interpreter {
 		// execute.
 		HashMap<String,Object> frame = new HashMap<String,Object>();
 		for(int i=0;i!=arguments.length;++i) {
-			WhileFile.Parameter parameter = function.parameters.get(i);
+			WyscriptFile.Parameter parameter = function.parameters.get(i);
 			frame.put(parameter.name,arguments[i]);
 		}
 		
@@ -364,7 +365,7 @@ public class Interpreter {
 			// semantics used in While are preserved.
 			values[i] = deepClone(execute(arguments.get(i), frame));
 		}
-		WhileFile.FunDecl fun = (WhileFile.FunDecl) declarations.get(expr
+		WyscriptFile.FunDecl fun = (WyscriptFile.FunDecl) declarations.get(expr
 				.getName());
 		return execute(fun, values);
 	}

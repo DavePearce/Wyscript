@@ -16,20 +16,20 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.io;
+package wyscript.io;
 
 import java.io.File;
 import java.util.*;
 
-import whilelang.io.Lexer.*;
-import whilelang.lang.Expr;
-import whilelang.lang.Stmt;
-import whilelang.lang.Type;
-import whilelang.lang.WhileFile;
-import whilelang.lang.WhileFile.*;
-import whilelang.util.Attribute;
-import whilelang.util.Pair;
-import whilelang.util.SyntaxError;
+import wyscript.io.Lexer.*;
+import wyscript.lang.Expr;
+import wyscript.lang.Stmt;
+import wyscript.lang.Type;
+import wyscript.lang.WyscriptFile;
+import wyscript.lang.WyscriptFile.*;
+import wyscript.util.Attribute;
+import wyscript.util.Pair;
+import wyscript.util.SyntaxError;
 
 public class Parser {
 
@@ -44,7 +44,7 @@ public class Parser {
 		this.userDefinedTypes = new HashSet<String>();
 	}
 
-	public WhileFile read() {
+	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
 		
 		while (index < tokens.size()) {
@@ -68,7 +68,7 @@ public class Parser {
 				filename.substring(filename.lastIndexOf(File.separatorChar) + 1,
 						filename.length() - 6);
 
-		return new WhileFile(name, decls);
+		return new WyscriptFile(name, decls);
 	}
 
 	private FunDecl parseFunction() {

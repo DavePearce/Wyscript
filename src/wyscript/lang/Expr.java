@@ -16,11 +16,11 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.lang;
+package wyscript.lang;
 
 import java.util.*;
 
-import whilelang.util.*;
+import wyscript.util.*;
 
 /**
  * Represents an expression in the source code of a While program. Many standard

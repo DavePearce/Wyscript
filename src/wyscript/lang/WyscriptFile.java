@@ -16,21 +16,21 @@
 //
 // Copyright 2013, David James Pearce.
 
-package whilelang.lang;
+package wyscript.lang;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import whilelang.util.Attribute;
-import whilelang.util.SyntacticElement;
+import wyscript.util.Attribute;
+import wyscript.util.SyntacticElement;
 
-public class WhileFile {
+public class WyscriptFile {
 
 	public final String filename;
 
 	public final ArrayList<Decl> declarations;
 
-	public WhileFile(String filename, List<Decl> decls) {
+	public WyscriptFile(String filename, List<Decl> decls) {
 		this.filename = filename;
 		this.declarations = new ArrayList<Decl>(decls);
 	}
