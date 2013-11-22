@@ -21,8 +21,6 @@ package wyscript.io;
 import java.io.File;
 import java.util.*;
 
-import wyc.stages.WhileyLexer.Indent;
-import wyc.stages.WhileyLexer.LineComment;
 import wyscript.io.Lexer.*;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
@@ -186,7 +184,7 @@ public class Parser {
 				}
 
 				// Second, parse the actual statement at this point!
-				stmts.add(parseStatement(true));
+				stmts.add(parseStatement(indent));
 			}
 
 			return stmts;
@@ -222,9 +220,9 @@ public class Parser {
 		Token token = tokens.get(index);
 		Stmt stmt;
 		if (token.text.equals("return")) {
-			stmt = parseReturn(indent);
+			stmt = parseReturn();
 		} else if (token.text.equals("print")) {
-			stmt = parsePrint(indent);
+			stmt = parsePrint();
 		} else if (token.text.equals("if")) {
 			stmt = parseIf(indent);
 		} else if (token.text.equals("while")) {
@@ -234,9 +232,9 @@ public class Parser {
 		} else if ((index + 1) < tokens.size()
 				&& tokens.get(index + 1) instanceof LeftBrace) {
 			// must be a method invocation
-			stmt = parseInvokeStmt(indent);
+			stmt = parseInvokeStmt();
 		} else if (isStartOfType(index)) {
-			stmt = parseVariableDeclaration(indent);
+			stmt = parseVariableDeclaration();
 		} else {
 			// invocation or assignment
 			int start = index;
@@ -245,7 +243,7 @@ public class Parser {
 				stmt = (Expr.Invoke) t;
 			} else {
 				index = start;
-				stmt = parseAssign(indent);
+				stmt = parseAssign();
 			}
 		}
 		
@@ -285,7 +283,7 @@ public class Parser {
 		return false;
 	}
 
-	private Expr.Invoke parseInvokeStmt(Indent parentIndent) {
+	private Expr.Invoke parseInvokeStmt() {
 		int start = index;
 		Identifier name = matchIdentifier();
 		match("(");
@@ -307,8 +305,7 @@ public class Parser {
 		return new Expr.Invoke(name.text, args, sourceAttr(start, index - 1));
 	}
 
-	private Stmt.VariableDeclaration parseVariableDeclaration(
-			Indent parentIndent) {
+	private Stmt.VariableDeclaration parseVariableDeclaration() {
 		int start = index;
 		// Every variable declaration consists of a declared type and variable
 		// name.
@@ -326,7 +323,7 @@ public class Parser {
 				sourceAttr(start, index - 1));
 	}
 
-	private Stmt.Return parseReturn(Indent parentIndent) {
+	private Stmt.Return parseReturn() {
 		int start = index;
 		// Every return statement begins with the return keyword!
 		matchKeyword("return");
@@ -339,7 +336,7 @@ public class Parser {
 		return new Stmt.Return(e, sourceAttr(start, index - 1));
 	}
 
-	private Stmt.Print parsePrint(Indent parentIndent) {
+	private Stmt.Print parsePrint() {
 		int start = index;
 		matchKeyword("print");
 		checkNotEof();
@@ -348,14 +345,14 @@ public class Parser {
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseIf(Indent parentIndent) {
+	private Stmt parseIf(Indent indent) {
 		int start = index;
 		matchKeyword("if");
 		match("(");
 		Expr c = parseCondition();
 		match(")");
 		int end = index;
-		List<Stmt> tblk = parseBlock();
+		List<Stmt> tblk = parseBlock(indent);
 		List<Stmt> fblk = Collections.emptyList();
 
 		if ((index + 1) < tokens.size()
@@ -363,30 +360,30 @@ public class Parser {
 			matchKeyword("else");
 
 			if (index < tokens.size() && tokens.get(index).text.equals("if")) {
-				Stmt if2 = parseIf();
+				Stmt if2 = parseIf(indent);
 				fblk = new ArrayList<Stmt>();
 				fblk.add(if2);
 			} else {
-				fblk = parseBlock();
+				fblk = parseBlock(indent);
 			}
 		}
 
 		return new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseWhile(Indent parentIndent) {
+	private Stmt parseWhile(Indent indent) {
 		int start = index;
 		matchKeyword("while");
 		match("(");
 		Expr condition = parseCondition();
 		match(")");
 		int end = index;
-		List<Stmt> blk = parseBlock();
+		List<Stmt> blk = parseBlock(indent);
 
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseFor(Indent parentIndent) {
+	private Stmt parseFor(Indent indent) {
 		int start = index;
 		matchKeyword("for");
 		match("(");
@@ -394,16 +391,21 @@ public class Parser {
 		match(";");
 		Expr condition = parseCondition();
 		match(";");
-		Stmt increment = parseStatement(false);
+		Stmt increment = parseStatement(indent);
 		int end = index;
 		match(")");
-		List<Stmt> blk = parseBlock();
+		List<Stmt> blk = parseBlock(indent);
 
 		return new Stmt.For(declaration, condition, increment, blk, sourceAttr(
 				start, end - 1));
 	}
 
-	private Stmt parseAssign(Indent parentIndent) {
+	/**
+	 * Parse an assignment statement of the form "lval = expression".
+	 * 
+	 * @return
+	 */
+	private Stmt parseAssign() {
 		// standard assignment
 		int start = index;
 		Expr lhs = parseCondition();
