@@ -52,8 +52,9 @@ public class Parser {
 
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
+		skipWhiteSpace();
 		
-		while (index < tokens.size()) {
+		while (index < tokens.size()) {		
 			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
 				Keyword k = (Keyword) t;
@@ -67,6 +68,7 @@ public class Parser {
 			} else {
 				decls.add(parseFunctionDeclaration());
 			}
+			skipWhiteSpace();
 		}
 
 		// Now, figure out module name from filename
@@ -79,7 +81,7 @@ public class Parser {
 
 	private FunDecl parseFunctionDeclaration() {
 		int start = index;
-
+		
 		Type ret = parseType();
 		Identifier name = matchIdentifier();
 
@@ -103,6 +105,7 @@ public class Parser {
 
 		match(")");
 		match(":");
+		matchEndLine();
 		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
 				index - 1));
@@ -131,6 +134,8 @@ public class Parser {
 
 		Expr e = parseLogicalExpression();
 		int end = index;
+		matchEndLine();
+		
 		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
 	}
 
@@ -886,12 +891,31 @@ public class Parser {
 		return null;
 	}
 
-	private void matchEndLine() {
-		checkNotEof();
-		Token token = tokens.get(index);
-		while (token instanceof WhiteSpace && !(token instanceof NewLine)) {
+	/**
+	 * Match a the end of a line. This is required to signal, for example, the
+	 * end of the current statement.
+	 */
+	private void matchEndLine() {		
+		// First, parse all whitespace characters (and return if we reach the
+		// NewLine we're looking for)
+		Token token;
+		while (index < tokens.size()
+				&& (token = tokens.get(index)) instanceof WhiteSpace) {
 			index++;
-			checkNotEof();
+			if (token instanceof NewLine) {
+				// match!
+				return;
+			}
+		}
+		
+		// Second, check whether we've reached the end-of-file (as signaled by
+		// running out of tokens), or we've encountered some token which not a
+		// newline. 
+		if (index >= tokens.size()) {
+			throw new SyntaxError("unexpected end-of-file", filename,
+					index - 1, index - 1);
+		} else {
+			syntaxError("expected end-of-line", tokens.get(index));
 		}
 	}
 	

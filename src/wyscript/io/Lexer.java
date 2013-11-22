@@ -375,17 +375,20 @@ public class Lexer {
 				&& Character.isWhitespace(input.charAt(pos))) {
 			if (input.charAt(pos) == ' ' || input.charAt(pos) == '\t') {
 				tokens.add(scanIndent());
+				System.out.println("SCANNED INDENT: " + tokens.get(tokens.size()-1));
 			} else if(input.charAt(pos) == '\n') {
 				tokens.add(new NewLine(input.substring(pos,pos+1),pos));
 				pos = pos + 1;
+				System.out.println("SCANNED NEWLINE");
 			} else if (input.charAt(pos) == '\r' && (pos + 1) < input.length()
 					&& input.charAt(pos + 1) == '\n') {
+				System.out.println("SCANNED NEWLINE");
 				tokens.add(new NewLine(input.substring(pos,pos+2),pos));
 				pos = pos + 2;
 			} else {
 				syntaxError("unknown whitespace character encounterd: \""
 						+ input.charAt(pos));
-			}
+			}			
 		}
 	}
 	
