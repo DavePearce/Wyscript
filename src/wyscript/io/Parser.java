@@ -52,7 +52,7 @@ public class Parser {
 
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
-
+		
 		while (index < tokens.size()) {
 			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
@@ -61,13 +61,11 @@ public class Parser {
 					decls.add(parseTypeDeclaration());
 				} else if (t.text.equals("constant")) {
 					decls.add(parseConstantDeclaration());
-				} else if (t.text.equals("function")) {
-					decls.add(parseFunctionDeclaration());
 				} else {
-					syntaxError("unexpected keyword encountered: " + k.text, t);
-				}
+					decls.add(parseFunctionDeclaration());
+				} 
 			} else {
-				syntaxError("unexpected token encountered: " + t.text, t);
+				decls.add(parseFunctionDeclaration());
 			}
 		}
 
@@ -81,8 +79,6 @@ public class Parser {
 
 	private FunDecl parseFunctionDeclaration() {
 		int start = index;
-
-		matchKeyword("function");
 
 		Type ret = parseType();
 		Identifier name = matchIdentifier();
@@ -106,6 +102,7 @@ public class Parser {
 		}
 
 		match(")");
+		match(":");
 		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
 				index - 1));
@@ -132,7 +129,7 @@ public class Parser {
 		Identifier name = matchIdentifier();
 		matchKeyword("is");
 
-		Expr e = parseCondition();
+		Expr e = parseLogicalExpression();
 		int end = index;
 		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
 	}
@@ -157,7 +154,7 @@ public class Parser {
 		// First, determine the initial indentation of this block based on the
 		// first statement (or null if there is no statement).
 		Indent indent = getIndent();
-
+		
 		// Second, check that this is indeed the initial indentation for this
 		// block (i.e. that it is strictly greater than parent indent).
 		if (indent == null || indent.lessThanEq(parentIndent)) {
@@ -166,6 +163,7 @@ public class Parser {
 			//
 			return Collections.EMPTY_LIST;
 		} else {
+			System.out.println("STAGE 2");
 			// Initial indent is valid, so we proceed parsing statements with
 			// the appropriate level of indent.
 			//
@@ -238,7 +236,7 @@ public class Parser {
 		} else {
 			// invocation or assignment
 			int start = index;
-			Expr t = parseCondition();
+			Expr t = parseLogicalExpression();
 			if (t instanceof Expr.Invoke) {
 				stmt = (Expr.Invoke) t;
 			} else {
@@ -296,7 +294,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseCondition();
+			Expr e = parseLogicalExpression();
 			args.add(e);
 
 		}
@@ -316,7 +314,7 @@ public class Parser {
 		Expr initialiser = null;
 		if (index < tokens.size() && tokens.get(index) instanceof Equals) {
 			match("=");
-			initialiser = parseCondition();
+			initialiser = parseLogicalExpression();
 		}
 		// Done.
 		return new Stmt.VariableDeclaration(type, id.text, initialiser,
@@ -330,7 +328,7 @@ public class Parser {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
-			e = parseCondition();
+			e = parseLogicalExpression();
 		}
 		// Done.
 		return new Stmt.Return(e, sourceAttr(start, index - 1));
@@ -340,7 +338,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("print");
 		checkNotEof();
-		Expr e = parseCondition();
+		Expr e = parseLogicalExpression();
 		int end = index;
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
@@ -349,7 +347,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("if");
 		match("(");
-		Expr c = parseCondition();
+		Expr c = parseLogicalExpression();
 		match(")");
 		int end = index;
 		List<Stmt> tblk = parseBlock(indent);
@@ -375,7 +373,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("while");
 		match("(");
-		Expr condition = parseCondition();
+		Expr condition = parseLogicalExpression();
 		match(")");
 		int end = index;
 		List<Stmt> blk = parseBlock(indent);
@@ -389,7 +387,7 @@ public class Parser {
 		match("(");
 		Stmt.VariableDeclaration declaration = parseVariableDeclaration();
 		match(";");
-		Expr condition = parseCondition();
+		Expr condition = parseLogicalExpression();
 		match(";");
 		Stmt increment = parseStatement(indent);
 		int end = index;
@@ -408,30 +406,30 @@ public class Parser {
 	private Stmt parseAssign() {
 		// standard assignment
 		int start = index;
-		Expr lhs = parseCondition();
+		Expr lhs = parseLogicalExpression();
 		if (!(lhs instanceof Expr.LVal)) {
 			syntaxError("expecting lval, found " + lhs + ".", lhs);
 		}
 		match("=");
-		Expr rhs = parseCondition();
+		Expr rhs = parseLogicalExpression();
 		int end = index;
 		return new Stmt.Assign((Expr.LVal) lhs, rhs, sourceAttr(start, end - 1));
 	}
 
-	private Expr parseCondition() {
+	private Expr parseLogicalExpression() {
 		checkNotEof();
 		int start = index;
 		Expr c1 = parseConditionExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof LogicalAnd) {
 			match("&&");
-			Expr c2 = parseCondition();
+			Expr c2 = parseLogicalExpression();
 			return new Expr.Binary(Expr.BOp.AND, c1, c2, sourceAttr(start,
 					index - 1));
 		} else if (index < tokens.size()
 				&& tokens.get(index) instanceof LogicalOr) {
 			match("||");
-			Expr c2 = parseCondition();
+			Expr c2 = parseLogicalExpression();
 			return new Expr.Binary(Expr.BOp.OR, c1, c2, sourceAttr(start,
 					index - 1));
 		}
@@ -546,9 +544,14 @@ public class Parser {
 		checkNotEof();
 		int start = index;
 		Expr lhs = parseTerm();
-
-		Token lookahead = tokens.get(index);
-
+		Token lookahead;
+		
+		if (index < tokens.size()) {
+			lookahead = tokens.get(index);
+		} else {
+			lookahead = null;
+		}
+		
 		while (lookahead instanceof LeftSquare || lookahead instanceof Dot
 				|| lookahead instanceof LeftBrace) {
 			start = index;
@@ -563,6 +566,7 @@ public class Parser {
 				lhs = new Expr.RecordAccess(lhs, name, sourceAttr(start,
 						index - 1));
 			}
+			
 			if (index < tokens.size()) {
 				lookahead = tokens.get(index);
 			} else {
@@ -586,10 +590,10 @@ public class Parser {
 				Type t = parseType();
 				checkNotEof();
 				match(")");
-				Expr e = parseCondition();
+				Expr e = parseLogicalExpression();
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseCondition();
+				Expr e = parseLogicalExpression();
 				checkNotEof();
 				match(")");
 				return e;
@@ -652,7 +656,7 @@ public class Parser {
 
 			}
 			firstTime = false;
-			exprs.add(parseCondition());
+			exprs.add(parseLogicalExpression());
 
 			checkNotEof();
 			token = tokens.get(index);
@@ -685,7 +689,7 @@ public class Parser {
 
 			match(":");
 
-			Expr e = parseCondition();
+			Expr e = parseLogicalExpression();
 			exprs.add(new Pair<String, Expr>(n.text, e));
 			keys.add(n.text);
 			checkNotEof();
@@ -736,7 +740,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseCondition();
+			Expr e = parseLogicalExpression();
 
 			args.add(e);
 		}
@@ -836,14 +840,6 @@ public class Parser {
 		return t;
 	}
 
-	private void checkNotEof() {
-		if (index >= tokens.size()) {
-			throw new SyntaxError("unexpected end-of-file", filename,
-					index - 1, index - 1);
-		}
-		return;
-	}
-
 	private Token match(String op) {
 		checkNotEof();
 		Token t = tokens.get(index);
@@ -865,7 +861,7 @@ public class Parser {
 		return (T) t;
 	}
 
-	private Identifier matchIdentifier() {
+	private Identifier matchIdentifier() {		
 		checkNotEof();
 		Token t = tokens.get(index);
 		if (t instanceof Identifier) {
@@ -890,6 +886,38 @@ public class Parser {
 		return null;
 	}
 
+	private void matchEndLine() {
+		checkNotEof();
+		Token token = tokens.get(index);
+		while (token instanceof WhiteSpace && !(token instanceof NewLine)) {
+			index++;
+			checkNotEof();
+		}
+	}
+	
+	/**
+	 * Check that the End-Of-File has not been reached. This method should be
+	 * called from contexts where we are expecting something to follow.
+	 */
+	private void checkNotEof() {
+		skipWhiteSpace();
+		
+		if (index >= tokens.size()) {
+			throw new SyntaxError("unexpected end-of-file", filename,
+					index - 1, index - 1);
+		}
+		return;
+	}
+
+	/**
+	 * Skip over any whitespace characters.
+	 */
+	private void skipWhiteSpace() {
+		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace) {
+			index++;
+		}
+	}
+	
 	private Attribute.Source sourceAttr(int start, int end) {
 		Token t1 = tokens.get(start);
 		Token t2 = tokens.get(end);

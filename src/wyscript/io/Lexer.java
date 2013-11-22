@@ -87,10 +87,8 @@ public class Lexer {
 				tokens.add(scanOperator());
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());
-			} else if(c == ' ' || c == '\t') {
-				tokens.add(scanIndent());
-			} else if (Character.isWhitespace(c)) {
-				skipWhitespace(tokens);
+			} else if(Character.isWhitespace(c)) {
+				scanWhiteSpace(tokens);
 			} else {
 				syntaxError("syntax error");
 			}
@@ -349,8 +347,9 @@ public class Lexer {
 	}
 
 	public static final String[] keywords = { "true", "false", "null", "void",
-		"int", "real", "char", "string", "bool", "if", "switch", "while", "else",
-		"is", "for", "debug", "print", "return", "const", "type" };
+			"int", "real", "char", "string", "bool", "if", "switch", "while",
+			"else", "is", "for", "debug", "print", "return", "constant",
+			"type"};
 
 	public Token scanIdentifier() {
 		int start = pos;
@@ -371,6 +370,25 @@ public class Lexer {
 		return new Identifier(text, start);
 	}
 	
+	public void scanWhiteSpace(List<Token> tokens) {
+		while (pos < input.length()
+				&& Character.isWhitespace(input.charAt(pos))) {
+			if (input.charAt(pos) == ' ' || input.charAt(pos) == '\t') {
+				tokens.add(scanIndent());
+			} else if(input.charAt(pos) == '\n') {
+				tokens.add(new NewLine(input.substring(pos,pos+1),pos));
+				pos = pos + 1;
+			} else if (input.charAt(pos) == '\r' && (pos + 1) < input.length()
+					&& input.charAt(pos + 1) == '\n') {
+				tokens.add(new NewLine(input.substring(pos,pos+2),pos));
+				pos = pos + 2;
+			} else {
+				syntaxError("unknown whitespace character encounterd: \""
+						+ input.charAt(pos));
+			}
+		}
+	}
+	
 	/**
 	 * Scan one or more spaces or tab characters, combining them to form an
 	 * "indent".
@@ -379,14 +397,13 @@ public class Lexer {
 	 */
 	public Token scanIndent() {
 		int start = pos;
-		while (pos < input.length() && input.charAt(pos) == ' '
-				|| input.charAt(pos) == '\t') {
+		while (pos < input.length()
+				&& (input.charAt(pos) == ' ' || input.charAt(pos) == '\t')) {
 			pos++;
 		}
 		return new Indent(input.substring(start, pos), start);
 	}
-	
-	
+		
 	/**
 	 * Skip over any whitespace at the current index position in the input
 	 * string.
@@ -395,7 +412,7 @@ public class Lexer {
 	 */
 	public void skipWhitespace(List<Token> tokens) {
 		while (pos < input.length()
-				&& Character.isWhitespace(input.charAt(pos))) {
+				&& (input.charAt(pos) == '\n' || input.charAt(pos) == '\t')) {
 			pos++;
 		}
 	}
@@ -538,6 +555,32 @@ public class Lexer {
 			super(text, pos);
 		}
 	}
+	
+	/**
+	 * Represents some form of whitespace. This could be tabs, spaces, comments,
+	 * etc.
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static class WhiteSpace extends Token {
+
+		public WhiteSpace(String text, int pos) {
+			super(text, pos);
+		}
+	}
+	
+	/**
+	 * Signals the end of a line
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static class NewLine extends WhiteSpace {
+		public NewLine(String text, int pos) {
+			super(text, pos);
+		}
+	}
 
 	/**
 	 * Represents a given amount of indentation. Specifically, a count of tabs
@@ -547,7 +590,7 @@ public class Lexer {
 	 * @author David J. Pearce
 	 * 
 	 */
-	public static class Indent extends Token {
+	public static class Indent extends WhiteSpace {
 		private final int countOfSpaces;
 		private final int countOfTabs;
 		
