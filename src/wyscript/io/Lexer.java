@@ -87,6 +87,8 @@ public class Lexer {
 				tokens.add(scanOperator());
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());
+			} else if(c == ' ' || c == '\t') {
+				tokens.add(scanIndent());
 			} else if (Character.isWhitespace(c)) {
 				skipWhitespace(tokens);
 			} else {
@@ -370,6 +372,22 @@ public class Lexer {
 	}
 	
 	/**
+	 * Scan one or more spaces or tab characters, combining them to form an
+	 * "indent".
+	 * 
+	 * @return
+	 */
+	public Token scanIndent() {
+		int start = pos;
+		while (pos < input.length() && input.charAt(pos) == ' '
+				|| input.charAt(pos) == '\t') {
+			pos++;
+		}
+		return new Indent(input.substring(start, pos), start);
+	}
+	
+	
+	/**
 	 * Skip over any whitespace at the current index position in the input
 	 * string.
 	 * 
@@ -521,8 +539,72 @@ public class Lexer {
 		}
 	}
 
+	/**
+	 * Represents a given amount of indentation. Specifically, a count of tabs
+	 * and spaces. Observe that the order in which tabs / spaces occurred is not
+	 * retained.
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static class Indent extends Token {
+		private final int countOfSpaces;
+		private final int countOfTabs;
+		
+		public Indent(String text, int pos) {
+			super(text, pos);
+			// Count the number of spaces and tabs
+			int nSpaces = 0;
+			int nTabs = 0;
+			for (int i = 0; i != text.length(); ++i) {
+				char c = text.charAt(i);
+				switch (c) {
+				case ' ':
+					nSpaces++;
+					break;
+				case '\t':
+					nTabs++;
+					break;
+				default:
+					throw new IllegalArgumentException(
+							"Space or tab character expected");
+				}
+			}
+			countOfSpaces = nSpaces;
+			countOfTabs = nTabs;
+		}
+		
+		/**
+		 * Test whether this indentation is considered "less than or equivalent"
+		 * to another indentation. For example, an indentation of 2 spaces is
+		 * considered less than an indentation of 3 spaces, etc.
+		 * 
+		 * @param other
+		 *            The indent to compare against.
+		 * @return
+		 */
+		public boolean lessThanEq(Indent other) {
+			return countOfSpaces <= other.countOfSpaces
+					&& countOfTabs <= other.countOfTabs;
+		}
+		
+		/**
+		 * Test whether this indentation is considered "equivalent" to another
+		 * indentation. For example, an indentation of 3 spaces followed by 1
+		 * tab is considered equivalent to an indentation of 1 tab followed by 3
+		 * spaces, etc.
+		 * 
+		 * @param other
+		 *            The indent to compare against.
+		 * @return
+		 */
+		public boolean equivalent(Indent other) {
+			return countOfSpaces == other.countOfSpaces
+					&& countOfTabs == other.countOfTabs;
+		}
+	}
+	
 	public static class Comma extends Token {
-
 		public Comma(int pos) {
 			super(",", pos);
 		}
