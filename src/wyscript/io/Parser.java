@@ -54,7 +54,7 @@ public class Parser {
 
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
-		
+
 		while (index < tokens.size()) {
 			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
@@ -74,9 +74,9 @@ public class Parser {
 		}
 
 		// Now, figure out module name from filename
-		String name =
-				filename.substring(filename.lastIndexOf(File.separatorChar) + 1,
-						filename.length() - 6);
+		String name = filename.substring(
+				filename.lastIndexOf(File.separatorChar) + 1,
+				filename.length() - 6);
 
 		return new WyscriptFile(name, decls);
 	}
@@ -85,7 +85,7 @@ public class Parser {
 		int start = index;
 
 		matchKeyword("function");
-		
+
 		Type ret = parseType();
 		Identifier name = matchIdentifier();
 
@@ -108,7 +108,7 @@ public class Parser {
 		}
 
 		match(")");
-		List<Stmt> stmts = parseBlock();
+		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
 				index - 1));
 	}
@@ -138,35 +138,67 @@ public class Parser {
 		int end = index;
 		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
 	}
-	
+
+	/**
+	 * Parse a block of zero or more statements which share the same indentation
+	 * level. Their indentation level must be strictly greater than that of
+	 * their parent, otherwise the end of block is signaled. The <i>indentation
+	 * level</i> for the block is set by the first statement encountered
+	 * (assuming their is one). An error occurs if a subsequent statement is
+	 * reached with an indentation level <i>greater</i> than the block's
+	 * indentation level.
+	 * 
+	 * @param parentIndent
+	 *            The indentation level of the parent, for which all statements
+	 *            in this block must have a greater indent. May not be
+	 *            <code>null</code>.
+	 * @return
+	 */
 	private List<Stmt> parseBlock(Indent parentIndent) {
+
+		// First, determine the initial indentation of this block based on the
+		// first statement (or null if there is no statement).
 		Indent indent = getIndent();
-		
-		if(indent == null || indent.lessThanEq(parentIndent)) {
-			// Indicates this block has ended.
+
+		// Second, check that this is indeed the initial indentation for this
+		// block (i.e. that it is strictly greater than parent indent).
+		if (indent == null || indent.lessThanEq(parentIndent)) {
+			// Initial indent either doesn't exist or is not strictly greater
+			// than parent indent and,therefore, signals an empty block.
+			//
 			return Collections.EMPTY_LIST;
 		} else {
-
+			// Initial indent is valid, so we proceed parsing statements with
+			// the appropriate level of indent.
+			//
 			ArrayList<Stmt> stmts = new ArrayList<Stmt>();
-			while (indent != null && indent.equivalent(parentIndent)) {
-				parseIndent(indent);
+			Indent nextIndent;
+			while ((nextIndent = getIndent()) != null
+					&& indent.lessThanEq(nextIndent)) {
+				// At this point, nextIndent contains the indent of the current
+				// statement. However, this still may not be equivalent to this
+				// block's indentation level.
+
+				// First, check the indentation matches that for this block.
+				if (!indent.equivalent(nextIndent)) {
+					// No, it's not equivalent so signal an error.
+					syntaxError("unexpected end-of-block", indent);
+				}
+
+				// Second, parse the actual statement at this point!
 				stmts.add(parseStatement(true));
 			}
-			
-			GOT HERE
 
 			return stmts;
 		}
 	}
-	
-	private void parseIndent(Indent current) {
-		Indent next = getIndent();
-		if(next == null) {
-			
-		}
-		
-	}
-	
+
+	/**
+	 * Determine the indentation as determined by an Indent token at this point
+	 * (if any). If there is no indentation then <code>null</code> is returned.
+	 * 
+	 * @return
+	 */
 	private Indent getIndent() {
 		if (index < tokens.size() && tokens.get(index) instanceof Indent) {
 			return (Indent) tokens.get(index);
@@ -174,80 +206,86 @@ public class Parser {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Parse a given statement.
 	 * 
-	 * @param withSemiColon
-	 *            Indicates whether to match semi-colons after the statement
-	 *            (where appropriate). This is useful as in some very special
-	 *            cases (e.g. for-loops) we don't want to match semi-colons.
+	 * @param indent
+	 *            The indent level for the current statement. This is needed in
+	 *            order to constraint the indent level for any sub-blocks (e.g.
+	 *            for <code>while</code> or <code>if</code> statements).
+	 * 
 	 * @return
 	 */
-	private Stmt parseStatement(boolean withSemiColon) {
+	private Stmt parseStatement(Indent indent) {
 		checkNotEof();
 		Token token = tokens.get(index);
 		Stmt stmt;
 		if (token.text.equals("return")) {
-			stmt = parseReturn();
-			if(withSemiColon) { match(";"); }
+			stmt = parseReturn(indent);
 		} else if (token.text.equals("print")) {
-			stmt = parsePrint();
-			if(withSemiColon) { match(";"); }
+			stmt = parsePrint(indent);
 		} else if (token.text.equals("if")) {
-			stmt = parseIf();
+			stmt = parseIf(indent);
 		} else if (token.text.equals("while")) {
-			stmt = parseWhile();
+			stmt = parseWhile(indent);
 		} else if (token.text.equals("for")) {
-			stmt = parseFor();
+			stmt = parseFor(indent);
 		} else if ((index + 1) < tokens.size()
 				&& tokens.get(index + 1) instanceof LeftBrace) {
 			// must be a method invocation
-			stmt = parseInvokeStmt();
-			if(withSemiColon) { match(";"); }
-		} else if (isType(index)) {
-			stmt = parseVariableDeclaration();
-			if(withSemiColon) { match(";"); }
+			stmt = parseInvokeStmt(indent);
+		} else if (isStartOfType(index)) {
+			stmt = parseVariableDeclaration(indent);
 		} else {
 			// invocation or assignment
 			int start = index;
 			Expr t = parseCondition();
 			if (t instanceof Expr.Invoke) {
-				stmt =  (Expr.Invoke) t;
+				stmt = (Expr.Invoke) t;
 			} else {
 				index = start;
-				stmt = parseAssign();
+				stmt = parseAssign(indent);
 			}
-			if(withSemiColon) { match(";"); }
 		}
+		
 		return stmt;
 	}
-	
-	private boolean isType(int index) {
-		if(index >= tokens.size()) {
+
+	/**
+	 * Determine whether or not a given position marks the beginning of a type
+	 * declaration or not. This is important to help determine whether or not
+	 * this is the beginning of a variable declaration.
+	 * 
+	 * @param index
+	 *            Position in the token stream to begin looking from.
+	 * @return
+	 */
+	private boolean isStartOfType(int index) {
+		if (index >= tokens.size()) {
 			return false;
 		}
 		Token lookahead = tokens.get(index);
-		if(lookahead instanceof Keyword) {
+		if (lookahead instanceof Keyword) {
 			return lookahead.text.equals("null")
 					|| lookahead.text.equals("bool")
 					|| lookahead.text.equals("int")
 					|| lookahead.text.equals("real")
 					|| lookahead.text.equals("char")
-					|| lookahead.text.equals("string"); 			
-		} else if(lookahead instanceof Identifier) {
+					|| lookahead.text.equals("string");
+		} else if (lookahead instanceof Identifier) {
 			Identifier id = (Identifier) lookahead;
 			return userDefinedTypes.contains(id.text);
-		}else if(lookahead instanceof LeftCurly) {
-			return isType(index+1);
-		} else if(lookahead instanceof LeftSquare) {
-			return isType(index+1);
-		} 
-		
+		} else if (lookahead instanceof LeftCurly) {
+			return isStartOfType(index + 1);
+		} else if (lookahead instanceof LeftSquare) {
+			return isStartOfType(index + 1);
+		}
+
 		return false;
 	}
-	
-	private Expr.Invoke parseInvokeStmt() {
+
+	private Expr.Invoke parseInvokeStmt(Indent parentIndent) {
 		int start = index;
 		Identifier name = matchIdentifier();
 		match("(");
@@ -269,7 +307,8 @@ public class Parser {
 		return new Expr.Invoke(name.text, args, sourceAttr(start, index - 1));
 	}
 
-	private Stmt.VariableDeclaration parseVariableDeclaration() {
+	private Stmt.VariableDeclaration parseVariableDeclaration(
+			Indent parentIndent) {
 		int start = index;
 		// Every variable declaration consists of a declared type and variable
 		// name.
@@ -283,24 +322,24 @@ public class Parser {
 			initialiser = parseCondition();
 		}
 		// Done.
-		return new Stmt.VariableDeclaration(type, id.text, initialiser, sourceAttr(start,
-				index - 1));
+		return new Stmt.VariableDeclaration(type, id.text, initialiser,
+				sourceAttr(start, index - 1));
 	}
-	
-	private Stmt.Return parseReturn() {
+
+	private Stmt.Return parseReturn(Indent parentIndent) {
 		int start = index;
 		// Every return statement begins with the return keyword!
 		matchKeyword("return");
 		Expr e = null;
 		// A return statement may optionally have a return expression.
-		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {			
+		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
 			e = parseCondition();
 		}
 		// Done.
 		return new Stmt.Return(e, sourceAttr(start, index - 1));
 	}
 
-	private Stmt.Print parsePrint() {
+	private Stmt.Print parsePrint(Indent parentIndent) {
 		int start = index;
 		matchKeyword("print");
 		checkNotEof();
@@ -309,7 +348,7 @@ public class Parser {
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseIf() {
+	private Stmt parseIf(Indent parentIndent) {
 		int start = index;
 		matchKeyword("if");
 		match("(");
@@ -335,7 +374,7 @@ public class Parser {
 		return new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseWhile() {
+	private Stmt parseWhile(Indent parentIndent) {
 		int start = index;
 		matchKeyword("while");
 		match("(");
@@ -347,7 +386,7 @@ public class Parser {
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseFor() {
+	private Stmt parseFor(Indent parentIndent) {
 		int start = index;
 		matchKeyword("for");
 		match("(");
@@ -364,7 +403,7 @@ public class Parser {
 				start, end - 1));
 	}
 
-	private Stmt parseAssign() {
+	private Stmt parseAssign(Indent parentIndent) {
 		// standard assignment
 		int start = index;
 		Expr lhs = parseCondition();
@@ -385,18 +424,21 @@ public class Parser {
 		if (index < tokens.size() && tokens.get(index) instanceof LogicalAnd) {
 			match("&&");
 			Expr c2 = parseCondition();
-			return new Expr.Binary(Expr.BOp.AND, c1, c2, sourceAttr(start, index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof LogicalOr) {
+			return new Expr.Binary(Expr.BOp.AND, c1, c2, sourceAttr(start,
+					index - 1));
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof LogicalOr) {
 			match("||");
 			Expr c2 = parseCondition();
-			return new Expr.Binary(Expr.BOp.OR, c1, c2, sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.OR, c1, c2, sourceAttr(start,
+					index - 1));
 		}
 		return c1;
 	}
 
 	private Expr parseConditionExpression() {
 		int start = index;
-		
+
 		Expr lhs = parseAppendExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof LessEquals) {
@@ -404,30 +446,36 @@ public class Parser {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.LTEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof LeftAngle) {
-			match("<");			
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof LeftAngle) {
+			match("<");
 			Expr rhs = parseAppendExpression();
-			return new Expr.Binary(Expr.BOp.LT, lhs, rhs, sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.LT, lhs, rhs, sourceAttr(start,
+					index - 1));
 		} else if (index < tokens.size()
 				&& tokens.get(index) instanceof GreaterEquals) {
 			match(">=");
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.GTEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof RightAngle) {
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof RightAngle) {
 			match(">");
 			Expr rhs = parseAppendExpression();
-			return new Expr.Binary(Expr.BOp.GT, lhs, rhs, sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.GT, lhs, rhs, sourceAttr(start,
+					index - 1));
 		} else if (index < tokens.size()
 				&& tokens.get(index) instanceof EqualsEquals) {
-			match("==");		
+			match("==");
 			Expr rhs = parseAppendExpression();
-			return new Expr.Binary(Expr.BOp.EQ, lhs, rhs, sourceAttr(start, index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof NotEquals) {
+			return new Expr.Binary(Expr.BOp.EQ, lhs, rhs, sourceAttr(start,
+					index - 1));
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof NotEquals) {
 			match("!=");
 			Expr rhs = parseAppendExpression();
-			return new Expr.Binary(Expr.BOp.NEQ, lhs, rhs,
-					sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.NEQ, lhs, rhs, sourceAttr(start,
+					index - 1));
 		} else {
 			return lhs;
 		}
@@ -438,31 +486,30 @@ public class Parser {
 		Expr lhs = parseAddSubExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof PlusPlus) {
-			match("++");			
+			match("++");
 			Expr rhs = parseAppendExpression();
-			return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs,
-					sourceAttr(start, index - 1));
-		} 
+			return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
+					index - 1));
+		}
 
 		return lhs;
 	}
 
-	
 	private Expr parseAddSubExpression() {
 		int start = index;
 		Expr lhs = parseMulDivExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof Plus) {
-			match("+");			
+			match("+");
 			Expr rhs = parseAddSubExpression();
-			return new Expr.Binary(Expr.BOp.ADD, lhs, rhs,
-					sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.ADD, lhs, rhs, sourceAttr(start,
+					index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof Minus) {
-			match("-");			
+			match("-");
 			Expr rhs = parseAddSubExpression();
-			return new Expr.Binary(Expr.BOp.SUB, lhs, rhs,
-					sourceAttr(start, index - 1));
-		} 
+			return new Expr.Binary(Expr.BOp.SUB, lhs, rhs, sourceAttr(start,
+					index - 1));
+		}
 
 		return lhs;
 	}
@@ -472,20 +519,22 @@ public class Parser {
 		Expr lhs = parseIndexTerm();
 
 		if (index < tokens.size() && tokens.get(index) instanceof Star) {
-			match("*");			
+			match("*");
 			Expr rhs = parseMulDivExpression();
-			return new Expr.Binary(Expr.BOp.MUL, lhs, rhs,
-					sourceAttr(start, index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof RightSlash) {
-			match("/");			
+			return new Expr.Binary(Expr.BOp.MUL, lhs, rhs, sourceAttr(start,
+					index - 1));
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof RightSlash) {
+			match("/");
 			Expr rhs = parseMulDivExpression();
-			return new Expr.Binary(Expr.BOp.DIV, lhs, rhs,
-					sourceAttr(start, index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof Percent) {
-			match("%");			
+			return new Expr.Binary(Expr.BOp.DIV, lhs, rhs, sourceAttr(start,
+					index - 1));
+		} else if (index < tokens.size()
+				&& tokens.get(index) instanceof Percent) {
+			match("%");
 			Expr rhs = parseMulDivExpression();
-			return new Expr.Binary(Expr.BOp.REM, lhs, rhs,
-					sourceAttr(start, index - 1));
+			return new Expr.Binary(Expr.BOp.REM, lhs, rhs, sourceAttr(start,
+					index - 1));
 		}
 
 		return lhs;
@@ -505,8 +554,7 @@ public class Parser {
 				match("[");
 				Expr rhs = parseAddSubExpression();
 				match("]");
-				lhs = new Expr.IndexOf(lhs, rhs,
-						sourceAttr(start, index - 1));
+				lhs = new Expr.IndexOf(lhs, rhs, sourceAttr(start, index - 1));
 			} else {
 				match(".");
 				String name = matchIdentifier().text;
@@ -530,16 +578,16 @@ public class Parser {
 		Token token = tokens.get(index);
 
 		if (token instanceof LeftBrace) {
-			match("(");			
-			if(isType(index)) {
+			match("(");
+			if (isStartOfType(index)) {
 				// indicates a cast
-				Type t = parseType();			
+				Type t = parseType();
 				checkNotEof();
 				match(")");
 				Expr e = parseCondition();
-				return new Expr.Cast(t,e,sourceAttr(start, index - 1));
+				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseCondition();			
+				Expr e = parseCondition();
 				checkNotEof();
 				match(")");
 				return e;
@@ -561,8 +609,9 @@ public class Parser {
 			return new Expr.Variable(matchIdentifier().text, sourceAttr(start,
 					index - 1));
 		} else if (token instanceof Lexer.Char) {
-			char val = match(Lexer.Char.class,"a character").value;
-			return new Expr.Constant(new Character(val), sourceAttr(start, index - 1));
+			char val = match(Lexer.Char.class, "a character").value;
+			return new Expr.Constant(new Character(val), sourceAttr(start,
+					index - 1));
 		} else if (token instanceof Int) {
 			int val = match(Int.class, "an integer").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
@@ -583,26 +632,26 @@ public class Parser {
 			match("!");
 			return new Expr.Unary(Expr.UOp.NOT, parseTerm(), sourceAttr(start,
 					index - 1));
-		} 
+		}
 		syntaxError("unrecognised term (\"" + token.text + "\")", token);
 		return null;
 	}
-	
+
 	private Expr parseListVal() {
 		int start = index;
 		ArrayList<Expr> exprs = new ArrayList<Expr>();
-		match("[");		
+		match("[");
 		boolean firstTime = true;
 		checkNotEof();
 		Token token = tokens.get(index);
 		while (!(token instanceof RightSquare)) {
 			if (!firstTime) {
 				match(",");
-				
+
 			}
 			firstTime = false;
 			exprs.add(parseCondition());
-			
+
 			checkNotEof();
 			token = tokens.get(index);
 		}
@@ -635,7 +684,7 @@ public class Parser {
 			match(":");
 
 			Expr e = parseCondition();
-			exprs.add(new Pair<String,Expr>(n.text, e));
+			exprs.add(new Pair<String, Expr>(n.text, e));
 			keys.add(n.text);
 			checkNotEof();
 			token = tokens.get(index);
@@ -646,15 +695,16 @@ public class Parser {
 
 	private Expr parseLengthOf() {
 		int start = index;
-		match("|");		
-		Expr e = parseIndexTerm();		
-		match("|");		
-		return new Expr.Unary(Expr.UOp.LENGTHOF, e, sourceAttr(start, index - 1));
+		match("|");
+		Expr e = parseIndexTerm();
+		match("|");
+		return new Expr.Unary(Expr.UOp.LENGTHOF, e,
+				sourceAttr(start, index - 1));
 	}
 
 	private Expr parseNegation() {
 		int start = index;
-		match("-");		
+		match("-");
 		Expr e = parseIndexTerm();
 
 		if (e instanceof Expr.Constant) {
@@ -694,7 +744,7 @@ public class Parser {
 
 	private Expr parseString() {
 		int start = index;
-		String s = match(Strung.class, "a string").string;    
+		String s = match(Strung.class, "a string").string;
 		return new Expr.Constant(s, sourceAttr(start, index - 1));
 	}
 
@@ -772,8 +822,8 @@ public class Parser {
 			match("}");
 			t = new Type.Record(types, sourceAttr(start, index - 1));
 		} else if (token instanceof LeftSquare) {
-			match("[");			
-			t = parseType();			
+			match("[");
+			t = parseType();
 			match("]");
 			t = new Type.List(t, sourceAttr(start, index - 1));
 		} else {
@@ -786,8 +836,8 @@ public class Parser {
 
 	private void checkNotEof() {
 		if (index >= tokens.size()) {
-			throw new SyntaxError("unexpected end-of-file", filename, index - 1,
-					index - 1);
+			throw new SyntaxError("unexpected end-of-file", filename,
+					index - 1, index - 1);
 		}
 		return;
 	}
@@ -796,12 +846,12 @@ public class Parser {
 		checkNotEof();
 		Token t = tokens.get(index);
 		if (!t.text.equals(op)) {
-			syntaxError("expecting '" + op  + "', found '" + t.text + "'", t);
+			syntaxError("expecting '" + op + "', found '" + t.text + "'", t);
 		}
 		index = index + 1;
 		return t;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private <T extends Token> T match(Class<T> c, String name) {
 		checkNotEof();
@@ -850,6 +900,14 @@ public class Parser {
 	}
 
 	private void syntaxError(String msg, Token t) {
-		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length() - 1);
+		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length()
+				- 1);
 	}
+
+	/**
+	 * An abstract indentation which represents the indentation of top-level
+	 * declarations, such as function declarations. This is used to simplify the
+	 * code for parsing indentation.
+	 */
+	private static final Indent ROOT_INDENT = new Indent("", 0);
 }
