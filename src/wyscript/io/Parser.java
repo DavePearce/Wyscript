@@ -21,6 +21,8 @@ package wyscript.io;
 import java.io.File;
 import java.util.*;
 
+import wyc.stages.WhileyLexer.Indent;
+import wyc.stages.WhileyLexer.LineComment;
 import wyscript.io.Lexer.*;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
@@ -54,18 +56,20 @@ public class Parser {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
 		
 		while (index < tokens.size()) {
-			Token t = tokens.get(index);			
+			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
 				Keyword k = (Keyword) t;
 				if (t.text.equals("type")) {
 					decls.add(parseTypeDeclaration());
-				} else if (t.text.equals("const")) {
+				} else if (t.text.equals("constant")) {
 					decls.add(parseConstantDeclaration());
+				} else if (t.text.equals("function")) {
+					decls.add(parseFunctionDeclaration());
 				} else {
-					decls.add(parseFunction());
+					syntaxError("unexpected keyword encountered: " + k.text, t);
 				}
 			} else {
-				decls.add(parseFunction());
+				syntaxError("unexpected token encountered: " + t.text, t);
 			}
 		}
 
@@ -77,9 +81,11 @@ public class Parser {
 		return new WyscriptFile(name, decls);
 	}
 
-	private FunDecl parseFunction() {
+	private FunDecl parseFunctionDeclaration() {
 		int start = index;
 
+		matchKeyword("function");
+		
 		Type ret = parseType();
 		Identifier name = matchIdentifier();
 
@@ -124,7 +130,7 @@ public class Parser {
 	private Decl parseConstantDeclaration() {
 		int start = index;
 
-		matchKeyword("const");
+		matchKeyword("constant");
 		Identifier name = matchIdentifier();
 		matchKeyword("is");
 
@@ -133,18 +139,40 @@ public class Parser {
 		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
 	}
 	
-	private List<Stmt> parseBlock() {
-		match("{");
+	private List<Stmt> parseBlock(Indent parentIndent) {
+		Indent indent = getIndent();
 		
-		ArrayList<Stmt> stmts = new ArrayList<Stmt>();
-		while (index < tokens.size()
-				&& !(tokens.get(index) instanceof RightCurly)) {
-			stmts.add(parseStatement(true));
-		}
+		if(indent == null || indent.lessThanEq(parentIndent)) {
+			// Indicates this block has ended.
+			return Collections.EMPTY_LIST;
+		} else {
 
-		match("}");
+			ArrayList<Stmt> stmts = new ArrayList<Stmt>();
+			while (indent != null && indent.equivalent(parentIndent)) {
+				parseIndent(indent);
+				stmts.add(parseStatement(true));
+			}
+			
+			GOT HERE
+
+			return stmts;
+		}
+	}
+	
+	private void parseIndent(Indent current) {
+		Indent next = getIndent();
+		if(next == null) {
+			
+		}
 		
-		return stmts;
+	}
+	
+	private Indent getIndent() {
+		if (index < tokens.size() && tokens.get(index) instanceof Indent) {
+			return (Indent) tokens.get(index);
+		} else {
+			return null;
+		}
 	}
 	
 	/**
