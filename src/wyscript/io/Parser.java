@@ -432,16 +432,20 @@ public class Parser {
 	 */
 	private Stmt parseIfStatement(Indent indent) {
 		int start = index;
+		// An if statement begins with the keyword "if"
 		matchKeyword("if");
-		
+		// Followed by an expression representing the condition.
 		Expr c = parseExpression();
+		// The a colon to signal the start of a block.
 		match(":");
 		matchEndLine();
 		
 		int end = index;
+		// First, parse the true branch, which is required
 		List<Stmt> tblk = parseBlock(indent);
-		List<Stmt> fblk = Collections.emptyList();
 		
+		// Second, attempt to parse the false branch, which is optional.
+		List<Stmt> fblk = Collections.emptyList();		
 		if (optionalMatch("else")) {
 			if (index < tokens.size() && tokens.get(index).text.equals("if")) {
 				Stmt if2 = parseIfStatement(indent);
@@ -452,10 +456,18 @@ public class Parser {
 				fblk = parseBlock(indent);
 			}
 		}
-
+		// Done!
 		return new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1));
 	}
 
+	/**
+	 * Parse a while statement, which has the form:
+	 * <pre>
+	 * "while" Expression ':' NewLine Block
+	 * </pre>
+	 * @param indent
+	 * @return
+	 */
 	private Stmt parseWhile(Indent indent) {
 		int start = index;
 		matchKeyword("while");
