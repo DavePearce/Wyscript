@@ -59,9 +59,9 @@ public class Parser {
 	 */
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
-		skipWhiteSpace();
-		
-		while (index < tokens.size()) {		
+		skipWhiteSpace(true);
+
+		while (index < tokens.size()) {
 			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
 				Keyword k = (Keyword) t;
@@ -71,11 +71,11 @@ public class Parser {
 					decls.add(parseConstantDeclaration());
 				} else {
 					decls.add(parseFunctionDeclaration());
-				} 
+				}
 			} else {
 				decls.add(parseFunctionDeclaration());
 			}
-			skipWhiteSpace();
+			skipWhiteSpace(true);
 		}
 
 		// Now, figure out module name from filename
@@ -238,7 +238,7 @@ public class Parser {
 		} else if (token.text.equals("print")) {
 			stmt = parsePrintStatement();
 		} else if (token.text.equals("if")) {
-			stmt = parseIf(indent);
+			stmt = parseIfStatement(indent);
 		} else if (token.text.equals("while")) {
 			stmt = parseWhile(indent);
 		} else if (token.text.equals("for")) {
@@ -355,6 +355,7 @@ public class Parser {
 		Identifier id = matchIdentifier();
 		// A variable declaration may optionally be assigned an initialiser
 		// expression.
+		skipWhiteSpace(false);
 		Expr initialiser = null;
 		if (index < tokens.size() && tokens.get(index) instanceof Equals) {
 			match("=");
@@ -419,7 +420,19 @@ public class Parser {
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseIf(Indent indent) {
+	/**
+	 * Parse an if statement, which is has the form:
+	 * 
+	 * <pre>
+	 * if Expression ':' NewLine Block ["else" ':' NewLine Block]
+	 * </pre>
+	 * 
+	 * As usual, the <code>else</block> is optional.
+	 * 
+	 * @param indent
+	 * @return
+	 */
+	private Stmt parseIfStatement(Indent indent) {
 		int start = index;
 		matchKeyword("if");
 		match("(");
@@ -434,7 +447,7 @@ public class Parser {
 			matchKeyword("else");
 
 			if (index < tokens.size() && tokens.get(index).text.equals("if")) {
-				Stmt if2 = parseIf(indent);
+				Stmt if2 = parseIfStatement(indent);
 				fblk = new ArrayList<Stmt>();
 				fblk.add(if2);
 			} else {
@@ -995,7 +1008,7 @@ public class Parser {
 	 * called from contexts where we are expecting something to follow.
 	 */
 	private void checkNotEof() {
-		skipWhiteSpace();
+		skipWhiteSpace(true);
 		
 		if (index >= tokens.size()) {
 			throw new SyntaxError("unexpected end-of-file", filename,
@@ -1007,8 +1020,9 @@ public class Parser {
 	/**
 	 * Skip over any whitespace characters.
 	 */
-	private void skipWhiteSpace() {
-		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace) {
+	private void skipWhiteSpace(boolean includeNewLines) {
+		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace
+				&& (includeNewLines || !(tokens.get(index) instanceof NewLine))) {
 			index++;
 		}
 	}
