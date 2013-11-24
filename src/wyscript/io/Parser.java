@@ -50,6 +50,13 @@ public class Parser {
 		this.userDefinedTypes = new HashSet<String>();
 	}
 
+	/**
+	 * Read a <code>WyscriptFile</code> from the token stream. If the stream is
+	 * invalid in some way (e.g. contains a syntax error, etc) then a
+	 * <code>SyntaxError</code> is thrown.
+	 * 
+	 * @return
+	 */
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
 		skipWhiteSpace();
