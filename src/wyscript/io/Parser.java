@@ -59,7 +59,7 @@ public class Parser {
 	 */
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
-		skipWhiteSpace(true);
+		skipWhiteSpace();
 
 		while (index < tokens.size()) {
 			Token t = tokens.get(index);
@@ -75,7 +75,7 @@ public class Parser {
 			} else {
 				decls.add(parseFunctionDeclaration());
 			}
-			skipWhiteSpace(true);
+			skipWhiteSpace();
 		}
 
 		// Now, figure out module name from filename
@@ -355,10 +355,8 @@ public class Parser {
 		Identifier id = matchIdentifier();
 		// A variable declaration may optionally be assigned an initialiser
 		// expression.
-		skipWhiteSpace(false);
 		Expr initialiser = null;
-		if (index < tokens.size() && tokens.get(index) instanceof Equals) {
-			match("=");
+		if (optionalMatch("=")) {
 			initialiser = parseExpression();
 		}
 		// Finally, a new line indicates the end-of-statement
@@ -435,17 +433,16 @@ public class Parser {
 	private Stmt parseIfStatement(Indent indent) {
 		int start = index;
 		matchKeyword("if");
-		match("(");
+		
 		Expr c = parseExpression();
-		match(")");
+		match(":");
+		matchEndLine();
+		
 		int end = index;
 		List<Stmt> tblk = parseBlock(indent);
 		List<Stmt> fblk = Collections.emptyList();
-
-		if ((index + 1) < tokens.size()
-				&& tokens.get(index).text.equals("else")) {
-			matchKeyword("else");
-
+		
+		if (optionalMatch("else")) {
 			if (index < tokens.size() && tokens.get(index).text.equals("if")) {
 				Stmt if2 = parseIfStatement(indent);
 				fblk = new ArrayList<Stmt>();
@@ -929,6 +926,31 @@ public class Parser {
 		return t;
 	}
 
+	/**
+	 * This method attempts to match an optional token whilst skipping any
+	 * whitespace in between. This method does not update the index unless it
+	 * the match is successful.
+	 * 
+	 * @param text
+	 * @return <code>true</code> if the match was successful, or
+	 *         <code>false</code> otherwise.
+	 */
+	private boolean optionalMatch(String text) {
+		int tmp = index;
+		// First, skipp as much whitespace as possible
+		while (tmp < tokens.size() && tokens.get(tmp) instanceof WhiteSpace) {
+			tmp++;
+		}
+		if (tmp < tokens.size() && tokens.get(tmp).text.equals(text)) {
+			// match!
+			index = tmp + 1;
+			return true;
+		} else {
+			// no match
+			return false;
+		}
+	}
+	
 	private Token match(String op) {
 		checkNotEof();
 		Token t = tokens.get(index);
@@ -1008,7 +1030,7 @@ public class Parser {
 	 * called from contexts where we are expecting something to follow.
 	 */
 	private void checkNotEof() {
-		skipWhiteSpace(true);
+		skipWhiteSpace();
 		
 		if (index >= tokens.size()) {
 			throw new SyntaxError("unexpected end-of-file", filename,
@@ -1017,12 +1039,12 @@ public class Parser {
 		return;
 	}
 
+	
 	/**
 	 * Skip over any whitespace characters.
 	 */
-	private void skipWhiteSpace(boolean includeNewLines) {
-		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace
-				&& (includeNewLines || !(tokens.get(index) instanceof NewLine))) {
+	private void skipWhiteSpace() {
+		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace) {
 			index++;
 		}
 	}
