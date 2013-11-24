@@ -234,9 +234,9 @@ public class Parser {
 		Token token = tokens.get(index);
 		Stmt stmt;
 		if (token.text.equals("return")) {
-			stmt = parseReturn();
+			stmt = parseReturnStatement();
 		} else if (token.text.equals("print")) {
-			stmt = parsePrint();
+			stmt = parsePrintStatement();
 		} else if (token.text.equals("if")) {
 			stmt = parseIf(indent);
 		} else if (token.text.equals("while")) {
@@ -301,14 +301,18 @@ public class Parser {
 	 * Parse an invoke statement, which has the form:
 	 * 
 	 * <pre>
-	 * Identifier '(' ( Expression )* ')'
+	 * Identifier '(' ( Expression )* ')' NewLine
 	 * </p>
 	 * 
 	 * @return
 	 */
 	private Expr.Invoke parseInvokeStatement() {
 		int start = index;
+		// An invoke statement begins with the name of the function to be
+		// invoked.
 		Identifier name = matchIdentifier();
+		// This is followed by zero or more comma-separated arguments enclosed
+		// in braces.
 		match("(");
 		boolean firstTime = true;
 		ArrayList<Expr> args = new ArrayList<Expr>();
@@ -324,10 +328,25 @@ public class Parser {
 
 		}
 		match(")");
-
-		return new Expr.Invoke(name.text, args, sourceAttr(start, index - 1));
+		// Finally, a new line indicates the end-of-statement
+		int end = index;
+		matchEndLine();	
+		// Done
+		return new Expr.Invoke(name.text, args, sourceAttr(start, end - 1));
 	}
 
+	/**
+	 * Parse a variable declaration statement, which has the form:
+	 * 
+	 * <pre>
+	 * Type Identifier ['=' Expression] NewLine
+	 * </pre>
+	 * 
+	 * The optional <code>Expression</code> assignment is referred to as an
+	 * <i>initialiser</i>.
+	 * 
+	 * @return
+	 */
 	private Stmt.VariableDeclaration parseVariableDeclaration() {
 		int start = index;
 		// Every variable declaration consists of a declared type and variable
@@ -341,30 +360,62 @@ public class Parser {
 			match("=");
 			initialiser = parseExpression();
 		}
+		// Finally, a new line indicates the end-of-statement
+		int end = index;
+		matchEndLine();		
 		// Done.
 		return new Stmt.VariableDeclaration(type, id.text, initialiser,
-				sourceAttr(start, index - 1));
+				sourceAttr(start, end - 1));
 	}
 
-	private Stmt.Return parseReturn() {
+	/**
+	 * Parse a return statement, which has the form:
+	 * 
+	 * <pre>
+	 * "return" [Expression] NewLine
+	 * </pre>
+	 * 
+	 * The optional expression is referred to as the <i>return value</i>.
+	 * 
+	 * @return
+	 */
+	private Stmt.Return parseReturnStatement() {
 		int start = index;
 		// Every return statement begins with the return keyword!
 		matchKeyword("return");
 		Expr e = null;
 		// A return statement may optionally have a return expression.
+		
+		// FIXME: resolve look ahead problem		
 		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
 			e = parseExpression();
 		}
+		// Finally, a new line indicates the end-of-statement
+		int end = index;
+		matchEndLine();		
 		// Done.
-		return new Stmt.Return(e, sourceAttr(start, index - 1));
+		return new Stmt.Return(e, sourceAttr(start, end - 1));
 	}
 
-	private Stmt.Print parsePrint() {
+	/**
+	 * Parse a print statement, which has the form:
+	 * 
+	 * <pre>
+	 * "print" Expression
+	 * </pre>
+	 * 
+	 * @return
+	 */
+	private Stmt.Print parsePrintStatement() {
 		int start = index;
+		// A print statement begins with the keyword "print"
 		matchKeyword("print");
-		checkNotEof();
+		// Followed by the expression who's value will be printed.
 		Expr e = parseExpression();
+		// Finally, a new line indicates the end-of-statement
 		int end = index;
+		matchEndLine();
+		// Done
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
 
