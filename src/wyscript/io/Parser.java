@@ -448,6 +448,7 @@ public class Parser {
 				fblk = new ArrayList<Stmt>();
 				fblk.add(if2);
 			} else {
+				match(":");
 				fblk = parseBlock(indent);
 			}
 		}
