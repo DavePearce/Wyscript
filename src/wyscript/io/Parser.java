@@ -139,7 +139,7 @@ public class Parser {
 		Identifier name = matchIdentifier();
 		matchKeyword("is");
 
-		Expr e = parseLogicalExpression();
+		Expr e = parseExpression();
 		int end = index;
 		matchEndLine();
 		
@@ -175,7 +175,6 @@ public class Parser {
 			//
 			return Collections.EMPTY_LIST;
 		} else {
-			System.out.println("STAGE 2");
 			// Initial indent is valid, so we proceed parsing statements with
 			// the appropriate level of indent.
 			//
@@ -202,8 +201,8 @@ public class Parser {
 	}
 
 	/**
-	 * Determine the indentation as determined by an Indent token at this point
-	 * (if any). If there is no indentation then <code>null</code> is returned.
+	 * Determine the indentation as given by the Indent token at this point (if
+	 * any). If none, then <code>null</code> is returned.
 	 * 
 	 * @return
 	 */
@@ -216,7 +215,12 @@ public class Parser {
 	}
 
 	/**
-	 * Parse a given statement.
+	 * Parse a given statement. There are essentially two forms of statement:
+	 * <code>simple</code> and <code>compound</code>. Simple statements (e.g.
+	 * assignment, <code>print</code>, etc) are always occupy a single line and
+	 * are terminated by a <code>NewLine</code> token. Compound statements (e.g.
+	 * <code>if</code>, <code>while</code>, etc) themselves contain blocks of
+	 * statements and are not (generally) terminated by a <code>NewLine</code>. 
 	 * 
 	 * @param indent
 	 *            The indent level for the current statement. This is needed in
@@ -242,13 +246,13 @@ public class Parser {
 		} else if ((index + 1) < tokens.size()
 				&& tokens.get(index + 1) instanceof LeftBrace) {
 			// must be a method invocation
-			stmt = parseInvokeStmt();
+			stmt = parseInvokeStatement();
 		} else if (isStartOfType(index)) {
 			stmt = parseVariableDeclaration();
 		} else {
 			// invocation or assignment
 			int start = index;
-			Expr t = parseLogicalExpression();
+			Expr t = parseExpression();
 			if (t instanceof Expr.Invoke) {
 				stmt = (Expr.Invoke) t;
 			} else {
@@ -293,7 +297,16 @@ public class Parser {
 		return false;
 	}
 
-	private Expr.Invoke parseInvokeStmt() {
+	/**
+	 * Parse an invoke statement, which has the form:
+	 * 
+	 * <pre>
+	 * Identifier '(' ( Expression )* ')'
+	 * </p>
+	 * 
+	 * @return
+	 */
+	private Expr.Invoke parseInvokeStatement() {
 		int start = index;
 		Identifier name = matchIdentifier();
 		match("(");
@@ -306,7 +319,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseLogicalExpression();
+			Expr e = parseExpression();
 			args.add(e);
 
 		}
@@ -326,7 +339,7 @@ public class Parser {
 		Expr initialiser = null;
 		if (index < tokens.size() && tokens.get(index) instanceof Equals) {
 			match("=");
-			initialiser = parseLogicalExpression();
+			initialiser = parseExpression();
 		}
 		// Done.
 		return new Stmt.VariableDeclaration(type, id.text, initialiser,
@@ -340,7 +353,7 @@ public class Parser {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
-			e = parseLogicalExpression();
+			e = parseExpression();
 		}
 		// Done.
 		return new Stmt.Return(e, sourceAttr(start, index - 1));
@@ -350,7 +363,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("print");
 		checkNotEof();
-		Expr e = parseLogicalExpression();
+		Expr e = parseExpression();
 		int end = index;
 		return new Stmt.Print(e, sourceAttr(start, end - 1));
 	}
@@ -359,7 +372,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("if");
 		match("(");
-		Expr c = parseLogicalExpression();
+		Expr c = parseExpression();
 		match(")");
 		int end = index;
 		List<Stmt> tblk = parseBlock(indent);
@@ -385,7 +398,7 @@ public class Parser {
 		int start = index;
 		matchKeyword("while");
 		match("(");
-		Expr condition = parseLogicalExpression();
+		Expr condition = parseExpression();
 		match(")");
 		int end = index;
 		List<Stmt> blk = parseBlock(indent);
@@ -399,7 +412,7 @@ public class Parser {
 		match("(");
 		Stmt.VariableDeclaration declaration = parseVariableDeclaration();
 		match(";");
-		Expr condition = parseLogicalExpression();
+		Expr condition = parseExpression();
 		match(";");
 		Stmt increment = parseStatement(indent);
 		int end = index;
@@ -418,30 +431,30 @@ public class Parser {
 	private Stmt parseAssign() {
 		// standard assignment
 		int start = index;
-		Expr lhs = parseLogicalExpression();
+		Expr lhs = parseExpression();
 		if (!(lhs instanceof Expr.LVal)) {
 			syntaxError("expecting lval, found " + lhs + ".", lhs);
 		}
 		match("=");
-		Expr rhs = parseLogicalExpression();
+		Expr rhs = parseExpression();
 		int end = index;
 		return new Stmt.Assign((Expr.LVal) lhs, rhs, sourceAttr(start, end - 1));
 	}
 
-	private Expr parseLogicalExpression() {
+	private Expr parseExpression() {
 		checkNotEof();
 		int start = index;
 		Expr c1 = parseConditionExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof LogicalAnd) {
 			match("&&");
-			Expr c2 = parseLogicalExpression();
+			Expr c2 = parseExpression();
 			return new Expr.Binary(Expr.BOp.AND, c1, c2, sourceAttr(start,
 					index - 1));
 		} else if (index < tokens.size()
 				&& tokens.get(index) instanceof LogicalOr) {
 			match("||");
-			Expr c2 = parseLogicalExpression();
+			Expr c2 = parseExpression();
 			return new Expr.Binary(Expr.BOp.OR, c1, c2, sourceAttr(start,
 					index - 1));
 		}
@@ -602,10 +615,10 @@ public class Parser {
 				Type t = parseType();
 				checkNotEof();
 				match(")");
-				Expr e = parseLogicalExpression();
+				Expr e = parseExpression();
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseLogicalExpression();
+				Expr e = parseExpression();
 				checkNotEof();
 				match(")");
 				return e;
@@ -668,7 +681,7 @@ public class Parser {
 
 			}
 			firstTime = false;
-			exprs.add(parseLogicalExpression());
+			exprs.add(parseExpression());
 
 			checkNotEof();
 			token = tokens.get(index);
@@ -701,7 +714,7 @@ public class Parser {
 
 			match(":");
 
-			Expr e = parseLogicalExpression();
+			Expr e = parseExpression();
 			exprs.add(new Pair<String, Expr>(n.text, e));
 			keys.add(n.text);
 			checkNotEof();
@@ -752,7 +765,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseLogicalExpression();
+			Expr e = parseExpression();
 
 			args.add(e);
 		}
