@@ -520,14 +520,11 @@ public class Parser {
 		int start = index;
 		Expr c1 = parseConditionExpression();
 
-		if (index < tokens.size() && tokens.get(index) instanceof LogicalAnd) {
-			match("&&");
+		if (optionalMatch(SYMBOL.LogicalAnd)) {
 			Expr c2 = parseExpression();
 			return new Expr.Binary(Expr.BOp.AND, c1, c2, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof LogicalOr) {
-			match("||");
+		} else if (optionalMatch(SYMBOL.LogicalOr)) {
 			Expr c2 = parseExpression();
 			return new Expr.Binary(Expr.BOp.OR, c1, c2, sourceAttr(start,
 					index - 1));
@@ -962,6 +959,34 @@ public class Parser {
 			// no match
 			return false;
 		}
+	}
+	
+	/**
+	 * This method attempts to match an optional symbol whilst skipping any
+	 * whitespace in between. This method does not update the index unless it
+	 * the match is successful.
+	 * 
+	 * @param symbol 
+	 * @return <code>true</code> if the match was successful, or
+	 *         <code>false</code> otherwise.
+	 */
+	private boolean optionalMatch(Lexer.SYMBOL symbol) {
+		int tmp = index;
+		// First, skipp as much whitespace as possible
+		while (tmp < tokens.size() && tokens.get(tmp) instanceof WhiteSpace) {
+			tmp++;
+		}
+		if (tmp < tokens.size()) {
+			Token token = tokens.get(tmp);
+			if (token instanceof Lexer.Symbol
+					&& ((Lexer.Symbol) token).symbol == symbol) {
+				// match!
+				index = tmp + 1;
+				return true;
+			}
+		} 
+		// no match
+		return false;		
 	}
 	
 	private Token match(String op) {
