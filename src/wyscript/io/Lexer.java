@@ -264,83 +264,75 @@ public class Lexer {
 		char c = input.charAt(pos);
 
 		if (c == '.') {			
-			return new Dot(pos++);
+			return new Symbol(SYMBOL.Dot,".",pos++);
 		} else if (c == ',') {
-			return new Comma(pos++);
+			return new Symbol(SYMBOL.Comma,",",pos++);
 		} else if (c == ';') {
-			return new SemiColon(pos++);
+			return new Symbol(SYMBOL.SemiColon,";",pos++);
 		} else if (c == ':') {
-			return new Colon(pos++);
+			return new Symbol(SYMBOL.Colon,":",pos++);
 		} else if (c == '|') {
-			return new Bar(pos++);
+			return new Symbol(SYMBOL.Bar,"|",pos++);
 		} else if (c == '(') {
-			return new LeftBrace(pos++);
+			return new Symbol(SYMBOL.LeftBrace,"(",pos++);
 		} else if (c == ')') {
-			return new RightBrace(pos++);
+			return new Symbol(SYMBOL.RightBrace,")",pos++);
 		} else if (c == '[') {
-			return new LeftSquare(pos++);
+			return new Symbol(SYMBOL.LeftSquare,"[",pos++);
 		} else if (c == ']') {
-			return new RightSquare(pos++);
+			return new Symbol(SYMBOL.RightSquare,"]",pos++);
 		} else if (c == '{') {
-			return new LeftCurly(pos++);
+			return new Symbol(SYMBOL.LeftCurly,"{",pos++);
 		} else if (c == '}') {
-			return new RightCurly(pos++);
+			return new Symbol(SYMBOL.RightCurly,"}",pos++);
 		} else if (c == '+') {
 			if((pos+1) < input.length() && input.charAt(pos+1) == '+') {
 				pos = pos + 2;
-				return new PlusPlus(pos);
+				return new Symbol(SYMBOL.PlusPlus,"++",pos);
 			} else {
-				return new Plus(pos++);
+				return new Symbol(SYMBOL.Plus,"+",pos++);
 			}
 		} else if (c == '-') {			
-			return new Minus(pos++);
+			return new Symbol(SYMBOL.Minus,"-",pos++);
 		} else if (c == '*') {
-			return new Star(pos++);
+			return new Symbol(SYMBOL.Star,"*",pos++);
 		} else if (c == '&' && (pos + 1) < input.length()
 				&& input.charAt(pos + 1) == '&') {
 			pos += 2;
-			return new LogicalAnd("&&", pos - 2);
+			return new Symbol(SYMBOL.LogicalAnd,"&&", pos - 2);
 		} else if (c == '/') {			
-			return new RightSlash(pos++);
+			return new Symbol(SYMBOL.RightSlash,"/",pos++);
 		} else if (c == '%') {			
-			return new Percent(pos++);
+			return new Symbol(SYMBOL.Percent,"%",pos++);
 		} else if (c == '!') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new NotEquals("!=", pos - 2);
+				return new Symbol(SYMBOL.NotEquals, "!=", pos - 2);
 			} else {
-				return new Shreak(pos++);
+				return new Symbol(SYMBOL.Shreak,"!",pos++);
 			}
 		} else if (c == '=') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new EqualsEquals(pos - 2);
+				return new Symbol(SYMBOL.EqualsEquals,"==",pos - 2);
 			} else {
-				return new Equals(pos++);
+				return new Symbol(SYMBOL.Equals,"=",pos++);
 			}
 		} else if (c == '<') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new LessEquals("<=", pos - 2);
+				return new Symbol(SYMBOL.LessEquals, "<=", pos - 2);
 			} else {
-				return new LeftAngle(pos++);
+				return new Symbol(SYMBOL.LeftAngle, "<", pos++);
 			}
 		} else if (c == '>') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new GreaterEquals(">=", pos - 2);
+				return new Symbol(SYMBOL.GreaterEquals,">=", pos - 2);
 			} else {
-				return new RightAngle(pos++);
+				return new Symbol(SYMBOL.RightAngle,">",pos++);
 			}
-		} else if (c == UC_LESSEQUALS) {
-			return new LessEquals("" + UC_LESSEQUALS, pos++);
-		} else if (c == UC_GREATEREQUALS) {
-			return new GreaterEquals("" + UC_GREATEREQUALS, pos++);
-		} else if (c == UC_LOGICALOR) {
-			return new LogicalOr("" + UC_LOGICALOR, pos++);
-		} else if (c == UC_LOGICALAND) {
-			return new LogicalAnd("" + UC_LOGICALAND, pos++);
-		}
+		} 
 
 		syntaxError("unknown operator encountered: " + c);
 		return null;
@@ -650,6 +642,7 @@ public class Lexer {
 	public enum SYMBOL {
 		Comma,
 		SemiColon,
+		Colon,
 		Bar,
 		LeftBrace,
 		RightBrace,
@@ -684,7 +677,7 @@ public class Lexer {
 		
 		public Symbol(SYMBOL symbol, String text, int pos) {
 			super(text, pos);
-			this.symobl = symbol;
+			this.symbol = symbol;
 		}
 	}
 }
