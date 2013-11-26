@@ -537,38 +537,27 @@ public class Parser {
 
 		Expr lhs = parseAppendExpression();
 
-		if (index < tokens.size() && tokens.get(index) instanceof LessEquals) {
-			match("<=");
+		if (optionalMatch(SYMBOL.LessEquals)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.LTEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof LeftAngle) {
-			match("<");
+		} else if (optionalMatch(SYMBOL.LeftAngle)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.LT, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof GreaterEquals) {
-			match(">=");
+		} else if (optionalMatch(SYMBOL.GreaterEquals)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.GTEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof RightAngle) {
-			match(">");
+		} else if (optionalMatch(SYMBOL.RightAngle)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.GT, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof EqualsEquals) {
-			match("==");
+		} else if (optionalMatch(SYMBOL.EqualsEquals)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.EQ, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof NotEquals) {
-			match("!=");
+		} else if (optionalMatch(SYMBOL.NotEquals)) {
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.NEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
