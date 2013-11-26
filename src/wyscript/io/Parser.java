@@ -288,7 +288,7 @@ public class Parser {
 		} else if (lookahead instanceof Identifier) {
 			Identifier id = (Identifier) lookahead;
 			return userDefinedTypes.contains(id.text);
-		} else if (lookahead instanceof LeftCurly) {
+		} else if (lookahead instanceof Symbol && ((Symbol)lookahead).symbol == SYMBOL.LeftCurly) {
 			return isStartOfType(index + 1);
 		} else if (lookahead instanceof LeftSquare) {
 			return isStartOfType(index + 1);
@@ -600,20 +600,15 @@ public class Parser {
 		int start = index;
 		Expr lhs = parseIndexTerm();
 
-		if (index < tokens.size() && tokens.get(index) instanceof Star) {
-			match("*");
+		if (optionalMatch(SYMBOL.Star)) {
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.MUL, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof RightSlash) {
-			match("/");
+		} else if (optionalMatch(SYMBOL.RightSlash)) {
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.DIV, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size()
-				&& tokens.get(index) instanceof Percent) {
-			match("%");
+		} else if(optionalMatch(SYMBOL.Percent)) {
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.REM, lhs, rhs, sourceAttr(start,
 					index - 1));
@@ -665,19 +660,16 @@ public class Parser {
 		int start = index;
 		Token token = tokens.get(index);
 
-		if (token instanceof LeftBrace) {
-			match("(");
+		if (optionalMatch(SYMBOL.LeftBrace)) {			
 			if (isStartOfType(index)) {
 				// indicates a cast
 				Type t = parseType();
-				checkNotEof();
-				match(")");
+				match(SYMBOL.RightBrace);
 				Expr e = parseExpression();
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseExpression();
-				checkNotEof();
-				match(")");
+				Expr e = parseExpression();				
+				match(SYMBOL.RightBrace);
 				return e;
 			}
 		} else if ((index + 1) < tokens.size() && token instanceof Identifier
@@ -973,6 +965,10 @@ public class Parser {
 		} 
 		// no match
 		return false;		
+	}
+	
+	private boolean lookahead(Lexer.SYMBOL symbol) {
+		
 	}
 	
 	private Token match(String op) {
