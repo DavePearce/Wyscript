@@ -570,8 +570,7 @@ public class Parser {
 		int start = index;
 		Expr lhs = parseAddSubExpression();
 
-		if (index < tokens.size() && tokens.get(index) instanceof PlusPlus) {
-			match("++");
+		if (optionalMatch(SYMBOL.PlusPlus)) {			
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
 					index - 1));
@@ -584,13 +583,11 @@ public class Parser {
 		int start = index;
 		Expr lhs = parseMulDivExpression();
 
-		if (index < tokens.size() && tokens.get(index) instanceof Plus) {
-			match("+");
+		if (optionalMatch(SYMBOL.Plus)) {			
 			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(Expr.BOp.ADD, lhs, rhs, sourceAttr(start,
 					index - 1));
-		} else if (index < tokens.size() && tokens.get(index) instanceof Minus) {
-			match("-");
+		} else if (optionalMatch(SYMBOL.Minus)) {
 			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(Expr.BOp.SUB, lhs, rhs, sourceAttr(start,
 					index - 1));
