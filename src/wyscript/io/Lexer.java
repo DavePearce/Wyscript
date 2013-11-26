@@ -647,199 +647,44 @@ public class Lexer {
 		}
 	}
 	
-	public static class Comma extends Token {
-		public Comma(int pos) {
-			super(",", pos);
-		}
-	}
-
-	public static class SemiColon extends Token {
-		public SemiColon(int pos) {
-			super(";", pos);
-		}
-	}
-
-	public static class Colon extends Token {
-		public Colon(int pos) {
-			super(":", pos);
-		}
-	}
-	
-	public static class Bar extends Token {
-		public Bar(int pos) {
-			super("|", pos);
-		}
-	}
-
-	public static class LeftBrace extends Token {
-
-		public LeftBrace(int pos) {
-			super("(", pos);
-		}
-	}
-
-	public static class RightBrace extends Token {
-
-		public RightBrace(int pos) {
-			super(")", pos);
-		}
-	}
-
-	public static class LeftSquare extends Token {
-
-		public LeftSquare(int pos) {
-			super("[", pos);
-		}
-	}
-
-	public static class RightSquare extends Token {
-
-		public RightSquare(int pos) {
-			super("]", pos);
-		}
-	}
-
-	public static class LeftAngle extends Token {
-
-		public LeftAngle(int pos) {
-			super("<", pos);
-		}
-	}
-
-	public static class RightAngle extends Token {
-
-		public RightAngle(int pos) {
-			super(">", pos);
-		}
-	}
-
-	public static class LeftCurly extends Token {
-
-		public LeftCurly(int pos) {
-			super("{", pos);
-		}
-	}
-
-	public static class RightCurly extends Token {
-
-		public RightCurly(int pos) {
-			super("}", pos);
-		}
-	}
-
-	public static class PlusPlus extends Token {
-		public PlusPlus(int pos) {
-			super("++", pos);
-		}
+	public enum SYMBOL {
+		Comma,
+		SemiColon,
+		Bar,
+		LeftBrace,
+		RightBrace,
+		LeftSquare,
+		RightSquare,
+		LeftAngle,
+		RightAngle,
+		LeftCurly,
+		RightCurly,
+		PlusPlus,
+		Plus,
+		Minus,
+		Star,
+		Divide,
+		LeftSlash,
+		RightSlash,
+		Percent,
+		Shreak,
+		Dot,
+		Equals,
+		EqualsEquals,
+		NotEquals,
+		LessEquals,
+		GreaterEquals,
+		LogicalAnd,
+		LogicalOr,
+		LogicalNot
 	}
 	
-	public static class Plus extends Token {
-		public Plus(int pos) {
-			super("+", pos);
-		}
-	}
-
-	public static class Minus extends Token {
-		public Minus(int pos) {
-			super("-", pos);
-		}
-	}
-
-	public static class Star extends Token {
-
-		public Star(int pos) {
-			super("*", pos);
-		}
-	}
-
-	public static class LeftSlash extends Token {
-
-		public LeftSlash(int pos) {
-			super("\\", pos);
-		}
-	}
-	
-	public static class RightSlash extends Token {
-
-		public RightSlash(int pos) {
-			super("/", pos);
-		}
-	}
-
-	public static class Percent extends Token {
-
-		public Percent(int pos) {
-			super("%", pos);
-		}
-	}
-
-	public static class Shreak extends Token {
-
-		public Shreak(int pos) {
-			super("!", pos);
-		}
-	}
-
-	public static class Dot extends Token {
-
-		public Dot(int pos) {
-			super(".", pos);
-		}
-	}
-
-	public static class Equals extends Token {
-
-		public Equals(int pos) {
-			super("=", pos);
-		}
-	}
-
-	public static class EqualsEquals extends Token {
-
-		public EqualsEquals(int pos) {
-			super("==", pos);
-		}
-	}
-
-	public static class NotEquals extends Token {
-
-		public NotEquals(String text, int pos) {
+	public static class Symbol extends Token {
+		public final SYMBOL symbol;
+		
+		public Symbol(SYMBOL symbol, String text, int pos) {
 			super(text, pos);
-		}
-	}
-
-	public static class LessEquals extends Token {
-
-		public LessEquals(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	public static class GreaterEquals extends Token {
-
-		public GreaterEquals(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	public static class LogicalAnd extends Token {
-
-		public LogicalAnd(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	public static class LogicalOr extends Token {
-
-		public LogicalOr(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	public static class LogicalNot extends Token {
-
-		public LogicalNot(String text, int pos) {
-			super(text, pos);
+			this.symobl = symbol;
 		}
 	}
 }
