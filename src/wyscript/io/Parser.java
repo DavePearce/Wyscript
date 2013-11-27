@@ -371,9 +371,9 @@ public class Parser {
 		int start = header.start;
 		Expr e = null;
 		// A return statement may optionally have a return expression.
+		int next = skipLineSpace(index);
 
-		// FIXME: resolve look ahead problem
-		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
+		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
 			e = parseExpression();
 		}
 		// Finally, a new line indicates the end-of-statement
@@ -435,15 +435,12 @@ public class Parser {
 
 		// Second, attempt to parse the false branch, which is optional.
 		List<Stmt> fblk = Collections.emptyList();
-		if (tryAndMatch(Else) != null) {
-			if (index < tokens.size() && tokens.get(index).text.equals("if")) {
-				Stmt if2 = parseIfStatement(indent);
-				fblk = new ArrayList<Stmt>();
-				fblk.add(if2);
-			} else {
-				match(Colon);
-				fblk = parseBlock(indent);
-			}
+		if (tryAndMatch(Else) != null) {	
+			
+			// TODO: support "else if" chaining.
+			
+			match(Colon);
+			fblk = parseBlock(indent);
 		}
 		// Done!
 		return new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1));
@@ -970,13 +967,8 @@ public class Parser {
 	 * end of the current statement.
 	 */
 	private void matchEndLine() {
-		// First, parse all whitespace characters (and return if we reach the
-		// NewLine we're looking for)
-		Token token = null;
-		while (index < tokens.size()
-				&& (token = tokens.get(index)).kind == Indent) {
-			index++;
-		}
+		// First, parse all whitespace characters except for new lines
+		index = skipLineSpace(index);
 
 		// Second, check whether we've reached the end-of-file (as signaled by
 		// running out of tokens), or we've encountered some token which not a
@@ -984,7 +976,7 @@ public class Parser {
 		if (index >= tokens.size()) {
 			throw new SyntaxError("unexpected end-of-file", filename,
 					index - 1, index - 1);
-		} else if (token == null || token.kind != NewLine) {
+		} else if (tokens.get(index).kind != NewLine) {
 			syntaxError("expected end-of-line", tokens.get(index));
 		}
 	}
@@ -1021,14 +1013,35 @@ public class Parser {
 	}
 	
 	/**
+	 * Skip over any whitespace characters that are permitted on a given line
+	 * (i.e. all except newlines), starting from a given index and returning the
+	 * first index passed any whitespace encountered.
+	 */
+	private int skipLineSpace(int index) {
+		while (index < tokens.size() && isLineSpace(tokens.get(index))) {
+			index++;
+		}
+		return index;
+	}
+	
+	/**
 	 * Define what is considered to be whitespace.
 	 * 
 	 * @param token
 	 * @return
 	 */
 	private boolean isWhiteSpace(Token token) {
-		return token.kind == Token.Kind.NewLine
-				|| token.kind == Token.Kind.Indent;
+		return token.kind == Token.Kind.NewLine || isLineSpace(token);
+	}
+	
+	/**
+	 * Define what is considered to be linespace.
+	 * 
+	 * @param token
+	 * @return
+	 */
+	private boolean isLineSpace(Token token) {
+		return token.kind == Token.Kind.Indent;
 	}
 	
 	/**
