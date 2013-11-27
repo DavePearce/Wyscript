@@ -26,6 +26,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import wyscript.util.SyntaxError;
@@ -113,17 +114,17 @@ public class Lexer {
 			if (pos < input.length() && input.charAt(pos) == '.') {
 				// this is case for range e.g. 0..1
 				pos = pos - 1;
-				int r = new BigInteger(input.substring(start, pos)).intValue();
-				return new Int(r, input.substring(start, pos), start);
+				return new Token(Token.Kind.IntValue, input.substring(start,
+						pos), start);
 			}
 			while (pos < input.length() && Character.isDigit(input.charAt(pos))) {
 				pos = pos + 1;
 			}
-			Double r = new Double(input.substring(start, pos));
-			return new Real(r, input.substring(start, pos), start);
+			return new Token(Token.Kind.RealValue, input.substring(start, pos),
+					start);
 		} else {
-			int r = new BigInteger(input.substring(start, pos)).intValue();
-			return new Int(r, input.substring(start, pos), start);
+			return new Token(Token.Kind.IntValue, input.substring(start, pos),
+					start);
 		}
 	}
 
@@ -156,7 +157,7 @@ public class Lexer {
 			syntaxError("unexpected end-of-character", pos);
 		}
 		pos = pos + 1;
-		return new Char(c, input.substring(start, pos), start);
+		return new Token(Token.Kind.CharValue, input.substring(start, pos), start);
 	}
 
 	public Token scanStringConstant() {
@@ -166,7 +167,7 @@ public class Lexer {
 			char c = input.charAt(pos);
 			if (c == '"') {
 				String v = input.substring(start, ++pos);
-				return new Strung(parseString(v), v, start);
+				return new Token(Token.Kind.String, v, start);
 			}
 			pos = pos + 1;
 		}
@@ -229,27 +230,10 @@ public class Lexer {
 		}
 		return v;
 	}
-
-	static final char UC_FORALL = '\u2200';
-	static final char UC_EXISTS = '\u2203';
-	static final char UC_EMPTYSET = '\u2205';
-	static final char UC_SUBSET = '\u2282';
-	static final char UC_SUBSETEQ = '\u2286';
-	static final char UC_SUPSET = '\u2283';
-	static final char UC_SUPSETEQ = '\u2287';
-	static final char UC_SETUNION = '\u222A';
-	static final char UC_SETINTERSECTION = '\u2229';
-	static final char UC_LESSEQUALS = '\u2264';
-	static final char UC_GREATEREQUALS = '\u2265';
-	static final char UC_ELEMENTOF = '\u2208';
-	static final char UC_LOGICALAND = '\u2227';
-	static final char UC_LOGICALOR = '\u2228';
-
-	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+', '-',
-		'*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|', '.', '~',
-		UC_FORALL, UC_EXISTS, UC_EMPTYSET, UC_SUBSET, UC_SUBSETEQ, UC_SUPSET,
-		UC_SUPSETEQ, UC_SETUNION, UC_SETINTERSECTION, UC_LESSEQUALS,
-		UC_GREATEREQUALS, UC_ELEMENTOF };
+	
+	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
+			'-', '*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|',
+			'.', '~' };
 
 	public boolean isOperatorStart(char c) {
 		for (char o : opStarts) {
@@ -264,85 +248,80 @@ public class Lexer {
 		char c = input.charAt(pos);
 
 		if (c == '.') {			
-			return new Symbol(SYMBOL.Dot,".",pos++);
+			return new Token(Token.Kind.Dot,".",pos++);
 		} else if (c == ',') {
-			return new Symbol(SYMBOL.Comma,",",pos++);
+			return new Token(Token.Kind.Comma,",",pos++);
 		} else if (c == ';') {
-			return new Symbol(SYMBOL.SemiColon,";",pos++);
+			return new Token(Token.Kind.SemiColon,";",pos++);
 		} else if (c == ':') {
-			return new Symbol(SYMBOL.Colon,":",pos++);
+			return new Token(Token.Kind.Colon,":",pos++);
 		} else if (c == '|') {
-			return new Symbol(SYMBOL.Bar,"|",pos++);
+			return new Token(Token.Kind.Bar,"|",pos++);
 		} else if (c == '(') {
-			return new Symbol(SYMBOL.LeftBrace,"(",pos++);
+			return new Token(Token.Kind.LeftBrace,"(",pos++);
 		} else if (c == ')') {
-			return new Symbol(SYMBOL.RightBrace,")",pos++);
+			return new Token(Token.Kind.RightBrace,")",pos++);
 		} else if (c == '[') {
-			return new Symbol(SYMBOL.LeftSquare,"[",pos++);
+			return new Token(Token.Kind.LeftSquare,"[",pos++);
 		} else if (c == ']') {
-			return new Symbol(SYMBOL.RightSquare,"]",pos++);
+			return new Token(Token.Kind.RightSquare,"]",pos++);
 		} else if (c == '{') {
-			return new Symbol(SYMBOL.LeftCurly,"{",pos++);
+			return new Token(Token.Kind.LeftCurly,"{",pos++);
 		} else if (c == '}') {
-			return new Symbol(SYMBOL.RightCurly,"}",pos++);
+			return new Token(Token.Kind.RightCurly,"}",pos++);
 		} else if (c == '+') {
 			if((pos+1) < input.length() && input.charAt(pos+1) == '+') {
 				pos = pos + 2;
-				return new Symbol(SYMBOL.PlusPlus,"++",pos);
+				return new Token(Token.Kind.PlusPlus,"++",pos);
 			} else {
-				return new Symbol(SYMBOL.Plus,"+",pos++);
+				return new Token(Token.Kind.Plus,"+",pos++);
 			}
 		} else if (c == '-') {			
-			return new Symbol(SYMBOL.Minus,"-",pos++);
+			return new Token(Token.Kind.Minus,"-",pos++);
 		} else if (c == '*') {
-			return new Symbol(SYMBOL.Star,"*",pos++);
+			return new Token(Token.Kind.Star,"*",pos++);
 		} else if (c == '&' && (pos + 1) < input.length()
 				&& input.charAt(pos + 1) == '&') {
 			pos += 2;
-			return new Symbol(SYMBOL.LogicalAnd,"&&", pos - 2);
+			return new Token(Token.Kind.LogicalAnd,"&&", pos - 2);
 		} else if (c == '/') {			
-			return new Symbol(SYMBOL.RightSlash,"/",pos++);
+			return new Token(Token.Kind.RightSlash,"/",pos++);
 		} else if (c == '%') {			
-			return new Symbol(SYMBOL.Percent,"%",pos++);
+			return new Token(Token.Kind.Percent,"%",pos++);
 		} else if (c == '!') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new Symbol(SYMBOL.NotEquals, "!=", pos - 2);
+				return new Token(Token.Kind.NotEquals, "!=", pos - 2);
 			} else {
-				return new Symbol(SYMBOL.Shreak,"!",pos++);
+				return new Token(Token.Kind.Shreak,"!",pos++);
 			}
 		} else if (c == '=') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new Symbol(SYMBOL.EqualsEquals,"==",pos - 2);
+				return new Token(Token.Kind.EqualsEquals,"==",pos - 2);
 			} else {
-				return new Symbol(SYMBOL.Equals,"=",pos++);
+				return new Token(Token.Kind.Equals,"=",pos++);
 			}
 		} else if (c == '<') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new Symbol(SYMBOL.LessEquals, "<=", pos - 2);
+				return new Token(Token.Kind.LessEquals, "<=", pos - 2);
 			} else {
-				return new Symbol(SYMBOL.LeftAngle, "<", pos++);
+				return new Token(Token.Kind.LeftAngle, "<", pos++);
 			}
 		} else if (c == '>') {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
-				return new Symbol(SYMBOL.GreaterEquals,">=", pos - 2);
+				return new Token(Token.Kind.GreaterEquals,">=", pos - 2);
 			} else {
-				return new Symbol(SYMBOL.RightAngle,">",pos++);
+				return new Token(Token.Kind.RightAngle,">",pos++);
 			}
 		} 
 
 		syntaxError("unknown operator encountered: " + c);
 		return null;
 	}
-
-	public static final String[] keywords = { "true", "false", "null", "void",
-			"int", "real", "char", "string", "bool", "if", "switch", "while",
-			"else", "is", "for", "debug", "print", "return", "constant",
-			"type"};
-
+	
 	public Token scanIdentifier() {
 		int start = pos;
 		while (pos < input.length()
@@ -352,32 +331,32 @@ public class Lexer {
 		String text = input.substring(start, pos);
 
 		// now, check for keywords
-		for (String keyword : keywords) {
-			if (keyword.equals(text)) {
-				return new Keyword(text, start);
-			}
+		Token.Kind kind = keywords.get(text);
+		if (kind == null) {
+			// not a keyword, so just a regular identifier.
+			kind = Token.Kind.Identifier;
 		}
-
-		// otherwise, must be identifier
-		return new Identifier(text, start);
+		return new Token(kind, text, start);
 	}
 	
 	public void scanWhiteSpace(List<Token> tokens) {
 		while (pos < input.length()
 				&& Character.isWhitespace(input.charAt(pos))) {
 			if (input.charAt(pos) == ' ' || input.charAt(pos) == '\t') {
-				tokens.add(scanIndent());				
-			} else if(input.charAt(pos) == '\n') {
-				tokens.add(new NewLine(input.substring(pos,pos+1),pos));
-				pos = pos + 1;				
+				tokens.add(scanIndent());
+			} else if (input.charAt(pos) == '\n') {
+				tokens.add(new Token(Token.Kind.NewLine, input.substring(pos,
+						pos + 1), pos));
+				pos = pos + 1;
 			} else if (input.charAt(pos) == '\r' && (pos + 1) < input.length()
-					&& input.charAt(pos + 1) == '\n') {				
-				tokens.add(new NewLine(input.substring(pos,pos+2),pos));
+					&& input.charAt(pos + 1) == '\n') {
+				tokens.add(new Token(Token.Kind.NewLine, input.substring(pos,
+						pos + 2), pos));
 				pos = pos + 2;
 			} else {
 				syntaxError("unknown whitespace character encounterd: \""
 						+ input.charAt(pos));
-			}			
+			}
 		}
 	}
 	
@@ -393,7 +372,7 @@ public class Lexer {
 				&& (input.charAt(pos) == ' ' || input.charAt(pos) == '\t')) {
 			pos++;
 		}
-		return new Indent(input.substring(start, pos), start);
+		return new Token(Token.Kind.Indent, input.substring(start, pos), start);
 	}
 		
 	/**
@@ -432,17 +411,104 @@ public class Lexer {
 	}
 
 	/**
+	 * A map from identifier strings to the corresponding token kind.
+	 */
+	public static final HashMap<String, Token.Kind> keywords = new HashMap<String, Token.Kind>() {
+		{
+			put("int", Token.Kind.Int);
+			put("real", Token.Kind.Real);
+			put("char", Token.Kind.Char);
+			put("string", Token.Kind.String);
+			put("bool", Token.Kind.Bool);
+			put("if", Token.Kind.If);
+			put("else", Token.Kind.Else);
+			put("switch", Token.Kind.Switch);
+			put("while", Token.Kind.While);
+			put("for", Token.Kind.For);
+			put("print", Token.Kind.Print);
+			put("return", Token.Kind.Return);
+			put("constant", Token.Kind.Constant);
+			put("type", Token.Kind.Type);
+		}
+	};	
+	
+	/**
 	 * The base class for all tokens.
 	 * 
 	 * @author David J. Pearce
 	 * 
 	 */
-	public static abstract class Token {
+	public static class Token {
 
+		public enum Kind {			
+			Identifier,
+			// Keywords
+			True,
+			False,
+			Null,
+			Void,
+			Bool,
+			Int,
+			Real,
+			Char,
+			String,
+			If,
+			Switch,
+			While,
+			Else,
+			Is,
+			For,
+			Debug,
+			Print,
+			Return,
+			Constant,
+			Type,			
+			// Constants
+			RealValue,
+			IntValue,
+			CharValue,
+			// Symbols
+			Comma,
+			SemiColon,
+			Colon,
+			Bar,
+			LeftBrace,
+			RightBrace,
+			LeftSquare,
+			RightSquare,
+			LeftAngle,
+			RightAngle,
+			LeftCurly,
+			RightCurly,
+			PlusPlus,
+			Plus,
+			Minus,
+			Star,
+			Divide,
+			LeftSlash,
+			RightSlash,
+			Percent,
+			Shreak,
+			Dot,
+			Equals,
+			EqualsEquals,
+			NotEquals,
+			LessEquals,
+			GreaterEquals,
+			LogicalAnd,
+			LogicalOr,
+			LogicalNot,
+			// Other			
+			NewLine,
+			Indent			
+		}
+		
+		public final Kind kind;
 		public final String text;
 		public final int start;
 
-		public Token(String text, int pos) {
+		public Token(Kind kind, String text, int pos) {
+			this.kind = kind;
 			this.text = text;
 			this.start = pos;
 		}
@@ -450,234 +516,5 @@ public class Lexer {
 		public int end() {
 			return start + text.length() - 1;
 		}
-	}
-
-	/**
-	 * Represents a floating point constant. That is, a sequnce of 1 or more
-	 * digits separated by a dot.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Real extends Token {
-
-		public final double value;
-
-		public Real(double r, String text, int pos) {
-			super(text, pos);
-			value = r;
-		}
-	}
-
-	/**
-	 * Represents an integer constant. That is, a sequence of 1 or more digits.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Int extends Token {
-
-		public final int value;
-
-		public Int(int r, String text, int pos) {
-			super(text, pos);
-			value = r;
-		}
-	}
-
-	/**
-	 * Represents a character constant. That is, a single digit enclosed in
-	 * single quotes.  E.g. 'c'
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Char extends Token {
-
-		public final char value;
-
-		public Char(char c, String text, int pos) {
-			super(text, pos);
-			value = c;
-		}
-	}
-
-	/**
-	 * Represents a variable or function name. That is, a alphabetic character
-	 * (or '_'), followed by a sequence of zero or more alpha-numeric
-	 * characters.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Identifier extends Token {
-
-		public Identifier(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	/**
-	 * Represents a sequence of zero or more characters which are enclosed in
-	 * double quotes. E.g. "This is a String"
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Strung extends Token {
-
-		public final String string;
-
-		public Strung(String string, String text, int pos) {
-			super(text, pos);
-			this.string = string;
-		}
-	}
-
-	/**
-	 * Represents a known keyword. In essence, a keyword is a sequence of one or
-	 * more alphabetic characters which is defined in advance.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Keyword extends Token {
-
-		public Keyword(String text, int pos) {
-			super(text, pos);
-		}
-	}
-	
-	/**
-	 * Represents some form of whitespace. This could be tabs, spaces, comments,
-	 * etc.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class WhiteSpace extends Token {
-
-		public WhiteSpace(String text, int pos) {
-			super(text, pos);
-		}
-	}
-	
-	/**
-	 * Signals the end of a line
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class NewLine extends WhiteSpace {
-		public NewLine(String text, int pos) {
-			super(text, pos);
-		}
-	}
-
-	/**
-	 * Represents a given amount of indentation. Specifically, a count of tabs
-	 * and spaces. Observe that the order in which tabs / spaces occurred is not
-	 * retained.
-	 * 
-	 * @author David J. Pearce
-	 * 
-	 */
-	public static class Indent extends WhiteSpace {
-		private final int countOfSpaces;
-		private final int countOfTabs;
-		
-		public Indent(String text, int pos) {
-			super(text, pos);
-			// Count the number of spaces and tabs
-			int nSpaces = 0;
-			int nTabs = 0;
-			for (int i = 0; i != text.length(); ++i) {
-				char c = text.charAt(i);
-				switch (c) {
-				case ' ':
-					nSpaces++;
-					break;
-				case '\t':
-					nTabs++;
-					break;
-				default:
-					throw new IllegalArgumentException(
-							"Space or tab character expected");
-				}
-			}
-			countOfSpaces = nSpaces;
-			countOfTabs = nTabs;
-		}
-		
-		/**
-		 * Test whether this indentation is considered "less than or equivalent"
-		 * to another indentation. For example, an indentation of 2 spaces is
-		 * considered less than an indentation of 3 spaces, etc.
-		 * 
-		 * @param other
-		 *            The indent to compare against.
-		 * @return
-		 */
-		public boolean lessThanEq(Indent other) {
-			return countOfSpaces <= other.countOfSpaces
-					&& countOfTabs <= other.countOfTabs;
-		}
-		
-		/**
-		 * Test whether this indentation is considered "equivalent" to another
-		 * indentation. For example, an indentation of 3 spaces followed by 1
-		 * tab is considered equivalent to an indentation of 1 tab followed by 3
-		 * spaces, etc.
-		 * 
-		 * @param other
-		 *            The indent to compare against.
-		 * @return
-		 */
-		public boolean equivalent(Indent other) {
-			return countOfSpaces == other.countOfSpaces
-					&& countOfTabs == other.countOfTabs;
-		}
-	}
-	
-	public enum SYMBOL {
-		Comma,
-		SemiColon,
-		Colon,
-		Bar,
-		LeftBrace,
-		RightBrace,
-		LeftSquare,
-		RightSquare,
-		LeftAngle,
-		RightAngle,
-		LeftCurly,
-		RightCurly,
-		PlusPlus,
-		Plus,
-		Minus,
-		Star,
-		Divide,
-		LeftSlash,
-		RightSlash,
-		Percent,
-		Shreak,
-		Dot,
-		Equals,
-		EqualsEquals,
-		NotEquals,
-		LessEquals,
-		GreaterEquals,
-		LogicalAnd,
-		LogicalOr,
-		LogicalNot
-	}
-	
-	public static class Symbol extends Token {
-		public final SYMBOL symbol;
-		
-		public Symbol(SYMBOL symbol, String text, int pos) {
-			super(text, pos);
-			this.symbol = symbol;
-		}
-	}
+	}	
 }

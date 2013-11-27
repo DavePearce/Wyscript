@@ -243,7 +243,9 @@ public class Parser {
 			stmt = parseWhile(indent);
 		} else if (token.text.equals("for")) {
 			stmt = parseFor(indent);
-		} else if ((index + 1) < tokens.size()
+		} else if (
+				
+				(index + 1) < tokens.size()
 				&& tokens.get(index + 1) instanceof LeftBrace) {
 			// must be a method invocation
 			stmt = parseInvokeStatement();
@@ -288,9 +290,9 @@ public class Parser {
 		} else if (lookahead instanceof Identifier) {
 			Identifier id = (Identifier) lookahead;
 			return userDefinedTypes.contains(id.text);
-		} else if (lookahead instanceof Symbol && ((Symbol)lookahead).symbol == SYMBOL.LeftCurly) {
+		} else if (lookahead(SYMBOL.LeftCurly)) {
 			return isStartOfType(index + 1);
-		} else if (lookahead instanceof LeftSquare) {
+		} else if (lookahead(SYMBOL.LeftSquare)) {
 			return isStartOfType(index + 1);
 		}
 
@@ -695,8 +697,8 @@ public class Parser {
 		} else if (token instanceof Int) {
 			int val = match(Int.class, "an integer").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
-		} else if (token instanceof Real) {
-			double val = match(Real.class, "a real").value;
+		} else if (token instanceof Value) {
+			double val = match(Value.class, "a real").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
 		} else if (token instanceof Strung) {
 			return parseString();
@@ -967,8 +969,21 @@ public class Parser {
 		return false;		
 	}
 	
+	/**
+	 * Look at the next token and see whether it matches the given symbol, or
+	 * not.  Note that this does not actually match the symbol.
+	 * 
+	 * @param symbol
+	 * @return
+	 */
 	private boolean lookahead(Lexer.SYMBOL symbol) {
-		
+		if(index < tokens.size()) {
+			Token token = tokens.get(index);
+			if(token instanceof Symbol) {
+				return ((Symbol)token).symbol == symbol;
+			}
+		}
+		return false;
 	}
 	
 	private Token match(String op) {
@@ -1085,6 +1100,71 @@ public class Parser {
 				- 1);
 	}
 
+	/**
+	 * Represents a given amount of indentation. Specifically, a count of tabs
+	 * and spaces. Observe that the order in which tabs / spaces occurred is not
+	 * retained.
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static class Indent {
+		private final int countOfSpaces;
+		private final int countOfTabs;
+		
+		public Indent(String text, int pos) {
+			super(text, pos);
+			// Count the number of spaces and tabs
+			int nSpaces = 0;
+			int nTabs = 0;
+			for (int i = 0; i != text.length(); ++i) {
+				char c = text.charAt(i);
+				switch (c) {
+				case ' ':
+					nSpaces++;
+					break;
+				case '\t':
+					nTabs++;
+					break;
+				default:
+					throw new IllegalArgumentException(
+							"Space or tab character expected");
+				}
+			}
+			countOfSpaces = nSpaces;
+			countOfTabs = nTabs;
+		}
+		
+		/**
+		 * Test whether this indentation is considered "less than or equivalent"
+		 * to another indentation. For example, an indentation of 2 spaces is
+		 * considered less than an indentation of 3 spaces, etc.
+		 * 
+		 * @param other
+		 *            The indent to compare against.
+		 * @return
+		 */
+		public boolean lessThanEq(Indent other) {
+			return countOfSpaces <= other.countOfSpaces
+					&& countOfTabs <= other.countOfTabs;
+		}
+		
+		/**
+		 * Test whether this indentation is considered "equivalent" to another
+		 * indentation. For example, an indentation of 3 spaces followed by 1
+		 * tab is considered equivalent to an indentation of 1 tab followed by 3
+		 * spaces, etc.
+		 * 
+		 * @param other
+		 *            The indent to compare against.
+		 * @return
+		 */
+		public boolean equivalent(Indent other) {
+			return countOfSpaces == other.countOfSpaces
+					&& countOfTabs == other.countOfTabs;
+		}
+	}	
+	
 	/**
 	 * An abstract indentation which represents the indentation of top-level
 	 * declarations, such as function declarations. This is used to simplify the

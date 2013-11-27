@@ -538,8 +538,8 @@ public class OriginalParser {
 		} else if (token instanceof Int) {
 			int val = match(Int.class, "an integer").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
-		} else if (token instanceof Real) {
-			double val = match(Real.class, "a real").value;
+		} else if (token instanceof Value) {
+			double val = match(Value.class, "a real").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
 		} else if (token instanceof Strung) {
 			return parseString();
