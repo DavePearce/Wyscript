@@ -87,6 +87,7 @@ public class Parser {
 		int start = index;
 		
 		Type ret = parseType();
+		skipWhiteSpace();	
 		Token name = match(Identifier);
 		match(LeftBrace);
 
@@ -893,10 +894,10 @@ public class Parser {
 	 */
 	private Token match(Token.Kind kind) {
 		checkNotEof();
-		Token token = tokens.get(index);
+		Token token = tokens.get(index++);
 		if (token.kind != kind) {
 			syntaxError("expecting \"" + kind + "\" here", token);
-		}
+		}		
 		return token;
 	}
 	
