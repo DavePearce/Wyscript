@@ -696,7 +696,7 @@ public class Parser {
 			return new Expr.Constant(Integer.parseInt(token.text), sourceAttr(
 					start, index - 1));
 		case RealValue:
-			return new Expr.Constant(Float.parseFloat(token.text), sourceAttr(
+			return new Expr.Constant(Double.parseDouble(token.text), sourceAttr(
 					start, index - 1));
 		case StringValue:
 			return new Expr.Constant(parseString(token.text), sourceAttr(start,
