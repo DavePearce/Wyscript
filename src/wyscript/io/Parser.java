@@ -709,6 +709,7 @@ public class Parser {
 		case IntValue:
 		case RealValue:
 		case StringValue:
+			// FIXME: this is broken!!
 			return new Expr.Constant(token.data, sourceAttr(start,
 					index - 1));
 		case Minus:

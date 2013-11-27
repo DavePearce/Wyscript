@@ -467,6 +467,7 @@ public class Lexer {
 			RealValue,
 			IntValue,
 			CharValue,
+			StringValue,
 			// Symbols
 			Comma,
 			SemiColon,
@@ -506,20 +507,11 @@ public class Lexer {
 		public final Kind kind;
 		public final String text;
 		public final int start;
-		public final Object data;
 
 		public Token(Kind kind, String text, int pos) {
 			this.kind = kind;
 			this.text = text;
 			this.start = pos;
-			this.data = null;
-		}
-		
-		public Token(Kind kind, String text, int pos, Object data) {
-			this.kind = kind;
-			this.text = text;
-			this.start = pos;
-			this.data = data;
 		}
 
 		public int end() {
