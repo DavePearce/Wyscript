@@ -697,7 +697,7 @@ public class Parser {
 					index - 1));
 		case Minus:
 			return parseNegation();
-		case Bar:
+		case VerticalBar:
 			return parseLengthOf();
 		case LeftSquare:
 			return parseListVal();
@@ -765,9 +765,9 @@ public class Parser {
 
 	private Expr parseLengthOf() {
 		int start = index;
-		match(Bar);
+		match(VerticalBar);
 		Expr e = parseIndexTerm();
-		match(Bar);
+		match(VerticalBar);
 		return new Expr.Unary(Expr.UOp.LENGTHOF, e,
 				sourceAttr(start, index - 1));
 	}
@@ -814,11 +814,11 @@ public class Parser {
 		Type t = parseBaseType();
 
 		// Now, attempt to look for union types
-		if (tryAndMatch(Bar) != null) {
+		if (tryAndMatch(VerticalBar) != null) {
 			// this is a union type
 			ArrayList<Type> types = new ArrayList<Type>();
 			types.add(t);
-			while (tryAndMatch(Bar) != null) {
+			while (tryAndMatch(VerticalBar) != null) {
 				types.add(parseBaseType());
 			}
 			return new Type.Union(types, sourceAttr(start, index - 1));
@@ -895,7 +895,7 @@ public class Parser {
 		checkNotEof();
 		Token token = tokens.get(index);
 		if (token.kind != kind) {
-			syntaxError("Expected \"" + kind + "\" here", token);
+			syntaxError("expecting \"" + kind + "\" here", token);
 		}
 		return token;
 	}

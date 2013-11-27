@@ -192,69 +192,73 @@ public class Lexer {
 	public Token scanOperator() {
 		char c = input.charAt(pos);
 
-		if (c == '.') {			
+		switch(c) {
+		case '.':			
 			return new Token(Token.Kind.Dot,".",pos++);
-		} else if (c == ',') {
+		case  ',':
 			return new Token(Token.Kind.Comma,",",pos++);
-		} else if (c == ';') {
+		case  ';':
 			return new Token(Token.Kind.SemiColon,";",pos++);
-		} else if (c == ':') {
+		case ':':
 			return new Token(Token.Kind.Colon,":",pos++);
-		} else if (c == '|') {
-			return new Token(Token.Kind.Bar,"|",pos++);
-		} else if (c == '(') {
+		case '|':
+			return new Token(Token.Kind.VerticalBar,"|",pos++);
+		case '(':
 			return new Token(Token.Kind.LeftBrace,"(",pos++);
-		} else if (c == ')') {
+		case ')':
 			return new Token(Token.Kind.RightBrace,")",pos++);
-		} else if (c == '[') {
+		case '[':
 			return new Token(Token.Kind.LeftSquare,"[",pos++);
-		} else if (c == ']') {
+		case ']':
 			return new Token(Token.Kind.RightSquare,"]",pos++);
-		} else if (c == '{') {
+		case '{':
 			return new Token(Token.Kind.LeftCurly,"{",pos++);
-		} else if (c == '}') {
+		case '}':
 			return new Token(Token.Kind.RightCurly,"}",pos++);
-		} else if (c == '+') {
+		case '+':
 			if((pos+1) < input.length() && input.charAt(pos+1) == '+') {
 				pos = pos + 2;
 				return new Token(Token.Kind.PlusPlus,"++",pos);
 			} else {
 				return new Token(Token.Kind.Plus,"+",pos++);
 			}
-		} else if (c == '-') {			
+		case '-':			
 			return new Token(Token.Kind.Minus,"-",pos++);
-		} else if (c == '*') {
+		case '*':
 			return new Token(Token.Kind.Star,"*",pos++);
-		} else if (c == '&' && (pos + 1) < input.length()
+		case '&':
+			if (pos + 1 < input.length()
 				&& input.charAt(pos + 1) == '&') {
-			pos += 2;
-			return new Token(Token.Kind.LogicalAnd,"&&", pos - 2);
-		} else if (c == '/') {			
+				pos += 2;
+				return new Token(Token.Kind.LogicalAnd,"&&", pos - 2);
+			}
+			break;	
+		case '/':			
 			return new Token(Token.Kind.RightSlash,"/",pos++);
-		} else if (c == '%') {			
+		case '%':			
 			return new Token(Token.Kind.Percent,"%",pos++);
-		} else if (c == '!') {
+		case '!':
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
 				return new Token(Token.Kind.NotEquals, "!=", pos - 2);
 			} else {
 				return new Token(Token.Kind.Shreak,"!",pos++);
 			}
-		} else if (c == '=') {
+		case '=':
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
 				return new Token(Token.Kind.EqualsEquals,"==",pos - 2);
 			} else {
 				return new Token(Token.Kind.Equals,"=",pos++);
 			}
-		} else if (c == '<') {
+		case '<':
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
 				return new Token(Token.Kind.LessEquals, "<=", pos - 2);
 			} else {
 				return new Token(Token.Kind.LeftAngle, "<", pos++);
 			}
-		} else if (c == '>') {
+		case '>':
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
 				return new Token(Token.Kind.GreaterEquals,">=", pos - 2);
@@ -374,6 +378,7 @@ public class Lexer {
 			put("return", Token.Kind.Return);
 			put("constant", Token.Kind.Constant);
 			put("type", Token.Kind.Type);
+			put("is", Token.Kind.Is);
 		}
 	};	
 	
@@ -388,62 +393,60 @@ public class Lexer {
 		public enum Kind {			
 			Identifier,
 			// Keywords
-			True,
-			False,
-			Null,
-			Void,
-			Bool,
-			Int,
-			Real,
-			Char,
-			String,
-			If,
-			Switch,
-			While,
-			Else,
-			Is,
-			For,
-			Debug,
-			Print,
-			Return,
-			Constant,
-			Type,			
+			True { public String toString() { return "true"; }},
+			False { public String toString() { return "true"; }},
+			Null { public String toString() { return "null"; }},
+			Void { public String toString() { return "void"; }},
+			Bool { public String toString() { return "Bool"; }},
+			Int { public String toString() { return "Int"; }},
+			Real { public String toString() { return "Real"; }},
+			Char { public String toString() { return "Char"; }},
+			String { public String toString() { return "String"; }},
+			If { public String toString() { return "if"; }},
+			Switch { public String toString() { return "switch"; }},
+			While { public String toString() { return "while"; }},
+			Else { public String toString() { return "else"; }},
+			Is { public String toString() { return "is"; }},
+			For { public String toString() { return "for"; }},
+			Debug { public String toString() { return "debug"; }},
+			Print { public String toString() { return "print"; }},
+			Return { public String toString() { return "return"; }},
+			Constant { public String toString() { return "constant"; }},
+			Type { public String toString() { return "type"; }},			
 			// Constants
 			RealValue,
 			IntValue,
 			CharValue,
 			StringValue,
 			// Symbols
-			Comma,
-			SemiColon,
-			Colon,
-			Bar,
-			LeftBrace,
-			RightBrace,
-			LeftSquare,
-			RightSquare,
-			LeftAngle,
-			RightAngle,
-			LeftCurly,
-			RightCurly,
-			PlusPlus,
-			Plus,
-			Minus,
-			Star,
-			Divide,
-			LeftSlash,
-			RightSlash,
-			Percent,
-			Shreak,
-			Dot,
-			Equals,
-			EqualsEquals,
-			NotEquals,
-			LessEquals,
-			GreaterEquals,
-			LogicalAnd,
-			LogicalOr,
-			LogicalNot,
+			Comma { public String toString() { return ","; }},
+			SemiColon { public String toString() { return ";"; }},
+			Colon { public String toString() { return ":"; }},
+			VerticalBar { public String toString() { return "|"; }},
+			LeftBrace { public String toString() { return "("; }},
+			RightBrace { public String toString() { return ")"; }},
+			LeftSquare { public String toString() { return "["; }},
+			RightSquare { public String toString() { return "]"; }},
+			LeftAngle { public String toString() { return "<"; }},
+			RightAngle { public String toString() { return ">"; }},
+			LeftCurly { public String toString() { return "{"; }},
+			RightCurly { public String toString() { return "}"; }},
+			PlusPlus { public String toString() { return "++"; }},
+			Plus { public String toString() { return "+"; }},
+			Minus { public String toString() { return "-"; }},
+			Star { public String toString() { return "*"; }},
+			LeftSlash { public String toString() { return "\\"; }},
+			RightSlash { public String toString() { return "//"; }},
+			Percent { public String toString() { return "%"; }},
+			Shreak { public String toString() { return "!"; }},
+			Dot { public String toString() { return "."; }},
+			Equals { public String toString() { return "="; }},
+			EqualsEquals { public String toString() { return "=="; }},
+			NotEquals { public String toString() { return "!="; }},
+			LessEquals { public String toString() { return "<="; }},
+			GreaterEquals { public String toString() { return ">="; }},
+			LogicalAnd { public String toString() { return "&&"; }},
+			LogicalOr { public String toString() { return "||"; }},
 			// Other			
 			NewLine,
 			Indent			
