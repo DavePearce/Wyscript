@@ -173,7 +173,6 @@ public class Parser {
 			Indent nextIndent;
 			while ((nextIndent = getIndent()) != null
 					&& indent.lessThanEq(nextIndent)) {
-				System.out.println("PARSING STATEMENT");
 				// At this point, nextIndent contains the indent of the current
 				// statement. However, this still may not be equivalent to this
 				// block's indentation level.
@@ -202,13 +201,10 @@ public class Parser {
 		if(index < tokens.size()) {
 			Token token = tokens.get(index);
 			if(token.kind == Indent) {
-				System.out.println("INDENT: \"" + token.text + "\"");
 				return new Indent(token.text,token.start);
 			}
-			System.out.println("INDENT: \"" + tokens.get(index).text + "\"");
 			return null;
 		}
-		System.out.println("INDENT: EOF");
 		return null;
 	}
 
@@ -811,9 +807,7 @@ public class Parser {
 
 	private Type parseType() {
 		int start = index;
-		System.out.println("GOT: " + tokens.get(index).text);
 		Type t = parseBaseType();
-		System.out.println("GOT: " + tokens.get(index).text);
 
 		// Now, attempt to look for union types
 		if (tryAndMatch(VerticalBar) != null) {
