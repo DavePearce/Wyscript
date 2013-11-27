@@ -63,16 +63,12 @@ public class Parser {
 
 		while (index < tokens.size()) {
 			Token t = tokens.get(index);
-			if (t instanceof Keyword) {
-				Keyword k = (Keyword) t;
-				if (t.text.equals("type")) {
-					decls.add(parseTypeDeclaration());
-				} else if (t.text.equals("constant")) {
-					decls.add(parseConstantDeclaration());
-				} else {
-					decls.add(parseFunctionDeclaration());
-				}
-			} else {
+			switch (t.kind) {
+			case Type:
+				decls.add(parseTypeDeclaration());
+			case Constant:
+				decls.add(parseConstantDeclaration());
+			default:
 				decls.add(parseFunctionDeclaration());
 			}
 			skipWhiteSpace();
@@ -90,28 +86,26 @@ public class Parser {
 		int start = index;
 		
 		Type ret = parseType();
-		Identifier name = matchIdentifier();
-
-		match("(");
+		Token name = match(Token.Kind.Identifier);
+		match(Token.Kind.LeftBrace);
 
 		// Now build up the parameter types
 		List<Parameter> paramTypes = new ArrayList<Parameter>();
 		boolean firstTime = true;
 		while (index < tokens.size()
-				&& !(tokens.get(index) instanceof RightBrace)) {
+				&& lookahead(Token.Kind.RightBrace) == null) {
 			if (!firstTime) {
-				match(",");
+				match(Token.Kind.Comma);
 			}
 			firstTime = false;
 			int pstart = index;
 			Type t = parseType();
-			Identifier n = matchIdentifier();
+			Token n = match(Token.Kind.Identifier);
 			paramTypes.add(new Parameter(t, n.text, sourceAttr(pstart,
 					index - 1)));
 		}
 
-		match(")");
-		match(":");
+		match(Token.Kind.RightBrace, Token.Kind.Colon);		
 		matchEndLine();
 		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
@@ -120,30 +114,25 @@ public class Parser {
 
 	private Decl parseTypeDeclaration() {
 		int start = index;
-		matchKeyword("type");
-
-		Identifier name = matchIdentifier();
-
-		matchKeyword("is");
-
+		Token[] tokens = match(Token.Kind.Type, Token.Kind.Identifier,
+				Token.Kind.Is);
 		Type t = parseType();
 		int end = index;
-		userDefinedTypes.add(name.text);
-		return new TypeDecl(t, name.text, sourceAttr(start, end - 1));
+		userDefinedTypes.add(tokens[1].text);
+		return new TypeDecl(t, tokens[1].text, sourceAttr(start, end - 1));
 	}
 
 	private Decl parseConstantDeclaration() {
 		int start = index;
 
-		matchKeyword("constant");
-		Identifier name = matchIdentifier();
-		matchKeyword("is");
+		Token[] tokens = match(Token.Kind.Constant, Token.Kind.Identifier,
+				Token.Kind.Is);
 
 		Expr e = parseExpression();
 		int end = index;
 		matchEndLine();
-		
-		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
+
+		return new ConstDecl(e, tokens[1].text, sourceAttr(start, end - 1));
 	}
 
 	/**
@@ -233,23 +222,25 @@ public class Parser {
 		checkNotEof();
 		Token token = tokens.get(index);
 		Stmt stmt;
-		if (token.text.equals("return")) {
-			stmt = parseReturnStatement();
-		} else if (token.text.equals("print")) {
-			stmt = parsePrintStatement();
-		} else if (token.text.equals("if")) {
-			stmt = parseIfStatement(indent);
-		} else if (token.text.equals("while")) {
-			stmt = parseWhile(indent);
-		} else if (token.text.equals("for")) {
-			stmt = parseFor(indent);
-		} else if (
-				
-				(index + 1) < tokens.size()
-				&& tokens.get(index + 1) instanceof LeftBrace) {
-			// must be a method invocation
-			stmt = parseInvokeStatement();
-		} else if (isStartOfType(index)) {
+		
+		switch(token.kind) {
+		case Return:
+			return parseReturnStatement();
+		case Print:
+			return parsePrintStatement();
+		case If:
+			return parseIfStatement(indent);
+		case While:
+			return parseWhile(indent);
+		case For:
+			return parseFor(indent);
+		case Identifier:
+			if (lookahead(Token.Kind.Identifier, Token.Kind.LeftBrace) != null) {
+				return parseInvokeStatement(); 
+			}
+		}
+		
+		if (isStartOfType(index)) {
 			stmt = parseVariableDeclaration();
 		} else {
 			// invocation or assignment
@@ -280,21 +271,21 @@ public class Parser {
 			return false;
 		}
 		Token lookahead = tokens.get(index);
-		if (lookahead instanceof Keyword) {
-			return lookahead.text.equals("null")
-					|| lookahead.text.equals("bool")
-					|| lookahead.text.equals("int")
-					|| lookahead.text.equals("real")
-					|| lookahead.text.equals("char")
-					|| lookahead.text.equals("string");
-		} else if (lookahead instanceof Identifier) {
-			Identifier id = (Identifier) lookahead;
-			return userDefinedTypes.contains(id.text);
-		} else if (lookahead(SYMBOL.LeftCurly)) {
+		switch(lookahead.kind) {
+		case Void:
+		case Null:
+		case Bool:
+		case Int:
+		case Real:
+		case Char:
+		case String:
+			return true;
+		case Identifier:
+			return userDefinedTypes.contains(lookahead.text);
+		case LeftCurly:
+		case LeftSquare:				
 			return isStartOfType(index + 1);
-		} else if (lookahead(SYMBOL.LeftSquare)) {
-			return isStartOfType(index + 1);
-		}
+		}		
 
 		return false;
 	}
@@ -968,70 +959,55 @@ public class Parser {
 		// no match
 		return false;		
 	}
+			
+	private Token lookahead(Token.Kind kind) {		
+		checkNotEof();
+		Token t = tokens.get(index);
+		if(t.kind == kind) { 			
+			return t;
+		}		
+		return null; 
+	}
 	
-	/**
-	 * Look at the next token and see whether it matches the given symbol, or
-	 * not.  Note that this does not actually match the symbol.
-	 * 
-	 * @param symbol
-	 * @return
-	 */
-	private boolean lookahead(Lexer.SYMBOL symbol) {
-		if(index < tokens.size()) {
-			Token token = tokens.get(index);
-			if(token instanceof Symbol) {
-				return ((Symbol)token).symbol == symbol;
+	private Token[] lookahead(Token.Kind... kinds) {
+		Token[] result = new Token[kinds.length];
+		int tmp = index;
+		for (int i = 0; i != result.length; ++i) {
+			skipWhiteSpace(tmp);
+			Token token = tokens.get(tmp++);
+			if (token.kind == kinds[i]) {
+				result[i] = token;
+			} else {
+				return null;
 			}
 		}
-		return false;
+		return result;
 	}
 	
-	private Token match(String op) {
+	private Token match(Token.Kind kind) {		
 		checkNotEof();
 		Token t = tokens.get(index);
-		if (!t.text.equals(op)) {
-			syntaxError("expecting '" + op + "', found '" + t.text + "'", t);
-		}
-		index = index + 1;
-		return t;
-	}
-
-	@SuppressWarnings("unchecked")
-	private <T extends Token> T match(Class<T> c, String name) {
-		checkNotEof();
-		Token t = tokens.get(index);
-		if (!c.isInstance(t)) {
-			syntaxError("expecting " + name + ", found '" + t.text + "'", t);
-		}
-		index = index + 1;
-		return (T) t;
-	}
-
-	private Identifier matchIdentifier() {		
-		checkNotEof();
-		Token t = tokens.get(index);
-		if (t instanceof Identifier) {
-			Identifier i = (Identifier) t;
+		if(t.kind == kind) { 
 			index = index + 1;
-			return i;
-		}
-		syntaxError("identifier expected", t);
-		return null; // unreachable.
+			return t;
+		}		
+		return null; 
 	}
 
-	private Keyword matchKeyword(String keyword) {
-		checkNotEof();
-		Token t = tokens.get(index);
-		if (t instanceof Keyword) {
-			if (t.text.equals(keyword)) {
-				index = index + 1;
-				return (Keyword) t;
+	private Token[] match(Token.Kind... kinds) {
+		Token[] result = new Token[kinds.length];
+		for (int i = 0; i != result.length; ++i) {
+			checkNotEof();
+			Token token = tokens.get(index++);
+			if (token.kind == kinds[i]) {
+				result[i] = token;
+			} else {
+				return null;
 			}
 		}
-		syntaxError("keyword " + keyword + " expected.", t);
-		return null;
+		return result;
 	}
-
+	
 	/**
 	 * Match a the end of a line. This is required to signal, for example, the
 	 * end of the current statement.
@@ -1079,9 +1055,20 @@ public class Parser {
 	 * Skip over any whitespace characters.
 	 */
 	private void skipWhiteSpace() {
-		while (index < tokens.size() && tokens.get(index) instanceof WhiteSpace) {
+		while (index < tokens.size() && isWhiteSpace(tokens.get(index))) {
 			index++;
 		}
+	}
+	
+	/**
+	 * Define what is considered to be whitespace.
+	 * 
+	 * @param token
+	 * @return
+	 */
+	private boolean isWhiteSpace(Token token) {
+		return token.kind == Token.Kind.NewLine
+				|| token.kind == Token.Kind.Indent;
 	}
 	
 	private Attribute.Source sourceAttr(int start, int end) {
@@ -1099,7 +1086,7 @@ public class Parser {
 		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length()
 				- 1);
 	}
-
+			
 	/**
 	 * Represents a given amount of indentation. Specifically, a count of tabs
 	 * and spaces. Observe that the order in which tabs / spaces occurred is not
@@ -1108,12 +1095,12 @@ public class Parser {
 	 * @author David J. Pearce
 	 * 
 	 */
-	public static class Indent {
+	public static class Indent extends Token {
 		private final int countOfSpaces;
 		private final int countOfTabs;
 		
 		public Indent(String text, int pos) {
-			super(text, pos);
+			super(Token.Kind.Indent, text, pos);
 			// Count the number of spaces and tabs
 			int nSpaces = 0;
 			int nTabs = 0;

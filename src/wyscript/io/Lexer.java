@@ -24,7 +24,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -157,9 +156,10 @@ public class Lexer {
 			syntaxError("unexpected end-of-character", pos);
 		}
 		pos = pos + 1;
-		return new Token(Token.Kind.CharValue, input.substring(start, pos), start);
+		return new Token(Token.Kind.CharValue, input.substring(start, pos),
+				start, c);
 	}
-
+	
 	public Token scanStringConstant() {
 		int start = pos;
 		pos++;
@@ -167,7 +167,7 @@ public class Lexer {
 			char c = input.charAt(pos);
 			if (c == '"') {
 				String v = input.substring(start, ++pos);
-				return new Token(Token.Kind.String, v, start);
+				return new Token(Token.Kind.String, v, start, parseString(v));
 			}
 			pos = pos + 1;
 		}
@@ -177,11 +177,11 @@ public class Lexer {
 
 	protected String parseString(String v) {
 		/*
-		 * Parsing a string requires several steps to be taken. First, we need to
-		 * strip quotes from the ends of the string.
+		 * Parsing a string requires several steps to be taken. First, we need
+		 * to strip quotes from the ends of the string.
 		 */
+		int start = pos;
 		v = v.substring(1, v.length() - 1);
-		int start = pos - v.length();
 		// Second, step through the string and replace escaped characters
 		for (int i = 0; i < v.length(); i++) {
 			if (v.charAt(i) == '\\') {
@@ -506,11 +506,20 @@ public class Lexer {
 		public final Kind kind;
 		public final String text;
 		public final int start;
+		public final Object data;
 
 		public Token(Kind kind, String text, int pos) {
 			this.kind = kind;
 			this.text = text;
 			this.start = pos;
+			this.data = null;
+		}
+		
+		public Token(Kind kind, String text, int pos, Object data) {
+			this.kind = kind;
+			this.text = text;
+			this.start = pos;
+			this.data = data;
 		}
 
 		public int end() {
