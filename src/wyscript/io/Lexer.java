@@ -157,7 +157,7 @@ public class Lexer {
 		}
 		pos = pos + 1;
 		return new Token(Token.Kind.CharValue, input.substring(start, pos),
-				start, c);
+				start);
 	}
 	
 	public Token scanStringConstant() {
@@ -167,7 +167,7 @@ public class Lexer {
 			char c = input.charAt(pos);
 			if (c == '"') {
 				String v = input.substring(start, ++pos);
-				return new Token(Token.Kind.String, v, start, parseString(v));
+				return new Token(Token.Kind.String, v, start);
 			}
 			pos = pos + 1;
 		}
@@ -175,61 +175,6 @@ public class Lexer {
 		return null;
 	}
 
-	protected String parseString(String v) {
-		/*
-		 * Parsing a string requires several steps to be taken. First, we need
-		 * to strip quotes from the ends of the string.
-		 */
-		int start = pos;
-		v = v.substring(1, v.length() - 1);
-		// Second, step through the string and replace escaped characters
-		for (int i = 0; i < v.length(); i++) {
-			if (v.charAt(i) == '\\') {
-				if (v.length() <= i + 1) {
-					syntaxError("unexpected end-of-string", start + i);
-				} else {
-					char replace = 0;
-					int len = 2;
-					switch (v.charAt(i + 1)) {
-					case 'b':
-						replace = '\b';
-						break;
-					case 't':
-						replace = '\t';
-						break;
-					case 'n':
-						replace = '\n';
-						break;
-					case 'f':
-						replace = '\f';
-						break;
-					case 'r':
-						replace = '\r';
-						break;
-					case '"':
-						replace = '\"';
-						break;
-					case '\'':
-						replace = '\'';
-						break;
-					case '\\':
-						replace = '\\';
-						break;
-					case 'u':
-						len = 6; // unicode escapes are six digits long,
-						// including "slash u"
-						String unicode = v.substring(i + 2, i + 6);
-						replace = (char) Integer.parseInt(unicode, 16); // unicode
-						break;
-					default:
-						syntaxError("unknown escape character", start + i);
-					}
-					v = v.substring(0, i) + replace + v.substring(i + len);
-				}
-			}
-		}
-		return v;
-	}
 	
 	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
 			'-', '*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|',
