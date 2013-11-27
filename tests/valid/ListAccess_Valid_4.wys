@@ -1,0 +1,6 @@
+[char] f(string str):
+    [char] r = []
+    return r
+void main():
+    [char] r = f(Hello)
+    print r

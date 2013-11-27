@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.List;
+import java.util.Map;
 
 import wyscript.io.*;
 import wyscript.lang.*;
@@ -148,8 +149,7 @@ public class Convert {
 				print((WyscriptFile.TypeDecl) decl);
 			} else {
 				print((WyscriptFile.FunDecl) decl);
-			}
-			
+			}		
 		}
 	}
 	
@@ -187,8 +187,66 @@ public class Convert {
 				print((Stmt.Print) stmt,indent);
 			} else if(stmt instanceof Stmt.Return) {
 				print((Stmt.Return) stmt,indent);
+			} else if(stmt instanceof Stmt.Assign) {
+				print((Stmt.Assign) stmt,indent);
+			} else if(stmt instanceof Stmt.For) {
+				print((Stmt.For) stmt,indent);
+			} else if(stmt instanceof Stmt.IfElse) {
+				print((Stmt.IfElse) stmt,indent);
+			} else if(stmt instanceof Stmt.While) {
+				print((Stmt.While) stmt,indent);
+			} else if(stmt instanceof Stmt.VariableDeclaration) {
+				print((Stmt.VariableDeclaration) stmt,indent);
+			} else if(stmt instanceof Expr.Invoke) {
+				indent(indent);
+				print((Expr.Invoke) stmt);
+			} else {
+				throw new RuntimeException("Unknown statement: " + stmt.getClass().getName());
 			}
 		}
+	}
+	
+	public static void print(Stmt.Assign stmt, int indent) {
+		indent(indent);
+		print(stmt.getLhs());
+		System.out.print(" = ");
+		print(stmt.getRhs());
+		System.out.println();
+	}
+	
+	public static void print(Stmt.For stmt, int indent) {
+		// TODO
+	}
+	
+	public static void print(Stmt.IfElse stmt, int indent) {
+		indent(indent);
+		System.out.print("if ");
+		print(stmt.getCondition());
+		System.out.println(":");
+		print(stmt.getTrueBranch(),indent+4);
+		if(!stmt.getFalseBranch().isEmpty()) {
+			indent(indent);System.out.println(":");
+			print(stmt.getFalseBranch(),indent+4);
+		}
+	}
+	
+	public static void print(Stmt.While stmt, int indent) {
+		indent(indent);
+		System.out.print("while ");
+		print(stmt.getCondition());
+		System.out.println(":");
+		print(stmt.getBody(),indent+4);
+	}
+	
+	public static void print(Stmt.VariableDeclaration stmt, int indent) {
+		indent(indent);
+		print(stmt.getType());
+		System.out.print(" " + stmt.getName());
+		if(stmt.getExpr() != null) {
+			System.out.print(" = ");
+			print(stmt.getExpr());			
+		}
+		System.out.println();
 	}
 	
 	public static void print(Stmt.Print stmt, int indent) {
@@ -209,7 +267,11 @@ public class Convert {
 	}
 	
 	public static void print(Type t) {
-		if(t instanceof Type.Bool) {
+		if(t instanceof Type.Void) {
+			System.out.print("void");
+		} else if(t instanceof Type.Null) {
+			System.out.print("null");
+		} else if(t instanceof Type.Bool) {
 			System.out.print("bool");
 		} else if(t instanceof Type.Char) {
 			System.out.print("char");
@@ -219,7 +281,40 @@ public class Convert {
 			System.out.print("real");
 		} else if(t instanceof Type.Strung) {
 			System.out.print("string");
-		} 
+		} else if(t instanceof Type.Named) {
+			Type.Named l = (Type.Named) t;
+			System.out.print(l.getName());
+		} else if(t instanceof Type.List) {
+			Type.List l = (Type.List) t;
+			System.out.print("[");
+			print(l.getElement());
+			System.out.print("]");
+		} else if(t instanceof Type.Record) {
+			Type.Record l = (Type.Record) t;
+			System.out.print("{");
+			boolean firstTime=true;
+			for(Map.Entry<String,Type> ce : l.getFields().entrySet()) {
+				if(!firstTime) {
+					System.out.print(", ");
+				}
+				firstTime=false;
+				System.out.print(ce.getKey() + ": ");
+				print(ce.getValue());
+			}
+			System.out.print("}");
+		} else if(t instanceof Type.Union) {
+			Type.Union u = (Type.Union) t;
+			boolean firstTime=true;
+			for(Type b : u.getBounds()) {
+				if(!firstTime) {
+					System.out.print("|");
+				}
+				firstTime=false;
+				print(b);
+			}
+		} else {
+			throw new RuntimeException("Unknown type: " + t.getClass().getName());
+		}
 	}
 	
 	public static void print(Expr e) {
@@ -229,6 +324,79 @@ public class Convert {
 		} else if(e instanceof Expr.Variable) {
 			Expr.Variable v = (Expr.Variable) e;
 			System.out.print(v.getName());
+		} else if(e instanceof Expr.Unary) {
+			Expr.Unary u = (Expr.Unary) e;
+			switch(u.getOp()) {
+			case NOT:				
+			case NEG:
+				System.out.print(u.getOp() + " ");
+				print(u.getExpr());				
+				break;
+			case LENGTHOF:
+				System.out.print("|");
+				print(u.getExpr());
+				System.out.print("|");
+			}
+		} else if(e instanceof Expr.Binary) {
+			Expr.Binary b = (Expr.Binary) e;
+			print(b.getLhs());
+			System.out.print(" " + b.getOp() + " ");
+			print(b.getRhs());
+		} else if(e instanceof Expr.Cast) {
+			Expr.Cast c = (Expr.Cast) e;
+			System.out.print("(");
+			print(c.getType());
+			System.out.print(") ");
+			print(c.getSource());
+		} else if(e instanceof Expr.IndexOf) {
+			Expr.IndexOf c = (Expr.IndexOf) e;
+			print(c.getSource());
+			System.out.print("[");
+			print(c.getIndex());
+			System.out.print("]");
+		} else if(e instanceof Expr.Invoke) {
+			Expr.Invoke c = (Expr.Invoke) e;
+			System.out.print(c.getName() + "(");
+			boolean firstTime=true;
+			for(Expr ce : c.getArguments()) {
+				if(!firstTime) {
+					System.out.print(", ");
+				}
+				firstTime=false;
+				print(ce);
+			}
+			System.out.print(")");
+		} else if(e instanceof Expr.ListConstructor) {
+			Expr.ListConstructor c = (Expr.ListConstructor) e;
+			System.out.print("[");
+			boolean firstTime=true;
+			for(Expr ce : c.getArguments()) {
+				if(!firstTime) {
+					System.out.print(", ");
+				}
+				firstTime=false;
+				print(ce);
+			}
+			System.out.print("]");
+		} else if(e instanceof Expr.RecordConstructor) {
+			Expr.RecordConstructor c = (Expr.RecordConstructor) e;
+			System.out.print("{");
+			boolean firstTime=true;
+			for(Pair<String,Expr> ce : c.getFields()) {
+				if(!firstTime) {
+					System.out.print(", ");
+				}
+				firstTime=false;
+				System.out.print(ce.first() + ": ");
+				print(ce.second());
+			}
+			System.out.print("}");
+		} else if(e instanceof Expr.RecordAccess) {
+			Expr.RecordAccess c = (Expr.RecordAccess) e;
+			print(c.getSource());
+			System.out.print("." + c.getName());
+		} else {
+			throw new RuntimeException("Unknown expression: " + e.getClass().getName());
 		}
 	}
 	

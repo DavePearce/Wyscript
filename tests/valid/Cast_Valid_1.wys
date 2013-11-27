@@ -1,0 +1,4 @@
+real f(int i):
+    return (real) i
+void main():
+    print f(1)

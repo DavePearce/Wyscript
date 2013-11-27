@@ -1,0 +1,7 @@
+void main():
+    real x = 1.2
+    real y = 2.4
+    print x + y
+    print y - x
+    print x / y
+    print x * y

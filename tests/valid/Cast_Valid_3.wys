@@ -1,0 +1,8 @@
+type R1 is {x: real}
+
+type R2 is {x: int}
+
+R1 f(R2 i):
+    return ({x: real}) i
+void main():
+    print f({x: 123542})

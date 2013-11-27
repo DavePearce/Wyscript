@@ -1,0 +1,3 @@
+tests/valid/MultiLineComment_Valid_2.while:2: identifier expected
+/*  Single Line Comment Test
+^

@@ -1,0 +1,9 @@
+type IntList is {op: int|[int]}
+
+void main():
+    IntList x = {op: 1}
+    x.op = 1
+    IntList y = x
+    print y
+    x = {op: [1, 2, 3]}
+    print x

@@ -1,0 +1,12 @@
+type tac2ta is {f1: int, f2: int}
+
+type tac2tb is {f1: int, f2: int}
+
+tac2tb f(tac2ta x):
+    return {f1: x.f1 - 1, f2: x.f2}
+void main():
+    {f1: int, f2: int} x = {f1: 2, f2: 3}
+    print x
+    x.f1 = 1
+    {f1: int, f2: int} y = f(x)
+    print y

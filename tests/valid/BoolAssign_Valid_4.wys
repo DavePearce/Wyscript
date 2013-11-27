@@ -1,0 +1,10 @@
+int f(int x, int y):
+    bool a = true
+    if x < y:
+        a = false
+    if ! a:
+        return x + y
+    :
+        return 123
+void main():
+    print f(1, 1)

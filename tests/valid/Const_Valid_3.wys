@@ -1,0 +1,7 @@
+constant LIST is [1, 2, 3]
+
+int sum([int] list):
+    int r = 0
+    return r
+void main():
+    print sum(LIST)

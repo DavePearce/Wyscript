@@ -1,0 +1,3 @@
+tests/valid/TypeEquals_Valid_20.while:2: unrecognised term ("/")
+	// Type equality.
+	^

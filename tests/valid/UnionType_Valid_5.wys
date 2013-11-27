@@ -1,0 +1,3 @@
+tests/valid/UnionType_Valid_5.while:6: expecting ')', found 'is'
+    if(msg is msgType1) {
+           ^^

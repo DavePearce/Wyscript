@@ -1,0 +1,5 @@
+type dr2point is {y: real, x: real}
+
+void main():
+    dr2point p = {x: 1.0, y: 2.23}
+    print p

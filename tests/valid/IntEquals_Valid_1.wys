@@ -1,0 +1,9 @@
+string f(real x, real y):
+    if x == y:
+        return EQUAL
+    :
+        return NOT EQUAL
+void main():
+    print f((real) 1, 4.0)
+    print f((real) 1, 4.2)
+    print f(0.0, 0.0)

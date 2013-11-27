@@ -1,0 +1,6 @@
+[char] append(string input):
+    [char] rs = []
+    return rs
+void main():
+    [char] xs = append(abcdefghijklmnopqrstuvwxyz)
+    print xs

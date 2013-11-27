@@ -1,0 +1,3 @@
+tests/valid/LengthOf_Valid_5.while:4: expecting ')', found 'is'
+    if(l is string) {
+         ^^
