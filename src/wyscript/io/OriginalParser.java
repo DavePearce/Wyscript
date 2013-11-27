@@ -21,7 +21,7 @@ package wyscript.io;
 import java.io.File;
 import java.util.*;
 
-import wyscript.io.Lexer.*;
+import wyscript.io.OriginalLexer.*;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
@@ -31,12 +31,6 @@ import wyscript.util.Attribute;
 import wyscript.util.Pair;
 import wyscript.util.SyntaxError;
 
-/**
- * Responsible for parsing a sequence of tokens into an Abstract Syntax Tree.
- * 
- * @author David J. Pearce
- * 
- */
 public class OriginalParser {
 
 	private String filename;
@@ -532,14 +526,14 @@ public class OriginalParser {
 		} else if (token instanceof Identifier) {
 			return new Expr.Variable(matchIdentifier().text, sourceAttr(start,
 					index - 1));
-		} else if (token instanceof Lexer.Char) {
-			char val = match(Lexer.Char.class,"a character").value;
+		} else if (token instanceof OriginalLexer.Char) {
+			char val = match(OriginalLexer.Char.class,"a character").value;
 			return new Expr.Constant(new Character(val), sourceAttr(start, index - 1));
 		} else if (token instanceof Int) {
 			int val = match(Int.class, "an integer").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
-		} else if (token instanceof Value) {
-			double val = match(Value.class, "a real").value;
+		} else if (token instanceof Real) {
+			double val = match(Real.class, "a real").value;
 			return new Expr.Constant(val, sourceAttr(start, index - 1));
 		} else if (token instanceof Strung) {
 			return parseString();
