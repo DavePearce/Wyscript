@@ -198,7 +198,6 @@ public class Parser {
 		if(index < tokens.size()) {
 			Token token = tokens.get(index);
 			if(token.kind == Indent) {
-				System.out.println("MATCHED INDENT");
 				return new Indent(token.text,token.start);
 			}
 		}
@@ -226,15 +225,15 @@ public class Parser {
 				
 		switch(token.kind) {
 		case Return:
-			return parseReturnStatement(token);
+			return parseReturnStatement(index-1);
 		case Print:
-			return parsePrintStatement(token);
+			return parsePrintStatement(index-1);
 		case If:
-			return parseIfStatement(token,indent);
+			return parseIfStatement(index-1,indent);
 		case While:
-			return parseWhile(token,indent);
+			return parseWhile(index-1,indent);
 		case For:
-			return parseFor(token,indent);
+			return parseFor(index-1,indent);
 		case Identifier:
 			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
 				return parseInvokeStatement(token); 
@@ -370,8 +369,7 @@ public class Parser {
 	 * 
 	 * @return
 	 */
-	private Stmt.Return parseReturnStatement(Token header) {
-		int start = header.start;
+	private Stmt.Return parseReturnStatement(int start) {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
@@ -398,8 +396,7 @@ public class Parser {
 	 * 
 	 * @return
 	 */
-	private Stmt.Print parsePrintStatement(Token header) {
-		int start = header.start;
+	private Stmt.Print parsePrintStatement(int start) {
 		// A print statement begins with the keyword "print", followed by the
 		// expression who's value will be printed.
 		Expr e = parseExpression();
@@ -422,11 +419,9 @@ public class Parser {
 	 * @param indent
 	 * @return
 	 */
-	private Stmt parseIfStatement(Token header, Indent indent) {
-		int start = header.start;
-		// An if statement begins with the keyword "if"
-		match(If);
-		// Followed by an expression representing the condition.
+	private Stmt parseIfStatement(int start, Indent indent) {
+		// An if statement begins with the keyword "if", followed by an
+		// expression representing the condition.
 		Expr c = parseExpression();
 		// The a colon to signal the start of a block.
 		match(Colon);
@@ -457,8 +452,7 @@ public class Parser {
 	 * @param indent
 	 * @return
 	 */
-	private Stmt parseWhile(Token header, Indent indent) {
-		int start = header.start;
+	private Stmt parseWhile(int start, Indent indent) {
 		match(While);
 		Expr condition = parseExpression();
 		match(Colon);
@@ -467,8 +461,7 @@ public class Parser {
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseFor(Token token, Indent indent) {
-		int start = token.start;
+	private Stmt parseFor(int start, Indent indent) {
 		match(For);
 		List<Stmt> blk = parseBlock(indent);
 
@@ -958,11 +951,13 @@ public class Parser {
 	 */
 	private Token tryAndMatch(Token.Kind kind) {		
 		int next = skipWhiteSpace(index);
-		Token t = tokens.get(next);
-		if(t.kind == kind) { 
-			index = next + 1;
-			return t;
-		}		
+		if(next < tokens.size()) {
+			Token t = tokens.get(next);
+			if(t.kind == kind) { 
+				index = next + 1;
+				return t;
+			}
+		}
 		return null; 
 	}
 	
