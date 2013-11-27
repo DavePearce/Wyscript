@@ -1,7 +1,8 @@
-type Record is {flag: bool, code: int}
+type Record is {bool flag, int code}
 
 void main():
     Record x = {flag: true, code: 0}
     print x
     x.flag = false
     print x
+

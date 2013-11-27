@@ -8,3 +8,4 @@ void main():
     print x
     print "NOT"
     print ! x
+

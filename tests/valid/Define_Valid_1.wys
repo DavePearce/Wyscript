@@ -1,4 +1,4 @@
-type point is {y: int, x: int}
+type point is {int y, int x}
 
 type listint is [int]
 
@@ -9,3 +9,4 @@ void main():
     print x
     print |li|
     print li[0]
+

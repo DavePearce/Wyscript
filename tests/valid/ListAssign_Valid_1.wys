@@ -4,3 +4,4 @@ void main():
     arr2[2] = 2
     print arr1
     print arr2
+

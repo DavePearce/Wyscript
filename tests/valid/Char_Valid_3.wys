@@ -5,7 +5,9 @@ string rep(char old, char n, string str):
             str[i] = n
         i = i + 1
     return str
+
 void main():
     print rep('e', 'w', "Hello")
     print rep('H', 'z', "Hello")
     print rep('o', '1', "Hello")
+

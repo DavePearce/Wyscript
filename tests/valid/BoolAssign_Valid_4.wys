@@ -6,5 +6,7 @@ int f(int x, int y):
         return x + y
     else:
         return 123
+
 void main():
     print f(1, 1)
+

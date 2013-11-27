@@ -1,10 +1,12 @@
-type R1 is {y: int, x: real}
+type R1 is {int y, real x}
 
-type R2 is {y: real, x: int}
+type R2 is {real y, int x}
 
-type R3 is {y: int, x: int}
+type R3 is {int y, int x}
 
 R1|R2 f(R3 i):
-    return ({y: int, x: real}) i
+    return ({int y, real x}) i
+
 void main():
     print f({x: 123542, y: 123})
+

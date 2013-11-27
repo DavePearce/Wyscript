@@ -1,5 +1,7 @@
 [int] f([int] xs):
     return xs
+
 void main():
     print f([1, 4])
     print f([])
+

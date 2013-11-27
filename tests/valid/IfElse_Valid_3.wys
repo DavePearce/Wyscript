@@ -3,9 +3,11 @@ int f(int x):
         return 1
     else:
         return 2
+
 void main():
     print f(1)
     print f(10)
     print f(11)
     print f(1212)
     print f(-1212)
+

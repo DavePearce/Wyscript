@@ -364,11 +364,13 @@ public class Lexer {
 	 */
 	public static final HashMap<String, Token.Kind> keywords = new HashMap<String, Token.Kind>() {
 		{
+			put("void", Token.Kind.Void);
+			put("null", Token.Kind.Null);
+			put("bool", Token.Kind.Bool);
 			put("int", Token.Kind.Int);
 			put("real", Token.Kind.Real);
 			put("char", Token.Kind.Char);
-			put("string", Token.Kind.String);
-			put("bool", Token.Kind.Bool);
+			put("string", Token.Kind.String);			
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);

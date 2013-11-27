@@ -6,3 +6,4 @@ void main():
     print a1[1]
     print a2[0]
     print a2[1]
+

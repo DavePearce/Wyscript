@@ -3,3 +3,4 @@ void main():
     [int] right = [3, 4]
     [int] r = left ++ right
     print r
+

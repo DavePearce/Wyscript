@@ -1,5 +1,6 @@
 int|null indexOf(char c1, string str):
     return null
+
 void main():
     print indexOf('H', "Hello World")
     print indexOf('e', "Hello World")
@@ -11,3 +12,4 @@ void main():
     print indexOf('d', "Hello World")
     print indexOf('z', "Hello World")
     print indexOf('1', "Hello World")
+

@@ -1,5 +1,7 @@
 int f([int] x):
     return |x|
+
 void main():
     [int] arr = []
     print f(arr)
+

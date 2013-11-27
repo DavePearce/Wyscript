@@ -5,7 +5,9 @@ int sum([int] ls):
         sum = sum + ls[i]
         i = i + 1
     return sum
+
 void main():
     print sum([])
     print sum([1, 2, 3])
     print sum([12387, 98123, 12398, 12309, 0])
+

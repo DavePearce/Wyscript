@@ -1,8 +1,10 @@
 constant POINT is {x: 1, y: 1}
 
-type Point is {y: int, x: int}
+type Point is {int y, int x}
 
 int sum(Point p):
     return p.x + p.y
+
 void main():
     print sum(POINT)
+

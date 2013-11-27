@@ -3,6 +3,8 @@ string f(bool b):
         return "TRUE"
     else:
         return "FALSE"
+
 void main():
     print f(true)
     print f(false)
+

@@ -3,3 +3,4 @@ void main():
     [real] r = [4.23, 5.5]
     [int|real] x = r ++ l
     print x
+

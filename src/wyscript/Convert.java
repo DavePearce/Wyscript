@@ -179,6 +179,7 @@ public class Convert {
 		}
 		System.out.println("):");
 		print(decl.statements,4);
+		System.out.println();
 	}
 	
 	public static void print(List<Stmt> stmts, int indent) {
@@ -298,8 +299,8 @@ public class Convert {
 					System.out.print(", ");
 				}
 				firstTime=false;
-				System.out.print(ce.getKey() + ": ");
 				print(ce.getValue());
+				System.out.print(" " + ce.getKey());				
 			}
 			System.out.print("}");
 		} else if(t instanceof Type.Union) {

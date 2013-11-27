@@ -67,8 +67,10 @@ public class Parser {
 			switch (t.kind) {
 			case Type:
 				decls.add(parseTypeDeclaration());
+				break;
 			case Constant:
 				decls.add(parseConstantDeclaration());
+				break;
 			default:
 				decls.add(parseFunctionDeclaration());
 			}
@@ -88,6 +90,7 @@ public class Parser {
 		
 		Type ret = parseType();
 		skipWhiteSpace();	
+		
 		Token name = match(Identifier);
 		match(LeftBrace);
 
@@ -170,6 +173,7 @@ public class Parser {
 			Indent nextIndent;
 			while ((nextIndent = getIndent()) != null
 					&& indent.lessThanEq(nextIndent)) {
+				System.out.println("PARSING STATEMENT");
 				// At this point, nextIndent contains the indent of the current
 				// statement. However, this still may not be equivalent to this
 				// block's indentation level.
@@ -198,9 +202,13 @@ public class Parser {
 		if(index < tokens.size()) {
 			Token token = tokens.get(index);
 			if(token.kind == Indent) {
+				System.out.println("INDENT: \"" + token.text + "\"");
 				return new Indent(token.text,token.start);
 			}
+			System.out.println("INDENT: \"" + tokens.get(index).text + "\"");
+			return null;
 		}
+		System.out.println("INDENT: EOF");
 		return null;
 	}
 
@@ -240,6 +248,7 @@ public class Parser {
 			}
 		}
 		
+		index = index - 1; // backtrack
 		if (isStartOfType(index)) {
 			return parseVariableDeclaration();
 		} else {
@@ -518,7 +527,6 @@ public class Parser {
 		int start = index;
 
 		Expr lhs = parseAppendExpression();
-		System.out.println("GOT HERE");
 		
 		int next = skipWhiteSpace(index);
 		if (next < tokens.size()) {			
@@ -546,7 +554,6 @@ public class Parser {
 			default:
 				return lhs;
 			}
-			System.out.println("AND HERE");
 			
 			index = next + 1; // match the operator
 			Expr rhs = parseExpression();
@@ -675,7 +682,7 @@ public class Parser {
 		case Identifier:
 			if (tryAndMatch(LeftBrace) != null) {
 				// FIXME: bug here because we've already matched the identifier
-				return parseInvokeExpr(token);
+				return parseInvokeExpr(start,token);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,
 						index - 1));
@@ -699,13 +706,13 @@ public class Parser {
 			return new Expr.Constant(parseString(token.text), sourceAttr(start,
 					index - 1));
 		case Minus:
-			return parseNegation();
+			return parseNegation(start);
 		case VerticalBar:
-			return parseLengthOf();
+			return parseLengthOf(start);
 		case LeftSquare:
-			return parseListVal();
+			return parseListVal(start);
 		case LeftCurly:
-			return parseRecordVal();
+			return parseRecordVal(start);
 		case Shreak:
 			return new Expr.Unary(Expr.UOp.NOT, parseTerm(), sourceAttr(start,
 					index - 1));
@@ -715,12 +722,10 @@ public class Parser {
 		return null;
 	}
 
-	private Expr parseListVal() {
-		int start = index;
+	private Expr parseListVal(int start) {
 		ArrayList<Expr> exprs = new ArrayList<Expr>();
-		match(LeftSquare);
+		
 		boolean firstTime = true;
-
 		while (eventuallyMatch(RightSquare) == null) {
 			if (!firstTime) {
 				match(Comma);
@@ -732,12 +737,10 @@ public class Parser {
 		return new Expr.ListConstructor(exprs, sourceAttr(start, index - 1));
 	}
 
-	private Expr parseRecordVal() {
-		int start = index;
-		match(LeftCurly);
+	private Expr parseRecordVal(int start) {
 		HashSet<String> keys = new HashSet<String>();
 		ArrayList<Pair<String, Expr>> exprs = new ArrayList<Pair<String, Expr>>();
-		checkNotEof();
+
 		Token token = tokens.get(index);
 		boolean firstTime = true;
 		while (eventuallyMatch(RightCurly) == null) {
@@ -766,18 +769,14 @@ public class Parser {
 		return new Expr.RecordConstructor(exprs, sourceAttr(start, index - 1));
 	}
 
-	private Expr parseLengthOf() {
-		int start = index;
-		match(VerticalBar);
+	private Expr parseLengthOf(int start) {		
 		Expr e = parseIndexTerm();
 		match(VerticalBar);
 		return new Expr.Unary(Expr.UOp.LENGTHOF, e,
 				sourceAttr(start, index - 1));
 	}
 
-	private Expr parseNegation() {
-		int start = index;
-		match(Minus);
+	private Expr parseNegation(int start) {
 		Expr e = parseIndexTerm();
 
 		if (e instanceof Expr.Constant) {
@@ -794,9 +793,7 @@ public class Parser {
 		return new Expr.Unary(Expr.UOp.NEG, e, sourceAttr(start, index));
 	}
 
-	private Expr.Invoke parseInvokeExpr(Token name) {
-		int start = name.start;		
-		match(LeftBrace);
+	private Expr.Invoke parseInvokeExpr(int start, Token name) {
 		boolean firstTime = true;
 		ArrayList<Expr> args = new ArrayList<Expr>();
 		while (eventuallyMatch(RightBrace) == null) {
@@ -814,7 +811,9 @@ public class Parser {
 
 	private Type parseType() {
 		int start = index;
+		System.out.println("GOT: " + tokens.get(index).text);
 		Type t = parseBaseType();
+		System.out.println("GOT: " + tokens.get(index).text);
 
 		// Now, attempt to look for union types
 		if (tryAndMatch(VerticalBar) != null) {
@@ -853,7 +852,7 @@ public class Parser {
 			return new Type.Strung(sourceAttr(start, index - 1));
 		case LeftCurly:
 			HashMap<String, Type> types = new HashMap<String, Type>();
-			token = tokens.get(index);
+
 			boolean firstTime = true;
 			while (eventuallyMatch(RightCurly) == null) {
 				if (!firstTime) {
@@ -880,9 +879,11 @@ public class Parser {
 			t = parseType();
 			match(RightBrace);
 			return new Type.List(t, sourceAttr(start, index - 1));
+		case Identifier:
+			return new Type.Named(token.text, sourceAttr(start, index - 1));
 		default:
-			Token id = match(Identifier);
-			return new Type.Named(id.text, sourceAttr(start, index - 1));
+			syntaxError("unknown type encountered",token);
+			return null;
 		}
 	}
 	

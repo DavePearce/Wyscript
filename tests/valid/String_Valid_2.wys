@@ -1,5 +1,6 @@
 bool has(char c1, string str):
     return false
+
 void main():
     string s = "Hello World"
     print has('l', s)
@@ -7,3 +8,4 @@ void main():
     print has('h', s)
     print has('z', s)
     print has('H', s)
+

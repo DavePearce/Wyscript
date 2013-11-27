@@ -4,3 +4,4 @@ constant TWO_PI is 2.0 * PI
 
 void main():
     print TWO_PI
+

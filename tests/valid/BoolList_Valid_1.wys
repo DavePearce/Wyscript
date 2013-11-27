@@ -5,3 +5,4 @@ void main():
     print x
     ls[0] = false
     print ls
+
