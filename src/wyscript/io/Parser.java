@@ -151,7 +151,6 @@ public class Parser {
 	 * @return
 	 */
 	private List<Stmt> parseBlock(Indent parentIndent) {
-
 		// First, determine the initial indentation of this block based on the
 		// first statement (or null if there is no statement).
 		Indent indent = getIndent();
@@ -196,11 +195,14 @@ public class Parser {
 	 * @return
 	 */
 	private Indent getIndent() {
-		if (index < tokens.size() && tokens.get(index) instanceof Indent) {
-			return (Indent) tokens.get(index);
-		} else {
-			return null;
+		if(index < tokens.size()) {
+			Token token = tokens.get(index);
+			if(token.kind == Indent) {
+				System.out.println("MATCHED INDENT");
+				return new Indent(token.text,token.start);
+			}
 		}
+		return null;
 	}
 
 	/**
@@ -709,7 +711,7 @@ public class Parser {
 					index - 1));
 		}
 					
-		syntaxError("unrecognised term (\"" + token.text + "\")", token);
+		syntaxError("unrecognised term", token);
 		return null;
 	}
 
@@ -940,6 +942,7 @@ public class Parser {
 		if (token.kind != kind) {
 			return null;
 		} else {
+			index = index + 1;
 			return token;
 		}
 	}
@@ -979,6 +982,8 @@ public class Parser {
 					index - 1, index - 1);
 		} else if (tokens.get(index).kind != NewLine) {
 			syntaxError("expected end-of-line", tokens.get(index));
+		} else {
+			index = index + 1;
 		}
 	}
 	

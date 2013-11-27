@@ -167,7 +167,7 @@ public class Lexer {
 			char c = input.charAt(pos);
 			if (c == '"') {
 				String v = input.substring(start, ++pos);
-				return new Token(Token.Kind.String, v, start);
+				return new Token(Token.Kind.StringValue, v, start);
 			}
 			pos = pos + 1;
 		}
