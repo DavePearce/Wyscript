@@ -869,9 +869,9 @@ public class Parser {
 			}
 			
 			return new Type.Record(types, sourceAttr(start, index - 1));
-		case LeftBrace:
+		case LeftSquare:
 			t = parseType();
-			match(RightBrace);
+			match(RightSquare);
 			return new Type.List(t, sourceAttr(start, index - 1));
 		case Identifier:
 			return new Type.Named(token.text, sourceAttr(start, index - 1));
