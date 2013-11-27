@@ -1,0 +1,240 @@
+// This file is part of the WhileLang Compiler (wlc).
+//
+// The WhileLang Compiler is free software; you can redistribute
+// it and/or modify it under the terms of the GNU General Public
+// License as published by the Free Software Foundation; either
+// version 3 of the License, or (at your option) any later version.
+//
+// The WhileLang Compiler is distributed in the hope that it
+// will be useful, but WITHOUT ANY WARRANTY; without even the
+// implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+// PURPOSE. See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public
+// License along with the WhileLang Compiler. If not, see
+// <http://www.gnu.org/licenses/>
+//
+// Copyright 2013, David James Pearce.
+
+package wyscript;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.List;
+
+import wyscript.io.*;
+import wyscript.lang.*;
+import wyscript.util.*;
+
+public class Convert {
+
+	public static PrintStream errout;
+
+	static {
+		try {
+			errout = new PrintStream(System.err, true, "UTF8");
+		} catch (Exception e) {
+			errout = System.err;
+		}
+	}
+
+	private static enum Mode { interpret, js };
+	
+	public static boolean run(String[] args) {
+		boolean verbose = false;
+		int fileArgsBegin = 0;
+		Mode mode = Mode.interpret;
+		
+		for (int i = 0; i != args.length; ++i) {
+			if (args[i].startsWith("-")) {
+				String arg = args[i];
+				if (arg.equals("-help")) {
+					usage();
+					System.exit(0);
+				} else if (arg.equals("-version")) {
+					System.out.println("While Language Compiler (wlc)");
+					System.exit(0);
+				} else if (arg.equals("-verbose")) {
+					verbose = true;
+				} else if (arg.equals("-js")) {
+					mode = Mode.js;
+				} else {
+					throw new RuntimeException("Unknown option: " + args[i]);
+				}
+
+				fileArgsBegin = i + 1;
+			}
+		}
+
+		if (fileArgsBegin == args.length) {
+			usage();
+			return false;
+		}
+
+		try {
+			String filename = args[fileArgsBegin];
+			File srcFile = new File(filename);
+
+			// First, lex and parse the source file
+			OriginalLexer lexer = new OriginalLexer(srcFile.getPath());
+			OriginalParser parser = new OriginalParser(srcFile.getPath(), lexer.scan());
+			WyscriptFile ast = parser.read();
+			convert(ast);
+			
+		} catch (SyntaxError e) {
+			if (e.filename() != null) {
+				e.outputSourceError(System.out);
+			} else {
+				System.err.println("syntax error (" + e.getMessage() + ").");
+			}
+
+			if (verbose) {
+				e.printStackTrace(errout);
+			}
+
+			return false;
+		} catch (Exception e) {
+			errout.println("Error: " + e.getMessage());
+			if (verbose) {
+				e.printStackTrace(errout);
+			}
+			return false;
+		}
+
+		return true;
+	}
+
+	public static void main(String[] args) throws Exception {
+		run(args);
+	}
+
+	/**
+	 * Print out information regarding command-line arguments
+	 * 
+	 */
+	public static void usage() {
+		String[][] info = {
+				{ "version", "Print version information" },
+				{ "verbose",
+						"Print detailed information on what the compiler is doing" } };
+
+		System.out.println("usage: wyjs <options> <source-files>");
+		System.out.println("Options:");
+
+		// first, work out gap information
+		int gap = 0;
+
+		for (String[] p : info) {
+			gap = Math.max(gap, p[0].length() + 5);
+		}
+
+		// now, print the information
+		for (String[] p : info) {
+			System.out.print("  -" + p[0]);
+			int rest = gap - p[0].length();
+			for (int i = 0; i != rest; ++i) {
+				System.out.print(" ");
+			}
+			System.out.println(p[1]);
+		}
+	}
+	
+	private static void convert(WyscriptFile file) {
+		for(WyscriptFile.Decl decl : file.declarations) {
+			if(decl instanceof WyscriptFile.ConstDecl) {
+				print((WyscriptFile.ConstDecl) decl);	
+			} else if(decl instanceof WyscriptFile.TypeDecl) {
+				print((WyscriptFile.TypeDecl) decl);
+			} else {
+				print((WyscriptFile.FunDecl) decl);
+			}
+			
+		}
+	}
+	
+	public static void print(WyscriptFile.TypeDecl decl) {
+		System.out.print("type " + decl.name + " is ");
+		print(decl.type);
+		System.out.println("\n");
+	}
+	
+	public static void print(WyscriptFile.ConstDecl decl) {
+		System.out.print("constant " + decl.name + " is ");
+		print(decl.constant);
+		System.out.println("\n");
+	}
+	
+	public static void print(WyscriptFile.FunDecl decl) {
+		print(decl.ret);
+		System.out.print(" " + decl.name + "(");
+		boolean firstTime = true;
+		for(WyscriptFile.Parameter p : decl.parameters) {
+			if(!firstTime) {
+				System.out.print(", ");
+			}
+			firstTime=false;
+			print(p.type);
+			System.out.print(" " + p.name);
+		}
+		System.out.println("):");
+		print(decl.statements,4);
+	}
+	
+	public static void print(List<Stmt> stmts, int indent) {
+		for(Stmt stmt : stmts) {
+			if(stmt instanceof Stmt.Print) {
+				print((Stmt.Print) stmt,indent);
+			} else if(stmt instanceof Stmt.Return) {
+				print((Stmt.Return) stmt,indent);
+			}
+		}
+	}
+	
+	public static void print(Stmt.Print stmt, int indent) {
+		indent(indent);
+		System.out.print("print ");
+		print(stmt.getExpr());
+		System.out.println();
+	}
+	
+	public static void print(Stmt.Return stmt, int indent) {
+		indent(indent);
+		System.out.print("return");
+		if(stmt.getExpr() != null) {
+			System.out.print(" ");
+			print(stmt.getExpr());
+		}
+		System.out.println();
+	}
+	
+	public static void print(Type t) {
+		if(t instanceof Type.Bool) {
+			System.out.print("bool");
+		} else if(t instanceof Type.Char) {
+			System.out.print("char");
+		} else if(t instanceof Type.Int) {
+			System.out.print("int");
+		} else if(t instanceof Type.Real) {
+			System.out.print("real");
+		} else if(t instanceof Type.Strung) {
+			System.out.print("string");
+		} 
+	}
+	
+	public static void print(Expr e) {
+		if(e instanceof Expr.Constant) {
+			Expr.Constant c = (Expr.Constant) e;
+			System.out.print(c.getValue());
+		} else if(e instanceof Expr.Variable) {
+			Expr.Variable v = (Expr.Variable) e;
+			System.out.print(v.getName());
+		}
+	}
+	
+	public static void indent(int indent) {
+		for(int i=0;i!=indent;++i) {
+			System.out.print(" ");
+		}
+	}
+}
