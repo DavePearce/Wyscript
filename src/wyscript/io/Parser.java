@@ -645,7 +645,6 @@ public class Parser {
 				match(RightSquare);
 				lhs = new Expr.IndexOf(lhs, rhs, sourceAttr(start, index - 1));
 			} else {
-				match(Dot);
 				String name = match(Identifier).text;
 				lhs = new Expr.RecordAccess(lhs, name, sourceAttr(start,
 						index - 1));
