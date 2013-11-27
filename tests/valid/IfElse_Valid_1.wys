@@ -1,11 +1,11 @@
 string f(int x):
     if x < 10:
-        return LESS THAN
-    :
+        return "LESS THAN"
+    else:
         if x > 10:
-            return GREATER THAN
-        :
-            return EQUALS
+            return "GREATER THAN"
+        else:
+            return "EQUALS"
 void main():
     print f(1)
     print f(10)

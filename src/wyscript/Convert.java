@@ -225,7 +225,7 @@ public class Convert {
 		System.out.println(":");
 		print(stmt.getTrueBranch(),indent+4);
 		if(!stmt.getFalseBranch().isEmpty()) {
-			indent(indent);System.out.println(":");
+			indent(indent);System.out.println("else:");
 			print(stmt.getFalseBranch(),indent+4);
 		}
 	}
@@ -320,7 +320,14 @@ public class Convert {
 	public static void print(Expr e) {
 		if(e instanceof Expr.Constant) {
 			Expr.Constant c = (Expr.Constant) e;
-			System.out.print(c.getValue());
+			Object constant = c.getValue();
+			if(constant instanceof String) {
+				System.out.print("\"" + constant + "\"");
+			} else if(constant instanceof Character) {
+				System.out.print("\'" + constant + "\'");
+			} else {
+				System.out.print(c.getValue());
+			}
 		} else if(e instanceof Expr.Variable) {
 			Expr.Variable v = (Expr.Variable) e;
 			System.out.print(v.getName());

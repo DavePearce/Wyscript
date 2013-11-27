@@ -2,5 +2,5 @@
     [char] rs = []
     return rs
 void main():
-    [char] xs = append(abcdefghijklmnopqrstuvwxyz)
+    [char] xs = append("abcdefghijklmnopqrstuvwxyz")
     print xs

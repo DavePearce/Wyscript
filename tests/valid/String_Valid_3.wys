@@ -6,6 +6,6 @@ string repl(char old, char n, string str):
         i = i + 1
     return str
 void main():
-    string s = Hello World
-    s = repl(l, 1, s)
+    string s = "Hello World"
+    s = repl('l', '1', s)
     print s

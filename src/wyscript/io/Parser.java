@@ -438,6 +438,7 @@ public class Parser {
 			// TODO: support "else if" chaining.
 			
 			match(Colon);
+			matchEndLine();			
 			fblk = parseBlock(indent);
 		}
 		// Done!
@@ -505,6 +506,7 @@ public class Parser {
 			default:
 				return lhs;
 			}
+			index = next+1; // match the operator
 			Expr rhs = parseExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
@@ -516,9 +518,10 @@ public class Parser {
 		int start = index;
 
 		Expr lhs = parseAppendExpression();
-
+		System.out.println("GOT HERE");
+		
 		int next = skipWhiteSpace(index);
-		if (next < tokens.size()) {
+		if (next < tokens.size()) {			
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -543,6 +546,9 @@ public class Parser {
 			default:
 				return lhs;
 			}
+			System.out.println("AND HERE");
+			
+			index = next + 1; // match the operator
 			Expr rhs = parseExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
@@ -559,6 +565,7 @@ public class Parser {
 			Token token = tokens.get(next);			
 			switch (token.kind) {
 			case PlusPlus:			
+				index = next + 1; // match the operator
 				Expr rhs = parseAppendExpression();
 				return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
 						index - 1));
@@ -586,7 +593,7 @@ public class Parser {
 			default:
 				return lhs;
 			}
-			
+			index = next + 1; // match the operator	
 			Expr rhs = parseExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
@@ -615,7 +622,7 @@ public class Parser {
 			default:
 				return lhs;
 			}
-			
+			index = next + 1; // match the operator
 			Expr rhs = parseExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}

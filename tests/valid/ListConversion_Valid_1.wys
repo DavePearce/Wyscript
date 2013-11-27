@@ -1,4 +1,4 @@
 string f([real] ls):
-    return  ++ ls
+    return "" ++ ls
 void main():
     print f([1.0, 2.0, 3.0])

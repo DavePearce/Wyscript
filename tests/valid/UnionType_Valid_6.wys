@@ -7,7 +7,7 @@ type msg2 is {index: int}
 type msgType is msg1|msg2
 
 string f(msgType m):
-    return  ++ m
+    return "" ++ m
 void main():
     msgType x = {op: 11, data: []}
     print x

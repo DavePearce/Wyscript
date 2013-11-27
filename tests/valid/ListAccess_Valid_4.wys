@@ -2,5 +2,5 @@
     [char] r = []
     return r
 void main():
-    [char] r = f(Hello)
+    [char] r = f("Hello")
     print r

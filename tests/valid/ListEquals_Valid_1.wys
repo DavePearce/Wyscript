@@ -1,8 +1,8 @@
 string f([int] xs, [int] ys):
     if xs == ys:
-        return EQUAL
-    :
-        return NOT EQUAL
+        return "EQUAL"
+    else:
+        return "NOT EQUAL"
 void g([int] xs, [int] ys):
     print xs
     print ys

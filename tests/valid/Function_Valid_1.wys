@@ -1,7 +1,7 @@
 string f1(real x):
-    return GOT REAL
+    return "GOT REAL"
 string f2(int x):
-    return GOT INT
+    return "GOT INT"
 void main():
     print f2(1)
     print f1(1.23)

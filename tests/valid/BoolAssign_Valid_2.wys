@@ -3,8 +3,8 @@ void main():
     bool y = false
     print x
     print y
-    print AND
+    print "AND"
     x = x && y
     print x
-    print NOT
+    print "NOT"
     print ! x
