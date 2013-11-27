@@ -378,8 +378,7 @@ public class Parser {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
-
-		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
+		if (next < tokens.size() && tokens.get(next).kind != NewLine) {			
 			e = parseExpression();
 		}
 		// Finally, a new line indicates the end-of-statement
@@ -638,7 +637,7 @@ public class Parser {
 		Expr lhs = parseTerm();
 		Token token;
 
-		while ((token = tryAndMatch(LeftSquare)) != null
+		while ((token = tryAndMatchOnLine(LeftSquare)) != null
 				|| (token = tryAndMatch(Dot)) != null) {
 			start = index;
 			if (token.kind == LeftSquare) {
@@ -963,6 +962,26 @@ public class Parser {
 		return null; 
 	}
 	
+	/**
+	 * Attempt to match a given token on the *same* line, whilst ignoring any
+	 * whitespace in between. Note that, in the case it fails to match, then the
+	 * index will be unchanged. This latter point is important, otherwise we
+	 * could accidentally gobble up some important indentation.
+	 * 
+	 * @param kind
+	 * @return
+	 */
+	private Token tryAndMatchOnLine(Token.Kind kind) {		
+		int next = skipLineSpace(index);
+		if(next < tokens.size()) {
+			Token t = tokens.get(next);
+			if(t.kind == kind) { 
+				index = next + 1;
+				return t;
+			}
+		}
+		return null; 
+	}
 	/**
 	 * Match a the end of a line. This is required to signal, for example, the
 	 * end of the current statement.
