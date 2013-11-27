@@ -93,8 +93,7 @@ public class Parser {
 		// Now build up the parameter types
 		List<Parameter> paramTypes = new ArrayList<Parameter>();
 		boolean firstTime = true;
-		while (index < tokens.size()
-				&& lookahead(RightBrace) == null) {
+		while (eventuallyMatch(RightBrace) == null) {
 			if (!firstTime) {
 				match(Comma);
 			}
@@ -106,7 +105,7 @@ public class Parser {
 					index - 1)));
 		}
 
-		match(RightBrace, Colon);		
+		match(Colon);		
 		matchEndLine();
 		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
@@ -220,41 +219,38 @@ public class Parser {
 	 */
 	private Stmt parseStatement(Indent indent) {
 		checkNotEof();
-		Token token = tokens.get(index);
-		Stmt stmt;
-		
+		Token token = tokens.get(index++);
+				
 		switch(token.kind) {
 		case Return:
-			return parseReturnStatement();
+			return parseReturnStatement(token);
 		case Print:
-			return parsePrintStatement();
+			return parsePrintStatement(token);
 		case If:
-			return parseIfStatement(indent);
+			return parseIfStatement(token,indent);
 		case While:
-			return parseWhile(indent);
+			return parseWhile(token,indent);
 		case For:
-			return parseFor(indent);
+			return parseFor(token,indent);
 		case Identifier:
-			if (lookahead(Token.Kind.Identifier, Token.Kind.LeftBrace) != null) {
-				return parseInvokeStatement(); 
+			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
+				return parseInvokeStatement(token); 
 			}
 		}
 		
 		if (isStartOfType(index)) {
-			stmt = parseVariableDeclaration();
+			return parseVariableDeclaration();
 		} else {
 			// invocation or assignment
 			int start = index;
 			Expr t = parseExpression();
 			if (t instanceof Expr.Invoke) {
-				stmt = (Expr.Invoke) t;
+				return (Expr.Invoke) t;
 			} else {
 				index = start;
-				stmt = parseAssign();
+				return parseAssign();
 			}
 		}
-		
-		return stmt;
 	}
 
 	/**
@@ -298,19 +294,18 @@ public class Parser {
 	 * Identifier '(' ( Expression )* ')' NewLine
 	 * </p>
 	 * 
+	 * Observe that this when this function is called, we're assuming that the identifier and opening brace has already been matched.
+	 * 
 	 * @return
 	 */
-	private Expr.Invoke parseInvokeStatement() {
-		int start = index;
+	private Expr.Invoke parseInvokeStatement(Token name) {
+		int start = name.start;
 		// An invoke statement begins with the name of the function to be
-		// invoked.
-		Token name = match(Identifier);
-		// This is followed by zero or more comma-separated arguments enclosed
-		// in braces.
-		match(LeftBrace);
+		// invoked, followed by zero or more comma-separated arguments enclosed
+		// in braces.		
 		boolean firstTime = true;
 		ArrayList<Expr> args = new ArrayList<Expr>();
-		while (index < tokens.size() && lookahead(Token.Kind.LeftBrace) == null) {
+		while (eventuallyMatch(Token.Kind.LeftBrace) == null) {
 			if (!firstTime) {
 				match(Token.Kind.Comma);
 			} else {
@@ -320,7 +315,6 @@ public class Parser {
 			args.add(e);
 
 		}
-		match(RightBrace);
 		// Finally, a new line indicates the end-of-statement
 		int end = index;
 		matchEndLine();
@@ -368,13 +362,13 @@ public class Parser {
 	 * </pre>
 	 * 
 	 * The optional expression is referred to as the <i>return value</i>.
+	 * Observe that, when this function is called, we're assuming that "return"
+	 * has already been matched.
 	 * 
 	 * @return
 	 */
-	private Stmt.Return parseReturnStatement() {
-		int start = index;
-		// Every return statement begins with the return keyword!
-		match(Return);
+	private Stmt.Return parseReturnStatement(Token header) {
+		int start = header.start;
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 
@@ -396,13 +390,15 @@ public class Parser {
 	 * "print" Expression
 	 * </pre>
 	 * 
+	 * Observe that, when this function is called, we're assuming that "print"
+	 * has already been matched.
+	 * 
 	 * @return
 	 */
-	private Stmt.Print parsePrintStatement() {
-		int start = index;
-		// A print statement begins with the keyword "print"
-		match(Print);
-		// Followed by the expression who's value will be printed.
+	private Stmt.Print parsePrintStatement(Token header) {
+		int start = header.start;
+		// A print statement begins with the keyword "print", followed by the
+		// expression who's value will be printed.
 		Expr e = parseExpression();
 		// Finally, a new line indicates the end-of-statement
 		int end = index;
@@ -423,8 +419,8 @@ public class Parser {
 	 * @param indent
 	 * @return
 	 */
-	private Stmt parseIfStatement(Indent indent) {
-		int start = index;
+	private Stmt parseIfStatement(Token header, Indent indent) {
+		int start = header.start;
 		// An if statement begins with the keyword "if"
 		match(If);
 		// Followed by an expression representing the condition.
@@ -461,19 +457,18 @@ public class Parser {
 	 * @param indent
 	 * @return
 	 */
-	private Stmt parseWhile(Indent indent) {
-		int start = index;
-		match(While);		
+	private Stmt parseWhile(Token header, Indent indent) {
+		int start = header.start;
+		match(While);
 		Expr condition = parseExpression();
 		match(Colon);
 		int end = index;
 		List<Stmt> blk = parseBlock(indent);
-
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
 
-	private Stmt parseFor(Indent indent) {
-		int start = index;
+	private Stmt parseFor(Token token, Indent indent) {
+		int start = token.start;
 		match(For);
 		List<Stmt> blk = parseBlock(indent);
 
@@ -635,22 +630,15 @@ public class Parser {
 		return lhs;
 	}
 
-	private Expr parseIndexTerm() {
-		checkNotEof();
+	private Expr parseIndexTerm() {		
 		int start = index;
 		Expr lhs = parseTerm();
-		Token lookahead;
-		
-		if (index < tokens.size()) {
-			lookahead = tokens.get(index);
-		} else {
-			lookahead = null;
-		}
-		
-		while (lookahead(LeftSquare) != null
-				|| lookahead(Dot) != null) {
+		Token token;
+
+		while ((token = tryAndMatch(LeftSquare)) != null
+				|| (token = tryAndMatch(Dot)) != null) {
 			start = index;
-			if (tryAndMatch(LeftSquare) != null) {
+			if (token.kind == LeftSquare) {
 				Expr rhs = parseAddSubExpression();
 				match(RightSquare);
 				lhs = new Expr.IndexOf(lhs, rhs, sourceAttr(start, index - 1));
@@ -659,12 +647,6 @@ public class Parser {
 				String name = match(Identifier).text;
 				lhs = new Expr.RecordAccess(lhs, name, sourceAttr(start,
 						index - 1));
-			}
-			
-			if (index < tokens.size()) {
-				lookahead = tokens.get(index);
-			} else {
-				lookahead = null;
 			}
 		}
 
@@ -691,9 +673,9 @@ public class Parser {
 				return e;
 			}
 		case Identifier:
-			if (lookahead(LeftBrace) != null) {
+			if (tryAndMatch(LeftBrace) != null) {
 				// FIXME: bug here because we've already matched the identifier
-				return parseInvokeExpr();
+				return parseInvokeExpr(token);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,
 						index - 1));
@@ -738,16 +720,15 @@ public class Parser {
 		ArrayList<Expr> exprs = new ArrayList<Expr>();
 		match(LeftSquare);
 		boolean firstTime = true;
-		
-		while (lookahead(RightSquare) == null) {
+
+		while (eventuallyMatch(RightSquare) == null) {
 			if (!firstTime) {
 				match(Comma);
 			}
 			firstTime = false;
 			exprs.add(parseExpression());
 		}
-		
-		match(RightSquare);
+
 		return new Expr.ListConstructor(exprs, sourceAttr(start, index - 1));
 	}
 
@@ -759,7 +740,7 @@ public class Parser {
 		checkNotEof();
 		Token token = tokens.get(index);
 		boolean firstTime = true;
-		while (lookahead(RightCurly) == null) {
+		while (eventuallyMatch(RightCurly) == null) {
 			if (!firstTime) {
 				match(Comma);
 			}
@@ -781,7 +762,7 @@ public class Parser {
 			checkNotEof();
 			token = tokens.get(index);
 		}
-		match(RightCurly);
+
 		return new Expr.RecordConstructor(exprs, sourceAttr(start, index - 1));
 	}
 
@@ -813,14 +794,12 @@ public class Parser {
 		return new Expr.Unary(Expr.UOp.NEG, e, sourceAttr(start, index));
 	}
 
-	private Expr.Invoke parseInvokeExpr() {
-		int start = index;
-		Token name = match(Identifier);
+	private Expr.Invoke parseInvokeExpr(Token name) {
+		int start = name.start;		
 		match(LeftBrace);
 		boolean firstTime = true;
 		ArrayList<Expr> args = new ArrayList<Expr>();
-		while (index < tokens.size()
-				&& lookahead(RightBrace) == null) {
+		while (eventuallyMatch(RightBrace) == null) {
 			if (!firstTime) {
 				match(Comma);
 			} else {
@@ -830,7 +809,6 @@ public class Parser {
 
 			args.add(e);
 		}
-		match(RightBrace);
 		return new Expr.Invoke(name.text, args, sourceAttr(start, index - 1));
 	}
 
@@ -877,7 +855,7 @@ public class Parser {
 			HashMap<String, Type> types = new HashMap<String, Type>();
 			token = tokens.get(index);
 			boolean firstTime = true;
-			while (index < tokens.size() && lookahead(RightCurly) == null) {
+			while (eventuallyMatch(RightCurly) == null) {
 				if (!firstTime) {
 					match(Comma);
 				}
@@ -896,7 +874,7 @@ public class Parser {
 				checkNotEof();
 				token = tokens.get(index);
 			}
-			match(RightCurly);
+			
 			return new Type.Record(types, sourceAttr(start, index - 1));
 		case LeftBrace:
 			t = parseType();
@@ -907,31 +885,15 @@ public class Parser {
 			return new Type.Named(id.text, sourceAttr(start, index - 1));
 		}
 	}
-		
-	private Token lookahead(Token.Kind kind) {		
-		skipWhiteSpace();
-		Token t = tokens.get(index);
-		if(t.kind == kind) { 			
-			return t;
-		}		
-		return null; 
-	}
 	
-	private Token[] lookahead(Token.Kind... kinds) {
-		Token[] result = new Token[kinds.length];
-		int tmp = index;
-		for (int i = 0; i != result.length; ++i) {
-			skipWhiteSpace(tmp);
-			Token token = tokens.get(tmp++);
-			if (token.kind == kinds[i]) {
-				result[i] = token;
-			} else {
-				return null;
-			}
-		}
-		return result;
-	}
-	
+	/**
+	 * Match a given token kind, whilst moving passed any whitespace encountered
+	 * inbetween. In the case that meet the end of the stream, or we don't match
+	 * the expected token, then an error is thrown.
+	 * 
+	 * @param kind
+	 * @return
+	 */
 	private Token match(Token.Kind kind) {
 		checkNotEof();
 		Token token = tokens.get(index);
@@ -941,6 +903,15 @@ public class Parser {
 		return token;
 	}
 	
+	/**
+	 * Match a given sequence of tokens, whilst moving passed any whitespace
+	 * encountered inbetween. In the case that meet the end of the stream, or we
+	 * don't match the expected tokens in the expected order, then an error is
+	 * thrown.
+	 * 
+	 * @param kind
+	 * @return
+	 */
 	private Token[] match(Token.Kind... kinds) {
 		Token[] result = new Token[kinds.length];
 		for (int i = 0; i != result.length; ++i) {
@@ -955,28 +926,43 @@ public class Parser {
 		return result;
 	}
 	
-	private Token tryAndMatch(Token.Kind kind) {		
+	/**
+	 * Attempt to match a given kind of token with the view that it must
+	 * *eventually* be matched. This differs from <code>tryAndMatch()</code>
+	 * because it calls <code>checkNotEof()</code>. Thus, it is guaranteed to
+	 * skip any whitespace encountered in between. This is safe because we know
+	 * there is a terminating token still to come.
+	 * 
+	 * @param kind
+	 * @return
+	 */
+	private Token eventuallyMatch(Token.Kind kind) {
 		checkNotEof();
-		Token t = tokens.get(index);
+		Token token = tokens.get(index);
+		if (token.kind != kind) {
+			return null;
+		} else {
+			return token;
+		}
+	}
+	
+	/**
+	 * Attempt to match a given token, whilst ignoring any whitespace in
+	 * between. Note that, in the case it fails to match, then the index will be
+	 * unchanged. This latter point is important, otherwise we could
+	 * accidentally gobble up some important indentation.
+	 * 
+	 * @param kind
+	 * @return
+	 */
+	private Token tryAndMatch(Token.Kind kind) {		
+		int next = skipWhiteSpace(index);
+		Token t = tokens.get(next);
 		if(t.kind == kind) { 
-			index = index + 1;
+			index = next + 1;
 			return t;
 		}		
 		return null; 
-	}
-
-	private Token[] tryAndMatch(Token.Kind... kinds) {
-		Token[] result = new Token[kinds.length];
-		for (int i = 0; i != result.length; ++i) {
-			checkNotEof();
-			Token token = tokens.get(index++);
-			if (token.kind == kinds[i]) {
-				result[i] = token;
-			} else {
-				return null;
-			}
-		}
-		return result;
 	}
 	
 	/**
@@ -1009,12 +995,10 @@ public class Parser {
 	 */
 	private void checkNotEof() {
 		skipWhiteSpace();
-		
 		if (index >= tokens.size()) {
 			throw new SyntaxError("unexpected end-of-file", filename,
 					index - 1, index - 1);
 		}
-		return;
 	}
 
 	
@@ -1026,7 +1010,8 @@ public class Parser {
 	}
 	
 	/**
-	 * Skip over any whitespace characters.
+	 * Skip over any whitespace characters, starting from a given index and
+	 * returning the first index passed any whitespace encountered.
 	 */
 	private int skipWhiteSpace(int index) {
 		while (index < tokens.size() && isWhiteSpace(tokens.get(index))) {
@@ -1046,22 +1031,12 @@ public class Parser {
 				|| token.kind == Token.Kind.Indent;
 	}
 	
-	private Attribute.Source sourceAttr(int start, int end) {
-		Token t1 = tokens.get(start);
-		Token t2 = tokens.get(end);
-		return new Attribute.Source(t1.start, t2.end());
-	}
-
-	private void syntaxError(String msg, Expr e) {
-		Attribute.Source loc = e.attribute(Attribute.Source.class);
-		throw new SyntaxError(msg, filename, loc.start, loc.end);
-	}
-
-	private void syntaxError(String msg, Token t) {
-		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length()
-				- 1);
-	}
-	
+	/**
+	 * Parse a character from a string of the form 'c' or '\c'.
+	 * 
+	 * @param input
+	 * @return
+	 */
 	public char parseCharacter(String input) {		
 		int pos = 1;
 		char c = input.charAt(pos++);
@@ -1081,6 +1056,12 @@ public class Parser {
 		return c;
 	}
 	
+	/**
+	 * Parse a string whilst interpreting all escape characters.
+	 * 
+	 * @param v
+	 * @return
+	 */
 	protected String parseString(String v) {
 		/*
 		 * Parsing a string requires several steps to be taken. First, we need
@@ -1136,6 +1117,22 @@ public class Parser {
 		return v;
 	}
 	
+
+	private Attribute.Source sourceAttr(int start, int end) {
+		Token t1 = tokens.get(start);
+		Token t2 = tokens.get(end);
+		return new Attribute.Source(t1.start, t2.end());
+	}
+
+	private void syntaxError(String msg, Expr e) {
+		Attribute.Source loc = e.attribute(Attribute.Source.class);
+		throw new SyntaxError(msg, filename, loc.start, loc.end);
+	}
+
+	private void syntaxError(String msg, Token t) {
+		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length()
+				- 1);
+	}
 	
 	/**
 	 * Represents a given amount of indentation. Specifically, a count of tabs
