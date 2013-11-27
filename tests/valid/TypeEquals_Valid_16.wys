@@ -1,0 +1,3 @@
+tests/valid/TypeEquals_Valid_16.while:2: expecting ')', found 'is'
+    if(x is null) {
+         ^^

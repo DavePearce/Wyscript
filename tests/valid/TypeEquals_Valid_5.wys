@@ -1,0 +1,3 @@
+tests/valid/TypeEquals_Valid_5.while:6: expecting ')', found 'is'
+    if(e is pos && ((int)e) > 0) {
+         ^^

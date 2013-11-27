@@ -1,0 +1,3 @@
+tests/valid/Switch_Valid_7.while:4: identifier expected
+    switch(c) {
+    ^^^^^^
