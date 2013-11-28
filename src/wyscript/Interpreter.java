@@ -107,6 +107,8 @@ public class Interpreter {
 	private Object execute(Stmt stmt, HashMap<String,Object> frame) {		
 		if(stmt instanceof Stmt.Assign) {
 			return execute((Stmt.Assign) stmt,frame);
+		} else if(stmt instanceof Stmt.OldFor) {
+			return execute((Stmt.OldFor) stmt,frame);
 		} else if(stmt instanceof Stmt.For) {
 			return execute((Stmt.For) stmt,frame);
 		} else if(stmt instanceof Stmt.While) {
@@ -157,7 +159,7 @@ public class Interpreter {
 		return null;
 	}
 	
-	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
+	private Object execute(Stmt.OldFor stmt, HashMap<String,Object> frame) {
 		execute(stmt.getDeclaration(),frame);
 		while((Boolean) execute(stmt.getCondition(),frame)) {
 			Object ret = execute(stmt.getBody(),frame);
@@ -166,6 +168,16 @@ public class Interpreter {
 			}
 			execute(stmt.getIncrement(),frame);
 		}
+		return null;
+	}
+	
+	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
+		List src = (List) execute(stmt.getSource(),frame);
+		String index = stmt.getIndex().getName();
+		for(Object item : src) {
+			frame.put(index, item);
+			execute(stmt.getBody(),frame);
+		}		
 		return null;
 	}
 	
@@ -353,7 +365,7 @@ public class Interpreter {
 		return rhs;
 	}
 	
-	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {
+	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {		
 		return expr.getValue();
 	}
 	

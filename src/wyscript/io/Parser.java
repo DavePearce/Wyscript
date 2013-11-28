@@ -466,9 +466,16 @@ public class Parser {
 	}
 
 	private Stmt parseFor(int start, Indent indent) {
+		Token id = match(Identifier);
+		Expr.Variable var = new Expr.Variable(id.text, sourceAttr(start,
+				index - 1));
+		match(In);
+		Expr source = parseExpression();
+		match(Colon);
+		int end = index;
+		matchEndLine();
 		List<Stmt> blk = parseBlock(indent);
-
-		return null;
+		return new Stmt.For(var, source, blk, sourceAttr(start, end - 1));
 	}
 
 	/**
@@ -657,8 +664,8 @@ public class Parser {
 		checkNotEof();
 
 		int start = index;
-		Token token = tokens.get(index++);
-
+		Token token = tokens.get(index++);		
+		
 		switch(token.kind) {
 		case LeftBrace:
 			if (isStartOfType(index)) {
@@ -682,7 +689,7 @@ public class Parser {
 			}
 		case Null:
 			return new Expr.Constant(null, sourceAttr(start, index - 1));
-		case True:
+		case True:			
 			return new Expr.Constant(true, sourceAttr(start, index - 1));
 		case False:
 			return new Expr.Constant(false, sourceAttr(start, index - 1));

@@ -371,6 +371,8 @@ public class Lexer {
 			put("real", Token.Kind.Real);
 			put("char", Token.Kind.Char);
 			put("string", Token.Kind.String);			
+			put("true", Token.Kind.True);
+			put("false", Token.Kind.False);
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);
@@ -381,6 +383,7 @@ public class Lexer {
 			put("constant", Token.Kind.Constant);
 			put("type", Token.Kind.Type);
 			put("is", Token.Kind.Is);
+			put("in", Token.Kind.In);
 		}
 	};	
 	
@@ -409,6 +412,7 @@ public class Lexer {
 			While { public String toString() { return "while"; }},
 			Else { public String toString() { return "else"; }},
 			Is { public String toString() { return "is"; }},
+			In { public String toString() { return "in"; }},
 			For { public String toString() { return "for"; }},
 			Debug { public String toString() { return "debug"; }},
 			Print { public String toString() { return "print"; }},

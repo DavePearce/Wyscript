@@ -326,7 +326,7 @@ public class OriginalParser {
 		match(")");
 		List<Stmt> blk = parseBlock();
 
-		return new Stmt.For(declaration, condition, increment, blk, sourceAttr(
+		return new Stmt.OldFor(declaration, condition, increment, blk, sourceAttr(
 				start, end - 1));
 	}
 

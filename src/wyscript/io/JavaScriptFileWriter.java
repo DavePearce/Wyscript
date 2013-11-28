@@ -57,8 +57,8 @@ public class JavaScriptFileWriter {
 			out.println(";");
 		} else if(stmt instanceof Stmt.IfElse) {
 			write((Stmt.IfElse) stmt, indent);
-		} else if(stmt instanceof Stmt.For) {
-			write((Stmt.For) stmt, indent);
+		} else if(stmt instanceof Stmt.OldFor) {
+			write((Stmt.OldFor) stmt, indent);
 		} else if(stmt instanceof Stmt.While) {
 			write((Stmt.While) stmt, indent);
 		} else {
@@ -81,7 +81,7 @@ public class JavaScriptFileWriter {
 		out.println("}");
 	}
 	
-	public void write(Stmt.For stmt, int indent) {
+	public void write(Stmt.OldFor stmt, int indent) {
 		indent(indent);
 		out.print("for(");	
 		writeAtom(stmt.getDeclaration());

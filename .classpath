@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <classpath>
 	<classpathentry kind="src" path="wyscript"/>
-	<classpathentry kind="lib" path="lib/rhino-js.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
-	<classpathentry kind="lib" path="/am/state-opera/home1/antunomate/summer_research/jcuda_bin/JCuda-All-0.5.0b-bin-linux-x86_64/jcuda-0.5.0b.jar">
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/Rhino"/>
 		<attributes>
 			<attribute name="org.eclipse.jdt.launching.CLASSPATH_ATTR_LIBRARY_PATH_ENTRY" value="/usr/lib"/>
 		</attributes>
