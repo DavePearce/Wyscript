@@ -727,7 +727,8 @@ public class Parser {
 			return new Expr.Constant(Double.parseDouble(token.text), sourceAttr(
 					start, index - 1));
 		case StringValue:
-			return new Expr.Constant(parseString(token.text), sourceAttr(start,
+			String str = parseString(token.text);
+			return new Expr.Constant(new StringBuffer(str), sourceAttr(start,
 					index - 1));
 		case Minus:
 			return parseNegation(start);

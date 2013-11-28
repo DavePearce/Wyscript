@@ -146,12 +146,18 @@ public class Interpreter {
 			src.put(ra.getName(), deepClone(rhs));
 		} else if(lhs instanceof Expr.IndexOf) {
 			Expr.IndexOf io = (Expr.IndexOf) lhs;
-			ArrayList<Object> src = (ArrayList) execute(io.getSource(),frame);
+			Object src = execute(io.getSource(),frame);			
 			Integer idx = (Integer) execute(io.getIndex(),frame);
 			Object rhs = execute(stmt.getRhs(),frame);
-			// We need to perform a deep clone here to ensure the value
-			// semantics used in While are preserved.
-			src.set(idx,deepClone(rhs));
+			if(src instanceof ArrayList) {
+				ArrayList<Object> list = (ArrayList) src;
+				// We need to perform a deep clone here to ensure the value
+				// semantics used in While are preserved.
+				list.set(idx,deepClone(rhs));
+			} else {
+				StringBuffer str = (StringBuffer) src;
+				str.setCharAt(idx, (Character) rhs);							
+			}
 		} else {
 			internalFailure("unknown lval encountered (" + lhs + ")", file.filename,stmt);
 		}
@@ -405,8 +411,8 @@ public class Interpreter {
 	private Object execute(Expr.IndexOf expr, HashMap<String,Object> frame) {
 		Object _src = execute(expr.getSource(),frame);
 		int idx = (Integer) execute(expr.getIndex(),frame);
-		if(_src instanceof String) {
-			String src = (String) _src;
+		if(_src instanceof StringBuffer) {
+			StringBuffer src = (StringBuffer) _src;
 			return src.charAt(idx);
 		} else {
 			ArrayList<Object> src = (ArrayList<Object>) _src;
@@ -452,8 +458,8 @@ public class Interpreter {
 				return -((Integer) value);
 			}
 		case LENGTHOF:
-			if(value instanceof String) {
-				return ((String) value).length();
+			if(value instanceof StringBuffer) {
+				return ((StringBuffer) value).length();
 			} else {
 				return ((ArrayList) value).size();
 			}
@@ -564,7 +570,7 @@ public class Interpreter {
 		} else if(type instanceof Type.Real) {
 			return value instanceof Double;
 		} else if(type instanceof Type.Strung) {
-			return value instanceof String;
+			return value instanceof StringBuffer;
 		} else if (type instanceof Type.List) {
 			if (value instanceof ArrayList) {
 				Type.List lt = (Type.List) type;
