@@ -1,17 +1,17 @@
-// This file is part of the WhileLang Compiler (wlc).
+// This file is part of the WyScript Compiler (wysc).
 //
-// The WhileLang Compiler is free software; you can redistribute
+// The WyScript Compiler is free software; you can redistribute
 // it and/or modify it under the terms of the GNU General Public
 // License as published by the Free Software Foundation; either
 // version 3 of the License, or (at your option) any later version.
 //
-// The WhileLang Compiler is distributed in the hope that it
+// The WyScript Compiler is distributed in the hope that it
 // will be useful, but WITHOUT ANY WARRANTY; without even the
 // implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
 // PURPOSE. See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public
-// License along with the WhileLang Compiler. If not, see
+// License along with the WyScript Compiler. If not, see
 // <http://www.gnu.org/licenses/>
 //
 // Copyright 2013, David James Pearce.
@@ -245,7 +245,7 @@ public class Parser {
 		}
 		
 		index = index - 1; // backtrack
-		if (isStartOfType(index)) {
+		if (isStartOfType(index)) {			
 			return parseVariableDeclaration();
 		} else {
 			// invocation or assignment
@@ -378,8 +378,7 @@ public class Parser {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
-
-		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
+		if (next < tokens.size() && tokens.get(next).kind != NewLine) {			
 			e = parseExpression();
 		}
 		// Finally, a new line indicates the end-of-statement
@@ -440,8 +439,7 @@ public class Parser {
 		List<Stmt> fblk = Collections.emptyList();
 		if (tryAndMatch(Else) != null) {	
 			
-			// TODO: support "else if" chaining.
-			
+			// TODO: support "else if" chaining.			
 			match(Colon);
 			matchEndLine();			
 			fblk = parseBlock(indent);
@@ -459,16 +457,15 @@ public class Parser {
 	 * @return
 	 */
 	private Stmt parseWhile(int start, Indent indent) {
-		match(While);
 		Expr condition = parseExpression();
 		match(Colon);
 		int end = index;
+		matchEndLine();		
 		List<Stmt> blk = parseBlock(indent);
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
 
 	private Stmt parseFor(int start, Indent indent) {
-		match(For);
 		List<Stmt> blk = parseBlock(indent);
 
 		return null;
@@ -489,6 +486,7 @@ public class Parser {
 		match(Equals);
 		Expr rhs = parseExpression();
 		int end = index;
+		matchEndLine();
 		return new Stmt.Assign((Expr.LVal) lhs, rhs, sourceAttr(start, end - 1));
 	}
 
@@ -638,7 +636,7 @@ public class Parser {
 		Expr lhs = parseTerm();
 		Token token;
 
-		while ((token = tryAndMatch(LeftSquare)) != null
+		while ((token = tryAndMatchOnLine(LeftSquare)) != null
 				|| (token = tryAndMatch(Dot)) != null) {
 			start = index;
 			if (token.kind == LeftSquare) {
@@ -646,7 +644,6 @@ public class Parser {
 				match(RightSquare);
 				lhs = new Expr.IndexOf(lhs, rhs, sourceAttr(start, index - 1));
 			} else {
-				match(Dot);
 				String name = match(Identifier).text;
 				lhs = new Expr.RecordAccess(lhs, name, sourceAttr(start,
 						index - 1));
@@ -963,6 +960,26 @@ public class Parser {
 		return null; 
 	}
 	
+	/**
+	 * Attempt to match a given token on the *same* line, whilst ignoring any
+	 * whitespace in between. Note that, in the case it fails to match, then the
+	 * index will be unchanged. This latter point is important, otherwise we
+	 * could accidentally gobble up some important indentation.
+	 * 
+	 * @param kind
+	 * @return
+	 */
+	private Token tryAndMatchOnLine(Token.Kind kind) {		
+		int next = skipLineSpace(index);
+		if(next < tokens.size()) {
+			Token t = tokens.get(next);
+			if(t.kind == kind) { 
+				index = next + 1;
+				return t;
+			}
+		}
+		return null; 
+	}
 	/**
 	 * Match a the end of a line. This is required to signal, for example, the
 	 * end of the current statement.
