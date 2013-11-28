@@ -371,6 +371,8 @@ public class Lexer {
 			put("real", Token.Kind.Real);
 			put("char", Token.Kind.Char);
 			put("string", Token.Kind.String);			
+			put("true", Token.Kind.True);
+			put("false", Token.Kind.False);
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);

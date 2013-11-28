@@ -657,8 +657,8 @@ public class Parser {
 		checkNotEof();
 
 		int start = index;
-		Token token = tokens.get(index++);
-
+		Token token = tokens.get(index++);		
+		
 		switch(token.kind) {
 		case LeftBrace:
 			if (isStartOfType(index)) {
@@ -682,7 +682,7 @@ public class Parser {
 			}
 		case Null:
 			return new Expr.Constant(null, sourceAttr(start, index - 1));
-		case True:
+		case True:			
 			return new Expr.Constant(true, sourceAttr(start, index - 1));
 		case False:
 			return new Expr.Constant(false, sourceAttr(start, index - 1));
