@@ -313,6 +313,76 @@ public interface Expr extends SyntacticElement {
 	}
 
 	/**
+	 * Represents a type tests expression, composed recursively from a left-hand
+	 * expression and right-hand type. For example, in the expression <code>x is int</code>
+	 * we have an instance of <code>Is</code> to represent the type test
+	 * whose left-hand side is an instance of <code>Variable</code> and
+	 * right-hand side is an instance of <code>Int</code>.
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static class Is extends SyntacticElement.Impl implements Expr {
+
+		private final Expr lhs;
+		private final Type rhs;
+
+		/**
+		 * Construct a type test from a given left-hand expression and
+		 * right-hand type.
+		 * 
+		 * @param lhs
+		 *            The left-hand side; may not be null.
+		 * @param rhs
+		 *            The right-hand side; may not be null.
+		 * @param attributes
+		 */
+		public Is(Expr lhs, Type rhs, Attribute... attributes) {
+			super(attributes);
+			this.lhs = lhs;
+			this.rhs = rhs;
+		}
+
+		/**
+		 * Construct a type test from a given left-hand expression and
+		 * right-hand type.
+		 * 
+		 * @param lhs
+		 *            The left-hand side; may not be null.
+		 * @param rhs
+		 *            The right-hand side; may not be null.
+		 * @param attributes
+		 */
+		public Is(Expr lhs, Type rhs, Collection<Attribute> attributes) {
+			super(attributes);
+			this.lhs = lhs;
+			this.rhs = rhs;
+		}
+		
+		public String toString() {
+			return "(is " + getLhs() + " " + getRhs() + ")";
+		}
+
+		/**
+		 * Get the left-hand side of this type test.
+		 * 
+		 * @return Guaranteed to be non-null.
+		 */
+		public Expr getLhs() {
+			return lhs;
+		}
+
+		/**
+		 * Get the right-hand side of this type test.
+		 * 
+		 * @return Guaranteed to be non-null.
+		 */
+		public Type getRhs() {
+			return rhs;
+		}
+	}
+	
+	/**
 	 * <p>
 	 * Represents a list or string access expression, which may also form the
 	 * left-hand side of an assignment. For example,

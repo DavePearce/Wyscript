@@ -243,6 +243,8 @@ public class Interpreter {
 	private Object execute(Expr expr, HashMap<String,Object> frame) {
 		if(expr instanceof Expr.Binary) {
 			return execute((Expr.Binary) expr,frame);
+		} else if(expr instanceof Expr.Is) {
+			return execute((Expr.Is) expr,frame);
 		} else if(expr instanceof Expr.Cast) {
 			return execute((Expr.Cast) expr,frame);
 		} else if(expr instanceof Expr.Constant) {
@@ -367,6 +369,11 @@ public class Interpreter {
 		internalFailure("unknown binary expression encountered (" + expr + ")",
 				file.filename, expr);
 		return null;
+	}
+	
+	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {
+		Object lhs = execute(expr.getLhs(), frame);
+		return instanceOf(lhs,expr.getRhs());
 	}
 	
 	private Object execute(Expr.Cast expr, HashMap<String, Object> frame) {
@@ -530,5 +537,63 @@ public class Interpreter {
 		} else {
 			return "null";
 		}
+	}
+	
+	/**
+	 * Determine whether a given value is an instanceof a given type. This is
+	 * done by recursively exploring the type and the value together, until we
+	 * can safely conclude that the value does (or does not) match the required
+	 * type.
+	 * 
+	 * @param value
+	 * @param type
+	 * @return
+	 */
+	private boolean instanceOf(Object value, Type type) {
+		if(type instanceof Type.Void) {
+			return false;
+		} else if(type instanceof Type.Bool) {
+			return value instanceof Boolean;
+		} else if(type instanceof Type.Char) {
+			return value instanceof Character;
+		} else if(type instanceof Type.Int) {
+			return value instanceof Integer;
+		} else if(type instanceof Type.Real) {
+			return value instanceof Double;
+		} else if(type instanceof Type.Strung) {
+			return value instanceof String;
+		} else if (type instanceof Type.List) {
+			if (value instanceof ArrayList) {
+				Type.List lt = (Type.List) type;
+				ArrayList al = (ArrayList) value;
+				for (Object o : al) {
+					if (!instanceOf(o, lt.getElement())) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		} else if(type instanceof Type.Record) {
+			Type.Record ut = (Type.Record) type;
+			if(value instanceof HashMap) {
+				HashMap m = (HashMap) value;
+				for(Map.Entry<String,Type> p : ut.getFields().entrySet()) {
+					if (!instanceOf(m.get(p.getKey()), p.getValue())) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		} else {
+			Type.Union ut = (Type.Union) type;
+			for (Type bt : ut.getBounds()) {
+				if (instanceOf(value, bt)) {
+					return true;
+				}
+			}
+			return false;
+		} 
 	}
 }
