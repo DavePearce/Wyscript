@@ -217,6 +217,11 @@ public interface Expr extends SyntacticElement {
 			public String toString() {
 				return "++";
 			}
+		},
+		RANGE {
+			public String toString() {
+				return "..";
+			}
 		}
 	};
 

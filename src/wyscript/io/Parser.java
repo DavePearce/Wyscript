@@ -566,7 +566,7 @@ public class Parser {
 
 	private Expr parseAppendExpression() {
 		int start = index;
-		Expr lhs = parseAddSubExpression();
+		Expr lhs = parseRangeExpression();
 
 		int next = skipWhiteSpace(index);
 		if (next < tokens.size()) {
@@ -574,7 +574,7 @@ public class Parser {
 			switch (token.kind) {
 			case PlusPlus:			
 				index = next + 1; // match the operator
-				Expr rhs = parseAppendExpression();
+				Expr rhs = parseExpression();
 				return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
 						index - 1));
 			}
@@ -583,6 +583,25 @@ public class Parser {
 		return lhs;
 	}
 
+	private Expr parseRangeExpression() {
+		int start = index;
+		Expr lhs = parseAddSubExpression();
+
+		int next = skipWhiteSpace(index);
+		if (next < tokens.size()) {
+			Token token = tokens.get(next);			
+			switch (token.kind) {
+			case DotDot:			
+				index = next + 1; // match the operator
+				Expr rhs = parseExpression();
+				return new Expr.Binary(Expr.BOp.RANGE, lhs, rhs, sourceAttr(start,
+						index - 1));
+			}
+		}
+
+		return lhs;
+	}
+	
 	private Expr parseAddSubExpression() {
 		int start = index;
 		Expr lhs = parseMulDivExpression();

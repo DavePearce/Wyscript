@@ -193,8 +193,13 @@ public class Lexer {
 		char c = input.charAt(pos);
 
 		switch(c) {
-		case '.':			
-			return new Token(Token.Kind.Dot,".",pos++);
+		case '.':		
+			if((pos+1) < input.length() && input.charAt(pos+1) == '.') {
+				pos = pos + 2;
+				return new Token(Token.Kind.PlusPlus,"..",pos);
+			} else {
+				return new Token(Token.Kind.Dot,".",pos++);
+			}			
 		case  ',':
 			return new Token(Token.Kind.Comma,",",pos++);
 		case  ';':
@@ -446,6 +451,7 @@ public class Lexer {
 			Percent { public String toString() { return "%"; }},
 			Shreak { public String toString() { return "!"; }},
 			Dot { public String toString() { return "."; }},
+			DotDot { public String toString() { return ".."; }},
 			Equals { public String toString() { return "="; }},
 			EqualsEquals { public String toString() { return "=="; }},
 			NotEquals { public String toString() { return "!="; }},

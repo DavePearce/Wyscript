@@ -352,6 +352,16 @@ public class Interpreter {
 				l.addAll((ArrayList)rhs);
 				return l;
 			}
+		case RANGE: {
+			int start = (Integer) lhs;
+			int end = (Integer) rhs;
+			ArrayList<Integer> result = new ArrayList<Integer>();
+			while(start < end) {
+				result.add(start);
+				start = start + 1;
+			}
+			return result;
+		}			
 		}
 
 		internalFailure("unknown binary expression encountered (" + expr + ")",
