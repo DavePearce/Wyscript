@@ -352,14 +352,17 @@ public class Interpreter {
 				return ((Double)lhs) >= ((Double)rhs);
 			}
 		case APPEND:
-			if(lhs instanceof String && rhs instanceof String) {
-				return ((String)lhs) + ((String)rhs);
-			} else if(lhs instanceof String) {
-				return ((String)lhs) + toString(rhs);
-			} else if(rhs instanceof String) {
-				return toString(lhs) + ((String)rhs);
+			if(lhs instanceof StringBuffer && rhs instanceof StringBuffer) {
+				StringBuffer l = (StringBuffer) lhs;
+				return new StringBuffer(l).append((StringBuffer)rhs);
+			} else if(lhs instanceof StringBuffer) {
+				StringBuffer l = (StringBuffer) lhs;
+				return new StringBuffer(l).append(toString(rhs));
+			} else if(rhs instanceof StringBuffer) {
+				return toString(lhs) + ((StringBuffer)rhs);				
 			} else if(lhs instanceof ArrayList && rhs instanceof ArrayList) {
 				ArrayList l = (ArrayList) lhs;
+				// FIXME: should we clone here?
 				l.addAll((ArrayList)rhs);
 				return l;
 			}
@@ -499,6 +502,9 @@ public class Interpreter {
 				n.put(field, deepClone(m.get(field)));
 			}
 			return n;
+		} else if (o instanceof StringBuffer) {
+			StringBuffer sb = (StringBuffer) o;
+			return new StringBuffer(sb);
 		} else {
 			// other cases can be ignored
 			return o;
