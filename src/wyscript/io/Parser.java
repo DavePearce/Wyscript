@@ -466,9 +466,16 @@ public class Parser {
 	}
 
 	private Stmt parseFor(int start, Indent indent) {
+		Token id = match(Identifier);
+		Expr.Variable var = new Expr.Variable(id.text, sourceAttr(start,
+				index - 1));
+		match(In);
+		Expr source = parseExpression();
+		match(Colon);
+		int end = index;
+		matchEndLine();
 		List<Stmt> blk = parseBlock(indent);
-
-		return null;
+		return new Stmt.For(var, source, blk, sourceAttr(start, end - 1));
 	}
 
 	/**

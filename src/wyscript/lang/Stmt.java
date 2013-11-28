@@ -282,7 +282,6 @@ public interface Stmt extends SyntacticElement {
 	 * 
 	 */
 	public static final class For extends SyntacticElement.Impl implements Stmt {
-
 		private final Expr.Variable index;
 		private final Expr source;
 		private final ArrayList<Stmt> body;
@@ -299,8 +298,8 @@ public interface Stmt extends SyntacticElement {
 		 *            A list of zero or more statements, which may not be null.
 		 * @param attributes
 		 */
-		public For(Expr.Variable index, Expr source, Stmt increment,
-				Collection<Stmt> body, Attribute... attributes) {
+		public For(Expr.Variable index, Expr source, Collection<Stmt> body,
+				Attribute... attributes) {
 			super(attributes);
 			this.index = index;
 			this.source = source;
@@ -319,8 +318,8 @@ public interface Stmt extends SyntacticElement {
 		 *            A list of zero or more statements, which may not be null.
 		 * @param attributes
 		 */
-		public For(Expr.Variable index, Expr source, Stmt increment,
-				Collection<Stmt> body, Collection<Attribute> attributes) {
+		public For(Expr.Variable index, Expr source, Collection<Stmt> body,
+				Collection<Attribute> attributes) {
 			super(attributes);
 			this.index = index;
 			this.source = source;

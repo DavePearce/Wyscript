@@ -109,6 +109,8 @@ public class Interpreter {
 			return execute((Stmt.Assign) stmt,frame);
 		} else if(stmt instanceof Stmt.OldFor) {
 			return execute((Stmt.OldFor) stmt,frame);
+		} else if(stmt instanceof Stmt.For) {
+			return execute((Stmt.For) stmt,frame);
 		} else if(stmt instanceof Stmt.While) {
 			return execute((Stmt.While) stmt,frame);
 		} else if(stmt instanceof Stmt.IfElse) {
@@ -166,6 +168,16 @@ public class Interpreter {
 			}
 			execute(stmt.getIncrement(),frame);
 		}
+		return null;
+	}
+	
+	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
+		List src = (List) execute(stmt.getSource(),frame);
+		String index = stmt.getIndex().getName();
+		for(Object item : src) {
+			frame.put(index, item);
+			execute(stmt.getBody(),frame);
+		}		
 		return null;
 	}
 	
