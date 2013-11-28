@@ -121,6 +121,7 @@ public class Parser {
 		Token[] tokens = match(Type, Token.Kind.Identifier, Token.Kind.Is);
 		Type t = parseType();
 		int end = index;
+		matchEndLine();
 		userDefinedTypes.add(tokens[1].text);
 		return new TypeDecl(t, tokens[1].text, sourceAttr(start, end - 1));
 	}
@@ -552,6 +553,10 @@ public class Parser {
 			case NotEquals:
 				bop = Expr.BOp.NEQ;
 				break;
+			case Is:
+				index = next + 1; // match the operator
+				Type rhs = parseType();
+				return new Expr.Is(lhs, rhs, sourceAttr(start, index - 1));
 			default:
 				return lhs;
 			}
@@ -566,7 +571,7 @@ public class Parser {
 
 	private Expr parseAppendExpression() {
 		int start = index;
-		Expr lhs = parseAddSubExpression();
+		Expr lhs = parseRangeExpression();
 
 		int next = skipWhiteSpace(index);
 		if (next < tokens.size()) {
@@ -574,7 +579,7 @@ public class Parser {
 			switch (token.kind) {
 			case PlusPlus:			
 				index = next + 1; // match the operator
-				Expr rhs = parseAppendExpression();
+				Expr rhs = parseExpression();
 				return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
 						index - 1));
 			}
@@ -583,6 +588,25 @@ public class Parser {
 		return lhs;
 	}
 
+	private Expr parseRangeExpression() {
+		int start = index;
+		Expr lhs = parseAddSubExpression();
+
+		int next = skipWhiteSpace(index);
+		if (next < tokens.size()) {
+			Token token = tokens.get(next);			
+			switch (token.kind) {
+			case DotDot:			
+				index = next + 1; // match the operator
+				Expr rhs = parseExpression();
+				return new Expr.Binary(Expr.BOp.RANGE, lhs, rhs, sourceAttr(start,
+						index - 1));
+			}
+		}
+
+		return lhs;
+	}
+	
 	private Expr parseAddSubExpression() {
 		int start = index;
 		Expr lhs = parseMulDivExpression();
@@ -703,7 +727,8 @@ public class Parser {
 			return new Expr.Constant(Double.parseDouble(token.text), sourceAttr(
 					start, index - 1));
 		case StringValue:
-			return new Expr.Constant(parseString(token.text), sourceAttr(start,
+			String str = parseString(token.text);
+			return new Expr.Constant(new StringBuffer(str), sourceAttr(start,
 					index - 1));
 		case Minus:
 			return parseNegation(start);
@@ -818,9 +843,9 @@ public class Parser {
 			// this is a union type
 			ArrayList<Type> types = new ArrayList<Type>();
 			types.add(t);
-			while (tryAndMatch(VerticalBar) != null) {
+			do {
 				types.add(parseBaseType());
-			}
+			} while (tryAndMatch(VerticalBar) != null);
 			return new Type.Union(types, sourceAttr(start, index - 1));
 		} else {
 			return t;

@@ -146,12 +146,18 @@ public class Interpreter {
 			src.put(ra.getName(), deepClone(rhs));
 		} else if(lhs instanceof Expr.IndexOf) {
 			Expr.IndexOf io = (Expr.IndexOf) lhs;
-			ArrayList<Object> src = (ArrayList) execute(io.getSource(),frame);
+			Object src = execute(io.getSource(),frame);			
 			Integer idx = (Integer) execute(io.getIndex(),frame);
 			Object rhs = execute(stmt.getRhs(),frame);
-			// We need to perform a deep clone here to ensure the value
-			// semantics used in While are preserved.
-			src.set(idx,deepClone(rhs));
+			if(src instanceof ArrayList) {
+				ArrayList<Object> list = (ArrayList) src;
+				// We need to perform a deep clone here to ensure the value
+				// semantics used in While are preserved.
+				list.set(idx,deepClone(rhs));
+			} else {
+				StringBuffer str = (StringBuffer) src;
+				str.setCharAt(idx, (Character) rhs);							
+			}
 		} else {
 			internalFailure("unknown lval encountered (" + lhs + ")", file.filename,stmt);
 		}
@@ -176,7 +182,10 @@ public class Interpreter {
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
 			frame.put(index, item);
-			execute(stmt.getBody(),frame);
+			Object ret = execute(stmt.getBody(),frame);
+			if(ret != null) {
+				return ret;
+			}
 		}		
 		return null;
 	}
@@ -217,7 +226,7 @@ public class Interpreter {
 			value = execute(re, frame);
 		} else {
 			value = Collections.EMPTY_SET; // used to indicate a variable has
-											// been declared
+										   // been declared
 		}
 		// We need to perform a deep clone here to ensure the value
 		// semantics used in While are preserved.
@@ -243,6 +252,8 @@ public class Interpreter {
 	private Object execute(Expr expr, HashMap<String,Object> frame) {
 		if(expr instanceof Expr.Binary) {
 			return execute((Expr.Binary) expr,frame);
+		} else if(expr instanceof Expr.Is) {
+			return execute((Expr.Is) expr,frame);
 		} else if(expr instanceof Expr.Cast) {
 			return execute((Expr.Cast) expr,frame);
 		} else if(expr instanceof Expr.Constant) {
@@ -341,22 +352,40 @@ public class Interpreter {
 				return ((Double)lhs) >= ((Double)rhs);
 			}
 		case APPEND:
-			if(lhs instanceof String && rhs instanceof String) {
-				return ((String)lhs) + ((String)rhs);
-			} else if(lhs instanceof String) {
-				return ((String)lhs) + toString(rhs);
-			} else if(rhs instanceof String) {
-				return toString(lhs) + ((String)rhs);
+			if(lhs instanceof StringBuffer && rhs instanceof StringBuffer) {
+				StringBuffer l = (StringBuffer) lhs;
+				return new StringBuffer(l).append((StringBuffer)rhs);
+			} else if(lhs instanceof StringBuffer) {
+				StringBuffer l = (StringBuffer) lhs;
+				return new StringBuffer(l).append(toString(rhs));
+			} else if(rhs instanceof StringBuffer) {
+				return toString(lhs) + ((StringBuffer)rhs);				
 			} else if(lhs instanceof ArrayList && rhs instanceof ArrayList) {
 				ArrayList l = (ArrayList) lhs;
+				// FIXME: should we clone here?
 				l.addAll((ArrayList)rhs);
 				return l;
 			}
+		case RANGE: {
+			int start = (Integer) lhs;
+			int end = (Integer) rhs;
+			ArrayList<Integer> result = new ArrayList<Integer>();
+			while(start < end) {
+				result.add(start);
+				start = start + 1;
+			}
+			return result;
+		}			
 		}
 
 		internalFailure("unknown binary expression encountered (" + expr + ")",
 				file.filename, expr);
 		return null;
+	}
+	
+	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {
+		Object lhs = execute(expr.getLhs(), frame);
+		return instanceOf(lhs,expr.getRhs());
 	}
 	
 	private Object execute(Expr.Cast expr, HashMap<String, Object> frame) {
@@ -385,8 +414,8 @@ public class Interpreter {
 	private Object execute(Expr.IndexOf expr, HashMap<String,Object> frame) {
 		Object _src = execute(expr.getSource(),frame);
 		int idx = (Integer) execute(expr.getIndex(),frame);
-		if(_src instanceof String) {
-			String src = (String) _src;
+		if(_src instanceof StringBuffer) {
+			StringBuffer src = (StringBuffer) _src;
 			return src.charAt(idx);
 		} else {
 			ArrayList<Object> src = (ArrayList<Object>) _src;
@@ -432,8 +461,8 @@ public class Interpreter {
 				return -((Integer) value);
 			}
 		case LENGTHOF:
-			if(value instanceof String) {
-				return ((String) value).length();
+			if(value instanceof StringBuffer) {
+				return ((StringBuffer) value).length();
 			} else {
 				return ((ArrayList) value).size();
 			}
@@ -473,6 +502,9 @@ public class Interpreter {
 				n.put(field, deepClone(m.get(field)));
 			}
 			return n;
+		} else if (o instanceof StringBuffer) {
+			StringBuffer sb = (StringBuffer) o;
+			return new StringBuffer(sb);
 		} else {
 			// other cases can be ignored
 			return o;
@@ -520,5 +552,63 @@ public class Interpreter {
 		} else {
 			return "null";
 		}
+	}
+	
+	/**
+	 * Determine whether a given value is an instanceof a given type. This is
+	 * done by recursively exploring the type and the value together, until we
+	 * can safely conclude that the value does (or does not) match the required
+	 * type.
+	 * 
+	 * @param value
+	 * @param type
+	 * @return
+	 */
+	private boolean instanceOf(Object value, Type type) {
+		if(type instanceof Type.Void) {
+			return false;
+		} else if(type instanceof Type.Bool) {
+			return value instanceof Boolean;
+		} else if(type instanceof Type.Char) {
+			return value instanceof Character;
+		} else if(type instanceof Type.Int) {
+			return value instanceof Integer;
+		} else if(type instanceof Type.Real) {
+			return value instanceof Double;
+		} else if(type instanceof Type.Strung) {
+			return value instanceof StringBuffer;
+		} else if (type instanceof Type.List) {
+			if (value instanceof ArrayList) {
+				Type.List lt = (Type.List) type;
+				ArrayList al = (ArrayList) value;
+				for (Object o : al) {
+					if (!instanceOf(o, lt.getElement())) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		} else if(type instanceof Type.Record) {
+			Type.Record ut = (Type.Record) type;
+			if(value instanceof HashMap) {
+				HashMap m = (HashMap) value;
+				for(Map.Entry<String,Type> p : ut.getFields().entrySet()) {
+					if (!instanceOf(m.get(p.getKey()), p.getValue())) {
+						return false;
+					}
+				}
+				return true;
+			}
+			return false;
+		} else {
+			Type.Union ut = (Type.Union) type;
+			for (Type bt : ut.getBounds()) {
+				if (instanceOf(value, bt)) {
+					return true;
+				}
+			}
+			return false;
+		} 
 	}
 }
