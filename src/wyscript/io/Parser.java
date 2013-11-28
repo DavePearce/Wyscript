@@ -439,8 +439,7 @@ public class Parser {
 		List<Stmt> fblk = Collections.emptyList();
 		if (tryAndMatch(Else) != null) {	
 			
-			// TODO: support "else if" chaining.
-			
+			// TODO: support "else if" chaining.			
 			match(Colon);
 			matchEndLine();			
 			fblk = parseBlock(indent);
