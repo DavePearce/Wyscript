@@ -176,7 +176,10 @@ public class Interpreter {
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
 			frame.put(index, item);
-			execute(stmt.getBody(),frame);
+			Object ret = execute(stmt.getBody(),frame);
+			if(ret != null) {
+				return ret;
+			}
 		}		
 		return null;
 	}
@@ -217,7 +220,7 @@ public class Interpreter {
 			value = execute(re, frame);
 		} else {
 			value = Collections.EMPTY_SET; // used to indicate a variable has
-											// been declared
+										   // been declared
 		}
 		// We need to perform a deep clone here to ensure the value
 		// semantics used in While are preserved.
