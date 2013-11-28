@@ -190,8 +190,8 @@ public class Convert {
 				print((Stmt.Return) stmt,indent);
 			} else if(stmt instanceof Stmt.Assign) {
 				print((Stmt.Assign) stmt,indent);
-			} else if(stmt instanceof Stmt.For) {
-				print((Stmt.For) stmt,indent);
+			} else if(stmt instanceof Stmt.OldFor) {
+				print((Stmt.OldFor) stmt,indent);
 			} else if(stmt instanceof Stmt.IfElse) {
 				print((Stmt.IfElse) stmt,indent);
 			} else if(stmt instanceof Stmt.While) {
@@ -215,7 +215,7 @@ public class Convert {
 		System.out.println();
 	}
 	
-	public static void print(Stmt.For stmt, int indent) {
+	public static void print(Stmt.OldFor stmt, int indent) {
 		// TODO
 	}
 	

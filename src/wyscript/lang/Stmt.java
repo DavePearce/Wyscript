@@ -50,10 +50,10 @@ public interface Stmt extends SyntacticElement {
 	 * assignment statements:
 	 * 
 	 * <pre>
-	 * x = y; // variable assignment
-	 * x.f = y; // field assignment
-	 * x[i] = y; // list assignment
-	 * x[i].f = y; // compound assignment
+	 * x = y       // variable assignment
+	 * x.f = y     // field assignment
+	 * x[i] = y    // list assignment
+	 * x[i].f = y  // compound assignment
 	 * </pre>
 	 * 
 	 * The last assignment here illustrates that the left-hand side of an
@@ -129,9 +129,8 @@ public interface Stmt extends SyntacticElement {
 	 * following illustrates:
 	 * 
 	 * <pre>
-	 * int f(int x) {
-	 * 	return x + 1;
-	 * }
+	 * int f(int x):
+	 * 	  return x + 1
 	 * </pre>
 	 * 
 	 * Here, we see a simple <code>return</code> statement which returns an
@@ -193,15 +192,13 @@ public interface Stmt extends SyntacticElement {
 	 * body must be contained within curly braces. As an example:
 	 * 
 	 * <pre>
-	 * int sum([int] xs) {
-	 *   int r = 0;
-	 *   int i = 0;
-	 *   while(i < |xs|) {
-	 *     r = r + xs[i];
-	 *     i = i + 1;
-	 *   }
-	 *   return r;
-	 * }
+	 * int sum([int] xs):
+	 *   int r = 0
+	 *   int i = 0
+	 *   while(i < |xs|):
+	 *     r = r + xs[i]
+	 *     i = i + 1   
+	 *   return r
 	 * </pre>
 	 * 
 	 * @author David J. Pearce
@@ -269,6 +266,96 @@ public interface Stmt extends SyntacticElement {
 	}
 
 	/**
+	 * Represents a foreach statement which iterates a given <i>index
+	 * variable</i> over every element of a <i>source expression</i> (which must
+	 * return a list). The following illustrates:
+	 * 
+	 * <pre>
+	 * int sum([int] xs):
+	 *   int r = 0
+	 *   for i in xs:
+	 *     r = r + xs[i]
+	 *   return r
+	 * </pre>
+	 * 
+	 * @author David J. Pearce
+	 * 
+	 */
+	public static final class For extends SyntacticElement.Impl implements Stmt {
+
+		private final Expr.Variable index;
+		private final Expr source;
+		private final ArrayList<Stmt> body;
+
+		/**
+		 * Construct a for loop from a given index variable, source expression
+		 * and loop body.
+		 * 
+		 * @param index
+		 *            The index variable, which may not be null
+		 * @param source
+		 *            The source expression, which may not be null
+		 * @param body
+		 *            A list of zero or more statements, which may not be null.
+		 * @param attributes
+		 */
+		public For(Expr.Variable index, Expr source, Stmt increment,
+				Collection<Stmt> body, Attribute... attributes) {
+			super(attributes);
+			this.index = index;
+			this.source = source;
+			this.body = new ArrayList<Stmt>(body);
+		}
+
+		/**
+		 * Construct a for loop from a given index variable, source expression
+		 * and loop body.
+		 * 
+		 * @param index
+		 *            The index variable, which may not be null
+		 * @param source
+		 *            The source expression, which may not be null
+		 * @param body
+		 *            A list of zero or more statements, which may not be null.
+		 * @param attributes
+		 */
+		public For(Expr.Variable index, Expr source, Stmt increment,
+				Collection<Stmt> body, Collection<Attribute> attributes) {
+			super(attributes);
+			this.index = index;
+			this.source = source;
+			this.body = new ArrayList<Stmt>(body);
+		}
+
+		/**
+		 * Get the index variable for this loop.
+		 * 
+		 * @return May not be null.
+		 */
+		public Expr.Variable getIndex() {
+			return index;
+		}
+
+		/**
+		 * Get the source expression for this loop.
+		 * 
+		 * @return May not be null.
+		 */
+		public Expr getSource() {			
+			return source;
+		}
+
+		/**
+		 * Get the loop body.
+		 * 
+		 * @return May not be null.
+		 */
+		public ArrayList<Stmt> getBody() {
+			return body;
+		}
+	}
+	
+	/**
 	 * Represents a classical for statement made up from a <i>variable
 	 * declaration</i>, a <i>loop condition</i> and an <i>increment
 	 * statement</i>. The following illustrates:
@@ -301,7 +388,7 @@ public interface Stmt extends SyntacticElement {
 	 * @author David J. Pearce
 	 * 
 	 */
-	public static final class For extends SyntacticElement.Impl implements Stmt {
+	public static final class OldFor extends SyntacticElement.Impl implements Stmt {
 
 		private final VariableDeclaration declaration;
 		private final Expr condition;
@@ -323,7 +410,7 @@ public interface Stmt extends SyntacticElement {
 		 *            A list of zero or more statements, which may not be null.
 		 * @param attributes
 		 */
-		public For(VariableDeclaration declaration, Expr condition, Stmt increment,
+		public OldFor(VariableDeclaration declaration, Expr condition, Stmt increment,
 				Collection<Stmt> body, Attribute... attributes) {
 			super(attributes);
 			this.declaration = declaration;
@@ -347,7 +434,7 @@ public interface Stmt extends SyntacticElement {
 		 *            A list of zero or more statements, which may not be null.
 		 * @param attributes
 		 */
-		public For(VariableDeclaration declaration, Expr condition, Stmt increment,
+		public OldFor(VariableDeclaration declaration, Expr condition, Stmt increment,
 				Collection<Stmt> body, Collection<Attribute> attributes) {
 			super(attributes);
 			this.declaration = declaration;
@@ -398,13 +485,11 @@ public interface Stmt extends SyntacticElement {
 	 * <i>condition</i>, <i>true branch</i> and <i>false branch</i>.
 	 * The following illustrates:
 	 * <pre>
-	 * int max(int x, int y) {
-	 *   if(x > y) {
-	 *     return x;
-	 *   } else {
-	 *     return y;
-	 *   }
-	 * }
+	 * int max(int x, int y):
+	 *   if(x > y):
+	 *     return x
+	 *   else:
+	 *     return y
 	 * </pre>
 	 * @author David J. Pearce
 	 * 
@@ -493,9 +578,8 @@ public interface Stmt extends SyntacticElement {
 	 * console. The following illustrates:
 	 * 
 	 * <pre>
-	 * void f(int x) {
-	 *  print x+1;
-	 * }
+	 * void f(int x):
+	 *   print x+1
 	 * </pre>
 	 * 
 	 * Observe that the computed value for the expression to be printed is the
@@ -554,9 +638,9 @@ public interface Stmt extends SyntacticElement {
 	 * the declaration is executed. Some example declarations:
 	 * 
 	 * <pre>
-	 * int x;
-	 * int y = 1;
-	 * int z = x + y;
+	 * int x
+	 * int y = 1
+	 * int z = x + y
 	 * </pre>
 	 * 
 	 * Observe that, unlike C and Java, declarations that declare multiple

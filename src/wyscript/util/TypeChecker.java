@@ -76,8 +76,8 @@ public class TypeChecker {
 			check((Expr.Invoke) stmt, environment);
 		} else if(stmt instanceof Stmt.IfElse) {
 			check((Stmt.IfElse) stmt, environment);
-		} else if(stmt instanceof Stmt.For) {
-			check((Stmt.For) stmt, environment);
+		} else if(stmt instanceof Stmt.OldFor) {
+			check((Stmt.OldFor) stmt, environment);
 		} else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
 		} else {
@@ -118,7 +118,7 @@ public class TypeChecker {
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
 	
-	public void check(Stmt.For stmt, Map<String,Type> environment) {
+	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
 		// TODO: implement me!
 	}
 	

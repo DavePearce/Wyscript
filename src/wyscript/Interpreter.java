@@ -107,8 +107,8 @@ public class Interpreter {
 	private Object execute(Stmt stmt, HashMap<String,Object> frame) {		
 		if(stmt instanceof Stmt.Assign) {
 			return execute((Stmt.Assign) stmt,frame);
-		} else if(stmt instanceof Stmt.For) {
-			return execute((Stmt.For) stmt,frame);
+		} else if(stmt instanceof Stmt.OldFor) {
+			return execute((Stmt.OldFor) stmt,frame);
 		} else if(stmt instanceof Stmt.While) {
 			return execute((Stmt.While) stmt,frame);
 		} else if(stmt instanceof Stmt.IfElse) {
@@ -157,7 +157,7 @@ public class Interpreter {
 		return null;
 	}
 	
-	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
+	private Object execute(Stmt.OldFor stmt, HashMap<String,Object> frame) {
 		execute(stmt.getDeclaration(),frame);
 		while((Boolean) execute(stmt.getCondition(),frame)) {
 			Object ret = execute(stmt.getBody(),frame);
