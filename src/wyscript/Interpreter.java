@@ -361,9 +361,9 @@ public class Interpreter {
 			} else if(rhs instanceof StringBuffer) {
 				return toString(lhs) + ((StringBuffer)rhs);				
 			} else if(lhs instanceof ArrayList && rhs instanceof ArrayList) {
-				ArrayList l = (ArrayList) lhs;
-				// FIXME: should we clone here?
-				l.addAll((ArrayList)rhs);
+				ArrayList<Object> l = (ArrayList<Object>) lhs;
+				l = (ArrayList) deepClone(l);
+				l.addAll((ArrayList<Object>)rhs);
 				return l;
 			}
 		case RANGE: {
