@@ -9,6 +9,7 @@ import java.util.Map;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
+import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
@@ -38,13 +39,8 @@ public class KernelWriter {
 	int increment;
 
 	List<String> tokens = new ArrayList<String>();
-	List<String> parametersNames;
-	List<Type> paramTypes;
-	List<Type> types;
-
-	Map<String , Type> symbolTable;
-
-	private boolean kernelable = false;
+	List<String> parameters;
+	private boolean kernelable = true;
 
 	public KernelWriter(WyscriptFile file , Stmt.For loop) {
 		body = loop.getBody();
@@ -66,10 +62,33 @@ public class KernelWriter {
 				Stmt.Assign assign = (Stmt.Assign) statement;
 				//assign.g
 				Expr.LVal left = assign.getLhs();
-				Expr right = assign.getRhs();
+				if (assign.getLhs() instanceof Expr.IndexOf) {
+					addIndexOfParam((Expr.IndexOf)assign.getLhs());
+				}
 
 				write(left);
 			}
+		}
+	}
+	/**
+	 * Add an indexOf operation as parameter. indexOf should be a flat access
+	 * to an int value
+	 * @param indexOf
+	 */
+	private void addIndexOfParam(IndexOf indexOf) {
+		Expr expression = indexOf.getSource();
+		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO verify whether it is correct to compare these expressions
+			//now need to get name of source expression
+			if (expression instanceof Expr.Variable) {
+				Expr.Variable srcVar = (Expr.Variable)expression;
+				String name = srcVar.getName();
+				//add name to parameter list only
+				parameters.add(name);
+			}else {
+				//TODO add an internal failure here
+			}
+		}else {
+			//TODO A graceful way for this (user?) error to be dealt with
 		}
 	}
 	/**
@@ -87,12 +106,31 @@ public class KernelWriter {
 		if (statement instanceof Stmt.IfElse) {
 			write((Stmt.IfElse)statement);
 		}
-		if (statement instanceof Stmt.VariableDeclaration) {
+		else if (statement instanceof Stmt.VariableDeclaration) {
 			write((Stmt.VariableDeclaration) statement);
+		}else if (statement instanceof Stmt.Assign) {
+			write((Stmt.Assign)statement);
 		}
 	}
-	private void write(Expr expression) {
+	/**
+	 *
+	 * @param assign
+	 */
+	private void write(Stmt.Assign assign) {
+		Expr lhs = assign.getLhs();
+		write(lhs);
+		tokens.add("=");
+		Expr rhs = assign.getLhs();
+		write(rhs);
+		tokens.add(";");
+	}
 
+	private void write(Expr expression) {
+		if (expression instanceof Expr.IndexOf) {
+
+		}else if (expression instanceof Expr.IndexOf) {
+
+		}
 	}
 	private void write(Expr.LVal val) {
 		//val.g

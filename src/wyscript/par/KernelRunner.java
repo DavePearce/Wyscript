@@ -33,7 +33,7 @@ public class KernelRunner {
 //	//the types of symbols given
 	List<Type> symbolTypes;
 	List<Integer> symbolLength;
-	private int numParams; //TODO fill me
+	private int numParams; //TODO ensure task parameter is filled with correct value
 //	List<Type> symbolTypes;
 	//List
 	//private

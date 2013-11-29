@@ -9,6 +9,12 @@ import wyscript.lang.Stmt.For;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
 
+/**
+ * The kernel generator is responsible for the generation Cuda kernels
+ * from parallel for loops.
+ * @author antunomate
+ *
+ */
 public class KernelGenerator {
 	private Map<String , WyscriptFile.FunDecl> functions;
 	/**
@@ -32,7 +38,7 @@ public class KernelGenerator {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
 			//pass the name of the function down so it can be used to address kernel
-			scanFuncBody(func.statements , fname);
+			scanFuncBody(func , fname);
 		}
 	}
 
@@ -40,10 +46,10 @@ public class KernelGenerator {
 		int loopPosition = 0;
 		for (int i= 0; i < function.statements.size() ; i++) {
 			Stmt statement = function.statements.get(i);
-			if (statement instanceof Stmt.For) {
+			if (statement instanceof Stmt.ParFor) {
 				//this loop can be converted
 				String id = name + Integer.toString(loopPosition);
-				KernelRunner runner = generateForKernel((Stmt.For)statement , loopPosition);
+				KernelRunner runner = generateForKernel((Stmt.ParFor)statement , loopPosition);
 				loopPosition++;
 			}
 		}
@@ -54,7 +60,7 @@ public class KernelGenerator {
 	 * @param loop
 	 * @return
 	 */
-	private KernelRunner generateForKernel(Stmt.For loop) {
+	private KernelRunner generateForKernel(Stmt.ParFor loop) {
 		KernelWriter writer = new KernelWriter(loop);
 		return null;
 
