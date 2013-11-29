@@ -80,6 +80,9 @@ public class Convert {
 			// First, lex and parse the source file
 			OriginalLexer lexer = new OriginalLexer(srcFile.getPath());
 			OriginalParser parser = new OriginalParser(srcFile.getPath(), lexer.scan());
+			//Lexer lexer = new Lexer(srcFile.getPath());
+			//Parser parser = new Parser(srcFile.getPath(), lexer.scan());
+
 			WyscriptFile ast = parser.read();
 			convert(ast);
 			
@@ -349,7 +352,7 @@ public class Convert {
 			Expr.Binary b = (Expr.Binary) e;
 			print(b.getLhs());
 			System.out.print(" " + b.getOp() + " ");
-			print(b.getRhs());
+			print(b.getRhs());			
 		} else if(e instanceof Expr.Cast) {
 			Expr.Cast c = (Expr.Cast) e;
 			System.out.print("(");

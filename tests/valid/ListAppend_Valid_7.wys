@@ -1,5 +1,7 @@
 [char] append(string input):
     [char] rs = []
+    for i in 0 .. |input|:
+        rs = rs ++ [input[i]]
     return rs
 
 void main():

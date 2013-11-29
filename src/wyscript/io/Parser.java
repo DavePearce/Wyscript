@@ -562,7 +562,7 @@ public class Parser {
 			}
 			
 			index = next + 1; // match the operator
-			Expr rhs = parseExpression();
+			Expr rhs = parseConditionExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
 		
@@ -579,7 +579,7 @@ public class Parser {
 			switch (token.kind) {
 			case PlusPlus:			
 				index = next + 1; // match the operator
-				Expr rhs = parseExpression();
+				Expr rhs = parseAppendExpression();
 				return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
 						index - 1));
 			}
@@ -598,7 +598,7 @@ public class Parser {
 			switch (token.kind) {
 			case DotDot:			
 				index = next + 1; // match the operator
-				Expr rhs = parseExpression();
+				Expr rhs = parseRangeExpression();
 				return new Expr.Binary(Expr.BOp.RANGE, lhs, rhs, sourceAttr(start,
 						index - 1));
 			}
@@ -626,7 +626,7 @@ public class Parser {
 				return lhs;
 			}
 			index = next + 1; // match the operator	
-			Expr rhs = parseExpression();
+			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
 
@@ -655,7 +655,7 @@ public class Parser {
 				return lhs;
 			}
 			index = next + 1; // match the operator
-			Expr rhs = parseExpression();
+			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
 

@@ -1,5 +1,7 @@
 [char] f(string str):
     [char] r = []
+    for i in 0..|str|:
+        r = r ++ [str[i]]
     return r
 
 void main():
