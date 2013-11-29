@@ -31,7 +31,8 @@ public class KernelGenerator {
 	private void generateKernels(Map<String, FunDecl> functions) {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
-			scanFuncBody(func.statements);
+			//pass the name of the function down so it can be used to address kernel
+			scanFuncBody(func.statements , fname);
 		}
 	}
 
