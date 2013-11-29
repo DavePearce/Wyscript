@@ -1,22 +1,26 @@
 package wyscript.par;
 
-
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import wyscript.lang.Expr;
+import wyscript.lang.Expr.*;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
+import wyscript.lang.WyscriptFile;
+import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * The first instance of the KernelWriter will take an ordinary for-loop and convert it
  * to Cuda code. There are a number of limitations on what loops can be written. THe first goal
  * is simple loops with <i>int</i> and <i>[int]</i> types, with no nested loops and simple
- * conditionals.
+ * conditionals. The kernel writer will compile the cuda code and return an error if this operation
+ * is not successful.
  * @author antunomate
  *
  */
@@ -24,20 +28,25 @@ import wyscript.lang.Type;
 //some challenges
 //* determining how to accurately map wyscript onto cuda code
 //* facilitating data into the kernel once the analysis is complete
+//*converting between cuda and wyscript types
 public class KernelWriter {
 	private ArrayList<Stmt> body;
 	private Stmt.For loop;
-
 
 	int begin;
 	int end;
 	int increment;
 
 	List<String> tokens = new ArrayList<String>();
+	List<String> parametersNames;
+	List<Type> paramTypes;
+	List<Type> types;
+
+	Map<String , Type> symbolTable;
 
 	private boolean kernelable = false;
 
-	public KernelWriter(Stmt.For loop) {
+	public KernelWriter(WyscriptFile file , Stmt.For loop) {
 		body = loop.getBody();
 		this.loop = loop;
 		generateFunctionParameters();
@@ -49,29 +58,17 @@ public class KernelWriter {
 	 * written to kernel.
 	 */
 	private void generateFunctionParameters() {
-		//this requires a scan of the loop body. any external accesses must be
-		//parameterised
+		//scan the loop body, determine what must be added as parameter
 		for (Stmt statement : loop.getBody()) {
-			//what to do here??
-			//can analyse variable access
+			//an assign statement implies a mutable change
 			if (statement instanceof Stmt.Assign) {
 				//this is an assignment, must check the LHS and see where if comes from
 				Stmt.Assign assign = (Stmt.Assign) statement;
-				//how to differentiate between a newly declared variable and an existing one??
-				//this information is kept on the frame...
+				//assign.g
 				Expr.LVal left = assign.getLhs();
 				Expr right = assign.getRhs();
-				//left.
-			}
-			else if (statement instanceof Stmt.For) {
-				//may not want to handle nested loops
-			}
-			else if (statement instanceof Stmt.IfElse) {
 
-			}else if (statement instanceof Stmt.VariableDeclaration) {
-				//this new variable must be added to a collection of internall declared variables
-			}else if (statement instanceof Stmt.Print) {
-				//could queue up print statements
+				write(left);
 			}
 		}
 	}
@@ -97,13 +94,16 @@ public class KernelWriter {
 	private void write(Expr expression) {
 
 	}
+	private void write(Expr.LVal val) {
+		//val.g
+	}
 	private void write(Stmt.IfElse statement) {
 		tokens.add("if");
 		tokens.add("(");
 		//the condition can only be simple equality, or a statement in boolean
 		//logic
 		Expr expression = statement.getCondition();
-		writeConditional(expression);
+		writeCondition(expression);
 		tokens.add(")");
 		//branches may be empty
 		for (Stmt s : statement.getTrueBranch()) {
@@ -117,9 +117,9 @@ public class KernelWriter {
 		}
 		tokens.add("}");
 	}
-	private void writeConditional(Expr expression) {
+	private void writeCondition(Expr expression) {
 		// TODO Auto-generated method stub
-
+		//if (expression instanceof Expr.)
 	}
 	private void write(Stmt.VariableDeclaration decl) {
 		Type type = decl.getType();
@@ -129,6 +129,10 @@ public class KernelWriter {
 			tokens.add("=");
 			//now write the expression
 			write(decl.getExpr());
+			tokens.add(";");
+		}else {
+			InternalFailure.internalFailure("Cannot write variable declaration for the given type",null,null);
+
 		}
 	}
 	public File getPtxFile() {
