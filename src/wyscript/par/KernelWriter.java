@@ -10,6 +10,7 @@ import java.util.Map;
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
 import wyscript.lang.Expr.IndexOf;
+import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
@@ -32,26 +33,37 @@ import wyscript.util.SyntaxError.InternalFailure;
 //*converting between cuda and wyscript types
 public class KernelWriter {
 	private ArrayList<Stmt> body;
-	private Stmt.For loop;
+	private Stmt.ParFor loop;
 
 	int begin;
 	int end;
 	int increment;
 
 	List<String> tokens = new ArrayList<String>();
-	List<String> parameters;
+	List<String> parameters = new ArrayList<String>();
 	private boolean kernelable = true;
+	private WyscriptFile file;
+	private Map<String , Type> environment;
 
-	public KernelWriter(WyscriptFile file , Stmt.For loop) {
-		body = loop.getBody();
+	String indexName = "i";
+
+	public KernelWriter(String name , Map<String , Type> environment , Stmt.ParFor loop) {
+		this.environment = environment;
+		this.body = loop.getBody();
 		this.loop = loop;
 		generateFunctionParameters();
+		writeFunctionDeclaration();
+		tokens.add("{");
 		convertBody(body);
+		tokens.add("}");
 	}
 	/**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
 	 * written to kernel.
+	 *
+	 * This function @ensures that all parameters necessary for a Cuda kernel are
+	 * stored.
 	 */
 	private void generateFunctionParameters() {
 		//scan the loop body, determine what must be added as parameter
@@ -64,11 +76,48 @@ public class KernelWriter {
 				Expr.LVal left = assign.getLhs();
 				if (assign.getLhs() instanceof Expr.IndexOf) {
 					addIndexOfParam((Expr.IndexOf)assign.getLhs());
-				}
+				}else if (assign.getLhs() instanceof Expr.Variable) {
+					addVariableParam((Expr.Variable)assign.getLhs());
+				}//TODO add other case of assignment here
 
 				write(left);
 			}
 		}
+	}
+	/**
+	 * Writes the actual kernels function declaration including name and arguments
+	 */
+	private void writeFunctionDeclaration() {
+		tokens.add("__global__");
+		tokens.add("void");
+		tokens.add("(");
+		for (int i = 0; i < parameters.size() ; i++) {
+			String name = parameters.get(i);
+			//now work out the type of each parameters
+			Type type = environment.get(name);
+			if (type instanceof Type.List) {
+				Type.List list = (Type.List) type;
+				if (list.getElement() instanceof Type.Int) {
+					tokens.add("int*");
+					tokens.add(name);
+					//note that the length is added to the list parameter
+					tokens.add(",");
+					tokens.add("int");
+					//qualify length of array with '_length'
+					tokens.add(name + "_length");
+				}else {
+					//TODO add internal failure here
+				}
+			}
+			//TODO WARNING potential off-by-one error
+			if (i>=1 && i < parameters.size()-2) {
+				tokens.add(",");
+			}
+		}
+		tokens.add(")");
+	}
+	private void addVariableParam(Variable lhs) {
+		parameters.add(lhs.getName());
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
@@ -117,7 +166,7 @@ public class KernelWriter {
 	 * @param assign
 	 */
 	private void write(Stmt.Assign assign) {
-		Expr lhs = assign.getLhs();
+		Expr.LVal lhs = assign.getLhs();
 		write(lhs);
 		tokens.add("=");
 		Expr rhs = assign.getLhs();
@@ -134,6 +183,24 @@ public class KernelWriter {
 	}
 	private void write(Expr.LVal val) {
 		//val.g
+		if (val instanceof Expr.Variable) {
+			//write a
+			Expr.Variable variable = (Expr.Variable) val;
+			//simply add the variable name
+			tokens.add(variable.getName());
+		}else if (val instanceof Expr.IndexOf) {
+			Expr.IndexOf indexOf = (Expr.IndexOf) val;
+			if (indexOf.getSource() instanceof Expr.Variable) {
+				Expr.Variable indexVar = indexOf.getSource();
+			}else {
+				//TODO add internal failure here
+			}
+
+			if (indexOf.getIndex().equals(loop.getIndex()) { //TODO Potential issue with comparing indices
+
+			}
+		}
+
 	}
 	private void write(Stmt.IfElse statement) {
 		tokens.add("if");
