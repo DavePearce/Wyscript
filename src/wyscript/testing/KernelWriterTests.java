@@ -2,6 +2,10 @@ package wyscript.testing;
 
 import static org.junit.Assert.*;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,9 +13,12 @@ import java.util.Map;
 
 import org.junit.Test;
 
+import wyscript.io.Lexer;
+import wyscript.io.Parser;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
+import wyscript.lang.WyscriptFile;
 import wyscript.par.KernelWriter;
 
 public class KernelWriterTests {
@@ -36,5 +43,27 @@ public class KernelWriterTests {
 		KernelWriter writer = new KernelWriter("test", environment, forLoop);
 		System.out.println(writer.toString());
 	}
-
+	@Test
+	public void test2() {
+		String code = "void main():\n\tint i = 0";
+		WyscriptFile tree = parseForTest(code);
+		System.out.println(tree);
+	}
+	/**
+	 * Quickly parse a string of WyScript
+	 * @param content
+	 * @return
+	 */
+	private WyscriptFile parseForTest(String content) {
+		BufferedReader reader = new BufferedReader(new StringReader(content));
+		File srcFile = new File("testfile");
+		Lexer lexer = null;
+		try {
+			lexer = new Lexer(reader);
+		} catch (IOException e) {
+			fail("Could not run test");
+		}
+		Parser parser = new Parser("testfile", lexer.scan());
+		return parser.read();
+	}
 }

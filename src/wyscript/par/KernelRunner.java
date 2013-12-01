@@ -1,15 +1,12 @@
 package wyscript.par;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
-import jcuda.driver.JCudaDriver.*;
-import wyscript.Interpreter;
 import wyscript.lang.*;
 
 /**
@@ -27,22 +24,23 @@ public class KernelRunner {
 	 */
 	private CUcontext context;
 	private CUfunction function;
-	//list ordered by function parameters
-	List<String> symbolsIn;
-	List<String> symbolsOut;
-//	//the types of symbols given
+	List<String> params;
+
 	List<Type> symbolTypes;
 	List<Integer> symbolLength;
 	private int numParams; //TODO ensure task parameter is filled with correct value
-//	List<Type> symbolTypes;
-	//List
-	//private
+	private KernelWriter writer;
+
+	public KernelRunner(KernelWriter writer) {
+		this.writer = writer;
+	}
+
 	/**
 	 * This will initialise the kernel from the given file name
 	 * @param ptxFileName
 	 */
-	public void initialise(String ptxFileName , String funcName , List<Type> paramTypes) {
-		this.symbolTypes = paramTypes;
+	public void initialise(File ptxFile , String funcName) {
+		String ptxFileName = ptxFile.getAbsolutePath();
 		//initialise driver and create context
         cuInit(0);
         CUdevice device = new CUdevice();
@@ -71,18 +69,19 @@ public class KernelRunner {
 		paramPointers.add(Pointer.to(new int[]{numParams})); //add the count argument
 		//sanity check the input value size
 		Object[] outputs = new Object[values.length];
-		if (values.length == symbolsIn.size()) {
+		if (values.length == params.size()) {
 			//generate pointers to symbols one-by-one
 			for (int i = 0; i < values.length ; i++) {
 				CUdeviceptr deviceInput = new CUdeviceptr();
 				cuMemAlloc(deviceInput , symbolLength.get(i));
 				//TODO issue here is to correct types for cuda. that way we can get the pointer to the object properly
 
-				cuMemcpyHtoD(deviceInput , Pointer.to(values[i]), symbolLength.get(i));
+				//cuMemcpyHtoD(deviceInput , Pointer.to(values[i]), symbolLength.get(i));
 			}
 		}
 	}
 	public NativePointerObject getPointerToObject(Object value) {
-		if (value instanceof Integer)
+		return context;
+		//if (value instanceof Integer)
 	}
 }

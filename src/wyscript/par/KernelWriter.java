@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.StringWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -19,34 +20,39 @@ import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * The first instance of the KernelWriter will take an ordinary for-loop and convert it
- * to Cuda code. There are a number of limitations on what loops can be written. THe first goal
+ * to Cuda code. There are a number of limitations on what loops can be written. The first goal
  * is simple loops with <i>int</i> and <i>[int]</i> types, with no nested loops and simple
  * conditionals. The kernel writer will compile the cuda code and return an error if this operation
  * is not successful.
  * @author antunomate
  *
  */
-
-//some challenges
-//* determining how to accurately map wyscript onto cuda code
-//* facilitating data into the kernel once the analysis is complete
-//*converting between cuda and wyscript types
 public class KernelWriter {
 	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
 
-	int begin;
-	int end;
-	int increment;
+	private int begin;
+	private int end;
+	private int increment;
 
-	List<String> tokens = new ArrayList<String>();
-	List<String> parameters = new ArrayList<String>();
-	private boolean kernelable = true;
-	private WyscriptFile file;
-	private Map<String , Type> environment;
+	private List<String> tokens = new ArrayList<String>();
+	private List<String> parameters = new ArrayList<String>();
 
-	String indexName = "i";
-
+	private Map<String , Type> environment; //passed to kernel writer at runtime
+	//this is the mapping from array to array length
+	private Map<String,String> lengthFunction = new HashMap<String,String>();
+	public Map<String, Type> getEnvironment() {
+		return environment;
+	}
+	private String indexName = "i";
+	/**
+	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
+	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
+	 * for <i>loop</i>.
+	 * @param name
+	 * @param environment
+	 * @param loop
+	 */
 	public KernelWriter(String name , Map<String , Type> environment , Stmt.ParFor loop) {
 		this.environment = environment;
 		this.body = loop.getBody();
@@ -80,12 +86,12 @@ public class KernelWriter {
 					addVariableParam((Expr.Variable)assign.getLhs());
 				}//TODO add other case of assignment here
 
-				write(left);
+				//write(left);
 			}
 		}
 	}
 	/**
-	 * Writes the actual kernels function declaration including name and arguments
+	 * Writes the actual kernel's function declaration including name and arguments
 	 */
 	private void writeFunctionDeclaration() {
 		tokens.add("__global__");
@@ -95,6 +101,7 @@ public class KernelWriter {
 			String name = parameters.get(i);
 			//now work out the type of each parameters
 			Type type = environment.get(name);
+			//write an array pointer, and also give a parameter for length
 			if (type instanceof Type.List) {
 				Type.List list = (Type.List) type;
 				if (list.getElement() instanceof Type.Int) {
@@ -106,7 +113,7 @@ public class KernelWriter {
 					//qualify length of array with '_length'
 					tokens.add(name + "_length");
 				}else {
-					//TODO add internal failure here
+					InternalFailure.internalFailure("List type should be int for kernel conversion", null, list);
 				}
 			}
 			//TODO WARNING potential off-by-one error
@@ -116,12 +123,16 @@ public class KernelWriter {
 		}
 		tokens.add(")");
 	}
+	/**
+	 *
+	 * @param lhs
+	 */
 	private void addVariableParam(Variable lhs) {
 		parameters.add(lhs.getName());
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
-	 * to an int value
+	 * to an int value, and this will be checked.
 	 * @param indexOf
 	 */
 	private void addIndexOfParam(IndexOf indexOf) {
@@ -134,10 +145,10 @@ public class KernelWriter {
 				//add name to parameter list only
 				parameters.add(name);
 			}else {
-				//TODO add an internal failure here
+				InternalFailure.internalFailure("Source expression in index of was not variable", null, expression);
 			}
 		}else {
-			//TODO A graceful way for this (user?) error to be dealt with
+			InternalFailure.internalFailure("Expression in index did not match loop index", null, indexOf);
 		}
 	}
 	/**
@@ -149,7 +160,11 @@ public class KernelWriter {
 			write(statement);
 		}
 	}
-
+	/**
+	 * Convert a single statement to its appropriate kernel form. The statement must
+	 * meet certain requirements of for conversion to Cuda code.
+	 * @param statement
+	 */
 	private void write(Stmt statement) {
 		// what happens here?
 		if (statement instanceof Stmt.IfElse) {
@@ -162,7 +177,7 @@ public class KernelWriter {
 		}
 	}
 	/**
-	 *
+	 * Writes an assignment statement to the kernel
 	 * @param assign
 	 */
 	private void write(Stmt.Assign assign) {
@@ -173,14 +188,17 @@ public class KernelWriter {
 		write(rhs);
 		tokens.add(";");
 	}
-
+	/**
+	 * Writes a single expression to the kernel
+	 * @param expression
+	 */
 	private void write(Expr expression) {
-		if (expression instanceof Expr.IndexOf) {
-
-		}else if (expression instanceof Expr.IndexOf) {
-
-		}
+		//TODO What is wrong here? Are there subtypes of expression who overload this method and bypass it completely.
 	}
+	/**
+	 * Writes a single Expr.LVal to the kernel.
+	 * @param val
+	 */
 	private void write(Expr.LVal val) {
 		//val.g
 		if (val instanceof Expr.Variable) {
@@ -189,19 +207,44 @@ public class KernelWriter {
 			//simply add the variable name
 			tokens.add(variable.getName());
 		}else if (val instanceof Expr.IndexOf) {
-			Expr.IndexOf indexOf = (Expr.IndexOf) val;
-			if (indexOf.getSource() instanceof Expr.Variable) {
-				Expr.Variable indexVar = indexOf.getSource();
-			}else {
-				//TODO add internal failure here
-			}
-
-			if (indexOf.getIndex().equals(loop.getIndex()) { //TODO Potential issue with comparing indices
-
-			}
+			writeIndexOf(val);
 		}
 
 	}
+	/**
+	 * Checks whether an indexOf Expr.LVal left-hand expression matched the
+	 * correct type for kernel conversion. Then writes it to the token list.
+	 * @param val
+	 */
+	private void writeIndexOf(Expr.LVal val) {
+		Expr.IndexOf indexOf = (Expr.IndexOf) val;
+		if (indexOf.getSource() instanceof Expr.Variable) {
+			Expr.Variable indexVar = (Expr.Variable)indexOf.getSource();
+			//indexVar is an instance of [int]
+			//source expression must be of type...
+			Type typeOfVar = environment.get(indexVar.getName());
+			if (typeOfVar instanceof Type.List) {
+				Type listType = ((Type.List)typeOfVar).getElement();
+				if (listType instanceof Type.Int) {
+					//the type is correct for a kernel, write it here
+					tokens.add(indexVar.getName());
+					tokens.add("["+indexName+"]");
+				}else{
+					InternalFailure.internalFailure("List type should be int for kernel conversion", null, indexVar);
+				}
+			}
+
+		}else {
+			InternalFailure.internalFailure("Expected source type to be of type list", null, indexOf.getSource());
+		}
+		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO Potential issue with comparing indices
+
+		}
+	}
+	/**
+	 * Writes a classical conditional statement to the kernel
+	 * @param statement
+	 */
 	private void write(Stmt.IfElse statement) {
 		tokens.add("if");
 		tokens.add("(");
@@ -222,10 +265,17 @@ public class KernelWriter {
 		}
 		tokens.add("}");
 	}
+	/**
+	 * Writes a single condition expression without brackets
+	 * @param expression
+	 */
 	private void writeCondition(Expr expression) {
-		// TODO Auto-generated method stub
-		//if (expression instanceof Expr.)
+		// TODO Implement me
 	}
+	/**
+	 * Writes a single variable declaration to the kernel.
+	 * @param decl
+	 */
 	private void write(Stmt.VariableDeclaration decl) {
 		Type type = decl.getType();
 		if (type instanceof Type.Int) {
@@ -240,6 +290,10 @@ public class KernelWriter {
 
 		}
 	}
+	/**
+	 * Return the File object associated with this kernel
+	 * @return
+	 */
 	public File getPtxFile() {
 		return null;
 	}
@@ -254,5 +308,10 @@ public class KernelWriter {
 	@Override
 	public String toString() {
 		return tokens.toString();
+	}
+	public KernelRunner getRunner() {
+		return null;
+		// TODO Auto-generated method stub
+
 	}
 }
