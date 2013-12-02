@@ -1,5 +1,7 @@
 package wyscript.par;
 
+//TODO consider wether this class is necessary. if not too many responsibilities,remove it!
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -10,6 +12,7 @@ import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
+import wyscript.util.TypeChecker;
 
 /**
  * The kernel generator is responsible for the generation Cuda kernels
@@ -56,14 +59,18 @@ public class KernelGenerator {
 	private void scanFuncBody(WyscriptFile.FunDecl function , String name) {
 		int loopPosition = 0;
 		Map<String,Type> environment = new HashMap<String,Type>();
+		TypeChecker checker = new TypeChecker();
+		//generate environment
+		checker.check(function.statements , environment);
+		//now have acquired type information --hopefully!
 		for (int i= 0; i < function.statements.size() ; i++) {
 			Stmt statement = function.statements.get(i);
-			addToEnvironment(statement , environment);
+//			addToEnvironment(statement , environment);
 			if (statement instanceof Stmt.ParFor) {
 				//this loop can be converted
 				String id = name + Integer.toString(loopPosition);
 				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
-						, new HashMap<String,Type>(environment), id);
+						, environment, id);
 				//note that a new hashmap is generated to protect the elements
 				loopPosition++;
 				forToRunner.put((Stmt.ParFor)statement,runner);
@@ -85,9 +92,10 @@ public class KernelGenerator {
 		}
 	}
 	/**
-	 * Returns a kernel runner for this loop
-	 * @param loop
-	 * @param loop
+	 * Returns a KernelRunner for this loop.
+	 * @param loop The loop to be converted for running on GPU
+	 * @param environment The type environment so far
+	 * @param id The file name under which the loop is invoked
 	 * @return
 	 */
 	private KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {

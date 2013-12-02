@@ -194,7 +194,7 @@ public class Interpreter {
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
 		//TODO get the kernel to run here
-		return frame;
+		return null;
 
 	}
 	private Object execute(Stmt.While stmt, HashMap<String,Object> frame) {

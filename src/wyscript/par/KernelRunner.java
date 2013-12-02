@@ -63,20 +63,19 @@ public class KernelRunner {
 	 * @param frame
 	 * @param values -- the RHS values
 	 */
-	public void run(HashMap<String,Object> frame , Object[] values) {
+	public void run(HashMap<String,Object> frame) {
 		//sanity check the number of arguments -- values is the number of input objects
 		List<NativePointerObject> paramPointers = new ArrayList<NativePointerObject>();
 		paramPointers.add(Pointer.to(new int[]{numParams})); //add the count argument
 		//sanity check the input value size
-		Object[] outputs = new Object[values.length];
-		if (values.length == params.size()) {
-			//generate pointers to symbols one-by-one
-			for (int i = 0; i < values.length ; i++) {
-				CUdeviceptr deviceInput = new CUdeviceptr();
-				cuMemAlloc(deviceInput , symbolLength.get(i));
-				//TODO issue here is to correct types for cuda. that way we can get the pointer to the object properly
-
-				//cuMemcpyHtoD(deviceInput , Pointer.to(values[i]), symbolLength.get(i));
+		for (int i = 0; i < symbolTypes.size();i++) {
+			Type type = symbolTypes.get(i);
+			if (type instanceof Type.List) {
+				//then the next argument has to be the list length
+				Type.List list = (Type.List) frame.get(params.get(i));
+				String name = params.get(i);
+				//TODO I don't know what type of java.lang.Object the runtime value of the frame will be
+				frame.get(name);
 			}
 		}
 	}

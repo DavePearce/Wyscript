@@ -309,9 +309,20 @@ public class KernelWriter {
 	public String toString() {
 		return tokens.toString();
 	}
+	/**
+	 * Generates a Kernel Runner from the par-for loop
+	 * @return
+	 */
 	public KernelRunner getRunner() {
-		return null;
-		// TODO Auto-generated method stub
-
+		return new KernelRunner(this);
+	}
+	public int getBegin() {
+		return begin;
+	}
+	public int getEnd() {
+		return end;
+	}
+	public int getIncrement() {
+		return increment;
 	}
 }
