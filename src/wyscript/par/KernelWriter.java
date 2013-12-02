@@ -2,6 +2,10 @@ package wyscript.par;
 
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,8 +14,6 @@ import java.util.Map;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
-import wyscript.lang.Expr.IndexOf;
-import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
@@ -44,20 +46,22 @@ public class KernelWriter {
 	public Map<String, Type> getEnvironment() {
 		return environment;
 	}
-	private String indexName = "i";
+	private String indexName = "i"; //TODO assign me an alias if name taken
+	private String fileName;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
 	 * for <i>loop</i>.
-	 * @param name
+	 * @param filename
 	 * @param environment
 	 * @param loop
-	 *
+	 * @throws IOException
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(String name , Map<String , Type> environment , Stmt.ParFor loop) {
+	public KernelWriter(String filename , Map<String , Type> environment , Stmt.ParFor loop) throws IOException {
 		this.environment = environment;
+		this.fileName = filename;
 		this.body = loop.getBody();
 		this.loop = loop;
 		generateFunctionParameters();
@@ -65,7 +69,72 @@ public class KernelWriter {
 		tokens.add("{");
 		convertBody(body);
 		tokens.add("}");
+		saveAndCompileKernel(filename);
 	}
+	private void saveAndCompileKernel(String name) throws IOException {
+		// first save the token list to file
+		File file = new File(name);
+		FileWriter  writer = new FileWriter(file);
+		for (String token : tokens) {
+			writer.write(token);
+		}
+		//now compile it into a ptx file
+		preparePtxFile(name);
+	}
+	/**
+	 *
+	 * @param cuFileName
+	 * @return
+	 * @throws IOException
+	 *
+	 * @requires A well-formed Cuda file with a file extension.
+	 * @ensures The Cuda file is compiled with the same name (without extension) as a .ptx file
+	 */
+    private String preparePtxFile(String cuFileName) throws IOException {
+        int endIndex = cuFileName.lastIndexOf('.');
+        if (endIndex == -1) {
+            endIndex = cuFileName.length()-1;
+        }
+        String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
+        File ptxFile = new File(ptxFileName);
+        if (ptxFile.exists()) {
+            return ptxFileName;
+        }
+
+        File cuFile = new File(cuFileName);
+        if (!cuFile.exists())
+        {
+            throw new IOException("Input file not found: "+cuFileName);
+        }
+        String modelString = "-m"+System.getProperty("sun.arch.data.model");
+        String command =
+            "nvcc " + modelString + " -ptx "+
+            cuFile.getPath()+" -o "+ptxFileName;
+
+        System.out.println("Executing\n"+command);
+        Process process = Runtime.getRuntime().exec(command);
+
+        String errorMessage =
+            new String(toByteArray(process.getErrorStream()));
+        String outputMessage =
+            new String(toByteArray(process.getInputStream()));
+        int exitValue = 0;
+        try {
+            exitValue = process.waitFor();
+        }
+        catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException(
+                "Interrupted while waiting for nvcc output", e);
+        }
+
+        if (exitValue != 0) {
+        	InternalFailure.internalFailure("Failed to compile .ptx file for " +
+        			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
+        }
+
+        System.out.println("Finished creating PTX file");
+        return ptxFileName;
 	/**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
@@ -91,6 +160,19 @@ public class KernelWriter {
 				}//TODO add other case of assignment here
 
 				//write(left);
+			}
+			if (statement instanceof Stmt.VariableDeclaration) {
+				String name = ((Stmt.VariableDeclaration)statement).getName();
+				int dealiaser = 0;
+				if (name.equals(indexName)) {
+					//this means the index name has to be mangled
+					//TODO verify the mangler here
+					do {
+						indexName = "i_" + dealiaser;
+						dealiaser++;
+					} while (environment.containsKey(indexName)||
+							parameters.contains(indexName));
+				}
 			}
 		}
 	}
@@ -140,6 +222,7 @@ public class KernelWriter {
 	 * @param indexOf
 	 *
 	 * @requires indexOf source to be of Wyscript [int] type
+	 * @ensures This parameter added to kernel parameter list
 	 */
 	private void addIndexOfParam(IndexOf indexOf) {
 		Expr expression = indexOf.getSource();
@@ -180,6 +263,9 @@ public class KernelWriter {
 			write((Stmt.VariableDeclaration) statement);
 		}else if (statement instanceof Stmt.Assign) {
 			write((Stmt.Assign)statement);
+		}else {
+			InternalFailure.internalFailure("Encountered syntactic element not " +
+					"supported in parFor loop", fileName, statement);
 		}
 	}
 	/**

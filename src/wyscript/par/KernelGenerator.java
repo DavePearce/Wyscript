@@ -2,6 +2,7 @@ package wyscript.par;
 
 //TODO consider wether this class is necessary. if not too many responsibilities,remove it!
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -13,6 +14,7 @@ import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
 import wyscript.util.TypeChecker;
+import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * The kernel generator is responsible for the generation Cuda kernels
@@ -77,20 +79,20 @@ public class KernelGenerator {
 			}
 		}
 	}
-	/**
-	 * Adds a declaration of type to the environment if necessary. Does nothing
-	 * with statements that have no declarations.
-	 * @param statement
-	 * @param environment
-	 */
-	private void addToEnvironment(Stmt statement, Map<String, Type> environment) {
-		if (statement instanceof Stmt.VariableDeclaration) {
-			Stmt.VariableDeclaration decl = (Stmt.VariableDeclaration)statement;
-			String name = decl.getName();
-			Type type = decl.getType();
-			environment.put(name, type);
-		}
-	}
+//	/**
+//	 * Adds a declaration of type to the environment if necessary. Does nothing
+//	 * with statements that have no declarations.
+//	 * @param statement
+//	 * @param environment
+//	 */
+//	private void addToEnvironment(Stmt statement, Map<String, Type> environment) {
+//		if (statement instanceof Stmt.VariableDeclaration) {
+//			Stmt.VariableDeclaration decl = (Stmt.VariableDeclaration)statement;
+//			String name = decl.getName();
+//			Type type = decl.getType();
+//			environment.put(name, type);
+//		}
+//	}
 	/**
 	 * Returns a KernelRunner for this loop.
 	 * @param loop The loop to be converted for running on GPU
@@ -99,9 +101,15 @@ public class KernelGenerator {
 	 * @return
 	 */
 	private KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {
-		KernelWriter writer = new KernelWriter(id, environment, loop);
-		writer.getRunner();
-		return null;
+		KernelWriter writer = null;
+		try {
+			writer = new KernelWriter(id, environment, loop);
+		} catch (IOException e) {
+			InternalFailure.internalFailure(
+					"An IO Exception occurred while writing to file. \n"
+			+e.getMessage(), id, loop);
+		}
+		return writer.getRunner();
 	}
 
 }
