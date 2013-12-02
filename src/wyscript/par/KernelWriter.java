@@ -59,7 +59,7 @@ public class KernelWriter {
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(String filename , Map<String , Type> environment , Stmt.ParFor loop) throws IOException {
+	public KernelWriter(String filename , Map<String , Type> environment , Stmt.ParFor loop){
 		this.environment = environment;
 		this.fileName = filename;
 		this.body = loop.getBody();

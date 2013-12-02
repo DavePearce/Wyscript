@@ -34,9 +34,9 @@ import wyscript.util.SyntaxError;
 
 /**
  * Responsible for parsing a sequence of tokens into an Abstract Syntax Tree.
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class Parser {
 
@@ -55,7 +55,7 @@ public class Parser {
 	 * Read a <code>WyscriptFile</code> from the token stream. If the stream is
 	 * invalid in some way (e.g. contains a syntax error, etc) then a
 	 * <code>SyntaxError</code> is thrown.
-	 * 
+	 *
 	 * @return
 	 */
 	public WyscriptFile read() {
@@ -87,10 +87,10 @@ public class Parser {
 
 	private FunDecl parseFunctionDeclaration() {
 		int start = index;
-		
+
 		Type ret = parseType();
-		skipWhiteSpace();	
-		
+		skipWhiteSpace();
+
 		Token name = match(Identifier);
 		match(LeftBrace);
 
@@ -109,7 +109,7 @@ public class Parser {
 					index - 1)));
 		}
 
-		match(Colon);		
+		match(Colon);
 		matchEndLine();
 		List<Stmt> stmts = parseBlock(ROOT_INDENT);
 		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
@@ -147,7 +147,7 @@ public class Parser {
 	 * (assuming their is one). An error occurs if a subsequent statement is
 	 * reached with an indentation level <i>greater</i> than the block's
 	 * indentation level.
-	 * 
+	 *
 	 * @param parentIndent
 	 *            The indentation level of the parent, for which all statements
 	 *            in this block must have a greater indent. May not be
@@ -158,7 +158,7 @@ public class Parser {
 		// First, determine the initial indentation of this block based on the
 		// first statement (or null if there is no statement).
 		Indent indent = getIndent();
-		
+
 		// Second, check that this is indeed the initial indentation for this
 		// block (i.e. that it is strictly greater than parent indent).
 		if (indent == null || indent.lessThanEq(parentIndent)) {
@@ -195,7 +195,7 @@ public class Parser {
 	/**
 	 * Determine the indentation as given by the Indent token at this point (if
 	 * any). If none, then <code>null</code> is returned.
-	 * 
+	 *
 	 * @return
 	 */
 	private Indent getIndent() {
@@ -215,19 +215,19 @@ public class Parser {
 	 * assignment, <code>print</code>, etc) are always occupy a single line and
 	 * are terminated by a <code>NewLine</code> token. Compound statements (e.g.
 	 * <code>if</code>, <code>while</code>, etc) themselves contain blocks of
-	 * statements and are not (generally) terminated by a <code>NewLine</code>. 
-	 * 
+	 * statements and are not (generally) terminated by a <code>NewLine</code>.
+	 *
 	 * @param indent
 	 *            The indent level for the current statement. This is needed in
 	 *            order to constraint the indent level for any sub-blocks (e.g.
 	 *            for <code>while</code> or <code>if</code> statements).
-	 * 
+	 *
 	 * @return
 	 */
 	private Stmt parseStatement(Indent indent) {
 		checkNotEof();
 		Token token = tokens.get(index++);
-				
+
 		switch(token.kind) {
 		case Return:
 			return parseReturnStatement(index-1);
@@ -239,14 +239,16 @@ public class Parser {
 			return parseWhile(index-1,indent);
 		case For:
 			return parseFor(index-1,indent);
+		case parFor:
+			return parseParFor(index-1,indent);
 		case Identifier:
 			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
-				return parseInvokeStatement(token); 
+				return parseInvokeStatement(token);
 			}
 		}
-		
+
 		index = index - 1; // backtrack
-		if (isStartOfType(index)) {			
+		if (isStartOfType(index)) {
 			return parseVariableDeclaration();
 		} else {
 			// invocation or assignment
@@ -265,7 +267,7 @@ public class Parser {
 	 * Determine whether or not a given position marks the beginning of a type
 	 * declaration or not. This is important to help determine whether or not
 	 * this is the beginning of a variable declaration.
-	 * 
+	 *
 	 * @param index
 	 *            Position in the token stream to begin looking from.
 	 * @return
@@ -274,7 +276,7 @@ public class Parser {
 		if (index >= tokens.size()) {
 			return false;
 		}
-		
+
 		Token token = tokens.get(index);
 		switch(token.kind) {
 		case Void:
@@ -288,29 +290,29 @@ public class Parser {
 		case Identifier:
 			return userDefinedTypes.contains(token.text);
 		case LeftCurly:
-		case LeftSquare:				
+		case LeftSquare:
 			return isStartOfType(index + 1);
-		}		
+		}
 
 		return false;
 	}
 
 	/**
 	 * Parse an invoke statement, which has the form:
-	 * 
+	 *
 	 * <pre>
 	 * Identifier '(' ( Expression )* ')' NewLine
 	 * </p>
-	 * 
+	 *
 	 * Observe that this when this function is called, we're assuming that the identifier and opening brace has already been matched.
-	 * 
+	 *
 	 * @return
 	 */
 	private Expr.Invoke parseInvokeStatement(Token name) {
 		int start = name.start;
 		// An invoke statement begins with the name of the function to be
 		// invoked, followed by zero or more comma-separated arguments enclosed
-		// in braces.		
+		// in braces.
 		boolean firstTime = true;
 		ArrayList<Expr> args = new ArrayList<Expr>();
 		while (eventuallyMatch(Token.Kind.LeftBrace) == null) {
@@ -332,14 +334,14 @@ public class Parser {
 
 	/**
 	 * Parse a variable declaration statement, which has the form:
-	 * 
+	 *
 	 * <pre>
 	 * Type Identifier ['=' Expression] NewLine
 	 * </pre>
-	 * 
+	 *
 	 * The optional <code>Expression</code> assignment is referred to as an
 	 * <i>initialiser</i>.
-	 * 
+	 *
 	 * @return
 	 */
 	private Stmt.VariableDeclaration parseVariableDeclaration() {
@@ -356,7 +358,7 @@ public class Parser {
 		}
 		// Finally, a new line indicates the end-of-statement
 		int end = index;
-		matchEndLine();		
+		matchEndLine();
 		// Done.
 		return new Stmt.VariableDeclaration(type, id.text, initialiser,
 				sourceAttr(start, end - 1));
@@ -364,22 +366,22 @@ public class Parser {
 
 	/**
 	 * Parse a return statement, which has the form:
-	 * 
+	 *
 	 * <pre>
 	 * "return" [Expression] NewLine
 	 * </pre>
-	 * 
+	 *
 	 * The optional expression is referred to as the <i>return value</i>.
 	 * Observe that, when this function is called, we're assuming that "return"
 	 * has already been matched.
-	 * 
+	 *
 	 * @return
 	 */
 	private Stmt.Return parseReturnStatement(int start) {
 		Expr e = null;
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
-		if (next < tokens.size() && tokens.get(next).kind != NewLine) {			
+		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
 			e = parseExpression();
 		}
 		// Finally, a new line indicates the end-of-statement
@@ -391,14 +393,14 @@ public class Parser {
 
 	/**
 	 * Parse a print statement, which has the form:
-	 * 
+	 *
 	 * <pre>
 	 * "print" Expression
 	 * </pre>
-	 * 
+	 *
 	 * Observe that, when this function is called, we're assuming that "print"
 	 * has already been matched.
-	 * 
+	 *
 	 * @return
 	 */
 	private Stmt.Print parsePrintStatement(int start) {
@@ -414,13 +416,13 @@ public class Parser {
 
 	/**
 	 * Parse an if statement, which is has the form:
-	 * 
+	 *
 	 * <pre>
 	 * if Expression ':' NewLine Block ["else" ':' NewLine Block]
 	 * </pre>
-	 * 
+	 *
 	 * As usual, the <code>else</block> is optional.
-	 * 
+	 *
 	 * @param indent
 	 * @return
 	 */
@@ -438,11 +440,11 @@ public class Parser {
 
 		// Second, attempt to parse the false branch, which is optional.
 		List<Stmt> fblk = Collections.emptyList();
-		if (tryAndMatch(Else) != null) {	
-			
-			// TODO: support "else if" chaining.			
+		if (tryAndMatch(Else) != null) {
+
+			// TODO: support "else if" chaining.
 			match(Colon);
-			matchEndLine();			
+			matchEndLine();
 			fblk = parseBlock(indent);
 		}
 		// Done!
@@ -461,7 +463,7 @@ public class Parser {
 		Expr condition = parseExpression();
 		match(Colon);
 		int end = index;
-		matchEndLine();		
+		matchEndLine();
 		List<Stmt> blk = parseBlock(indent);
 		return new Stmt.While(condition, blk, sourceAttr(start, end - 1));
 	}
@@ -478,10 +480,21 @@ public class Parser {
 		List<Stmt> blk = parseBlock(indent);
 		return new Stmt.For(var, source, blk, sourceAttr(start, end - 1));
 	}
-
+	private Stmt parseParFor(int start, Indent indent) {
+		Token id = match(Identifier);
+		Expr.Variable var = new Expr.Variable(id.text, sourceAttr(start,
+				index - 1));
+		match(In);
+		Expr source = parseExpression();
+		match(Colon);
+		int end = index;
+		matchEndLine();
+		List<Stmt> blk = parseBlock(indent);
+		return new Stmt.For(var, source, blk, sourceAttr(start, end - 1));
+	}
 	/**
 	 * Parse an assignment statement of the form "lval = expression".
-	 * 
+	 *
 	 * @return
 	 */
 	private Stmt parseAssign() {
@@ -521,7 +534,7 @@ public class Parser {
 			Expr rhs = parseExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
-		
+
 		return lhs;
 	}
 
@@ -529,9 +542,9 @@ public class Parser {
 		int start = index;
 
 		Expr lhs = parseAppendExpression();
-		
+
 		int next = skipWhiteSpace(index);
-		if (next < tokens.size()) {			
+		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -560,13 +573,13 @@ public class Parser {
 			default:
 				return lhs;
 			}
-			
+
 			index = next + 1; // match the operator
 			Expr rhs = parseConditionExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
-		
-		return lhs;		
+
+		return lhs;
 	}
 
 	private Expr parseAppendExpression() {
@@ -575,9 +588,9 @@ public class Parser {
 
 		int next = skipWhiteSpace(index);
 		if (next < tokens.size()) {
-			Token token = tokens.get(next);			
+			Token token = tokens.get(next);
 			switch (token.kind) {
-			case PlusPlus:			
+			case PlusPlus:
 				index = next + 1; // match the operator
 				Expr rhs = parseAppendExpression();
 				return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs, sourceAttr(start,
@@ -594,9 +607,9 @@ public class Parser {
 
 		int next = skipWhiteSpace(index);
 		if (next < tokens.size()) {
-			Token token = tokens.get(next);			
+			Token token = tokens.get(next);
 			switch (token.kind) {
-			case DotDot:			
+			case DotDot:
 				index = next + 1; // match the operator
 				Expr rhs = parseRangeExpression();
 				return new Expr.Binary(Expr.BOp.RANGE, lhs, rhs, sourceAttr(start,
@@ -606,7 +619,7 @@ public class Parser {
 
 		return lhs;
 	}
-	
+
 	private Expr parseAddSubExpression() {
 		int start = index;
 		Expr lhs = parseMulDivExpression();
@@ -625,7 +638,7 @@ public class Parser {
 			default:
 				return lhs;
 			}
-			index = next + 1; // match the operator	
+			index = next + 1; // match the operator
 			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
@@ -662,7 +675,7 @@ public class Parser {
 		return lhs;
 	}
 
-	private Expr parseIndexTerm() {		
+	private Expr parseIndexTerm() {
 		int start = index;
 		Expr lhs = parseTerm();
 		Token token;
@@ -688,8 +701,8 @@ public class Parser {
 		checkNotEof();
 
 		int start = index;
-		Token token = tokens.get(index++);		
-		
+		Token token = tokens.get(index++);
+
 		switch(token.kind) {
 		case LeftBrace:
 			if (isStartOfType(index)) {
@@ -699,7 +712,7 @@ public class Parser {
 				Expr e = parseExpression();
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseExpression();				
+				Expr e = parseExpression();
 				match(RightBrace);
 				return e;
 			}
@@ -713,11 +726,11 @@ public class Parser {
 			}
 		case Null:
 			return new Expr.Constant(null, sourceAttr(start, index - 1));
-		case True:			
+		case True:
 			return new Expr.Constant(true, sourceAttr(start, index - 1));
 		case False:
 			return new Expr.Constant(false, sourceAttr(start, index - 1));
-		case CharValue:			
+		case CharValue:
 			return new Expr.Constant(parseCharacter(token.text), sourceAttr(
 					start, index - 1));
 		case IntValue:
@@ -742,14 +755,14 @@ public class Parser {
 			return new Expr.Unary(Expr.UOp.NOT, parseTerm(), sourceAttr(start,
 					index - 1));
 		}
-					
+
 		syntaxError("unrecognised term", token);
 		return null;
 	}
 
 	private Expr parseListVal(int start) {
 		ArrayList<Expr> exprs = new ArrayList<Expr>();
-		
+
 		boolean firstTime = true;
 		while (eventuallyMatch(RightSquare) == null) {
 			if (!firstTime) {
@@ -794,7 +807,7 @@ public class Parser {
 		return new Expr.RecordConstructor(exprs, sourceAttr(start, index - 1));
 	}
 
-	private Expr parseLengthOf(int start) {		
+	private Expr parseLengthOf(int start) {
 		Expr e = parseIndexTerm();
 		match(VerticalBar);
 		return new Expr.Unary(Expr.UOp.LENGTHOF, e,
@@ -896,7 +909,7 @@ public class Parser {
 				checkNotEof();
 				token = tokens.get(index);
 			}
-			
+
 			return new Type.Record(types, sourceAttr(start, index - 1));
 		case LeftSquare:
 			t = parseType();
@@ -909,12 +922,12 @@ public class Parser {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Match a given token kind, whilst moving passed any whitespace encountered
 	 * inbetween. In the case that meet the end of the stream, or we don't match
 	 * the expected token, then an error is thrown.
-	 * 
+	 *
 	 * @param kind
 	 * @return
 	 */
@@ -923,16 +936,16 @@ public class Parser {
 		Token token = tokens.get(index++);
 		if (token.kind != kind) {
 			syntaxError("expecting \"" + kind + "\" here", token);
-		}		
+		}
 		return token;
 	}
-	
+
 	/**
 	 * Match a given sequence of tokens, whilst moving passed any whitespace
 	 * encountered inbetween. In the case that meet the end of the stream, or we
 	 * don't match the expected tokens in the expected order, then an error is
 	 * thrown.
-	 * 
+	 *
 	 * @param kind
 	 * @return
 	 */
@@ -949,14 +962,14 @@ public class Parser {
 		}
 		return result;
 	}
-	
+
 	/**
 	 * Attempt to match a given kind of token with the view that it must
 	 * *eventually* be matched. This differs from <code>tryAndMatch()</code>
 	 * because it calls <code>checkNotEof()</code>. Thus, it is guaranteed to
 	 * skip any whitespace encountered in between. This is safe because we know
 	 * there is a terminating token still to come.
-	 * 
+	 *
 	 * @param kind
 	 * @return
 	 */
@@ -970,47 +983,47 @@ public class Parser {
 			return token;
 		}
 	}
-	
+
 	/**
 	 * Attempt to match a given token, whilst ignoring any whitespace in
 	 * between. Note that, in the case it fails to match, then the index will be
 	 * unchanged. This latter point is important, otherwise we could
 	 * accidentally gobble up some important indentation.
-	 * 
+	 *
 	 * @param kind
 	 * @return
 	 */
-	private Token tryAndMatch(Token.Kind kind) {		
+	private Token tryAndMatch(Token.Kind kind) {
 		int next = skipWhiteSpace(index);
 		if(next < tokens.size()) {
 			Token t = tokens.get(next);
-			if(t.kind == kind) { 
+			if(t.kind == kind) {
 				index = next + 1;
 				return t;
 			}
 		}
-		return null; 
+		return null;
 	}
-	
+
 	/**
 	 * Attempt to match a given token on the *same* line, whilst ignoring any
 	 * whitespace in between. Note that, in the case it fails to match, then the
 	 * index will be unchanged. This latter point is important, otherwise we
 	 * could accidentally gobble up some important indentation.
-	 * 
+	 *
 	 * @param kind
 	 * @return
 	 */
-	private Token tryAndMatchOnLine(Token.Kind kind) {		
+	private Token tryAndMatchOnLine(Token.Kind kind) {
 		int next = skipLineSpace(index);
 		if(next < tokens.size()) {
 			Token t = tokens.get(next);
-			if(t.kind == kind) { 
+			if(t.kind == kind) {
 				index = next + 1;
 				return t;
 			}
 		}
-		return null; 
+		return null;
 	}
 	/**
 	 * Match a the end of a line. This is required to signal, for example, the
@@ -1032,7 +1045,7 @@ public class Parser {
 			index = index + 1;
 		}
 	}
-	
+
 	/**
 	 * Check that the End-Of-File has not been reached. This method should be
 	 * called from contexts where we are expecting something to follow.
@@ -1045,14 +1058,14 @@ public class Parser {
 		}
 	}
 
-	
+
 	/**
 	 * Skip over any whitespace characters.
 	 */
 	private void skipWhiteSpace() {
 		index = skipWhiteSpace(index);
 	}
-	
+
 	/**
 	 * Skip over any whitespace characters, starting from a given index and
 	 * returning the first index passed any whitespace encountered.
@@ -1063,7 +1076,7 @@ public class Parser {
 		}
 		return index;
 	}
-	
+
 	/**
 	 * Skip over any whitespace characters that are permitted on a given line
 	 * (i.e. all except newlines), starting from a given index and returning the
@@ -1075,34 +1088,34 @@ public class Parser {
 		}
 		return index;
 	}
-	
+
 	/**
 	 * Define what is considered to be whitespace.
-	 * 
+	 *
 	 * @param token
 	 * @return
 	 */
 	private boolean isWhiteSpace(Token token) {
 		return token.kind == Token.Kind.NewLine || isLineSpace(token);
 	}
-	
+
 	/**
 	 * Define what is considered to be linespace.
-	 * 
+	 *
 	 * @param token
 	 * @return
 	 */
 	private boolean isLineSpace(Token token) {
 		return token.kind == Token.Kind.Indent;
 	}
-	
+
 	/**
 	 * Parse a character from a string of the form 'c' or '\c'.
-	 * 
+	 *
 	 * @param input
 	 * @return
 	 */
-	public char parseCharacter(String input) {		
+	public char parseCharacter(String input) {
 		int pos = 1;
 		char c = input.charAt(pos++);
 		if (c == '\\') {
@@ -1120,10 +1133,10 @@ public class Parser {
 		}
 		return c;
 	}
-	
+
 	/**
 	 * Parse a string whilst interpreting all escape characters.
-	 * 
+	 *
 	 * @param v
 	 * @return
 	 */
@@ -1181,7 +1194,7 @@ public class Parser {
 		}
 		return v;
 	}
-	
+
 
 	private Attribute.Source sourceAttr(int start, int end) {
 		Token t1 = tokens.get(start);
@@ -1198,19 +1211,19 @@ public class Parser {
 		throw new SyntaxError(msg, filename, t.start, t.start + t.text.length()
 				- 1);
 	}
-	
+
 	/**
 	 * Represents a given amount of indentation. Specifically, a count of tabs
 	 * and spaces. Observe that the order in which tabs / spaces occurred is not
 	 * retained.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Indent extends Token {
 		private final int countOfSpaces;
 		private final int countOfTabs;
-		
+
 		public Indent(String text, int pos) {
 			super(Token.Kind.Indent, text, pos);
 			// Count the number of spaces and tabs
@@ -1233,12 +1246,12 @@ public class Parser {
 			countOfSpaces = nSpaces;
 			countOfTabs = nTabs;
 		}
-		
+
 		/**
 		 * Test whether this indentation is considered "less than or equivalent"
 		 * to another indentation. For example, an indentation of 2 spaces is
 		 * considered less than an indentation of 3 spaces, etc.
-		 * 
+		 *
 		 * @param other
 		 *            The indent to compare against.
 		 * @return
@@ -1247,13 +1260,13 @@ public class Parser {
 			return countOfSpaces <= other.countOfSpaces
 					&& countOfTabs <= other.countOfTabs;
 		}
-		
+
 		/**
 		 * Test whether this indentation is considered "equivalent" to another
 		 * indentation. For example, an indentation of 3 spaces followed by 1
 		 * tab is considered equivalent to an indentation of 1 tab followed by 3
 		 * spaces, etc.
-		 * 
+		 *
 		 * @param other
 		 *            The indent to compare against.
 		 * @return
@@ -1262,8 +1275,8 @@ public class Parser {
 			return countOfSpaces == other.countOfSpaces
 					&& countOfTabs == other.countOfTabs;
 		}
-	}	
-	
+	}
+
 	/**
 	 * An abstract indentation which represents the indentation of top-level
 	 * declarations, such as function declarations. This is used to simplify the

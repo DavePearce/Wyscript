@@ -193,7 +193,19 @@ public class Interpreter {
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
-		//TODO get the kernel to run here
+		if (stmt.getRunner() == null) { //the runner is not available, default
+			List src = (List) execute(stmt.getSource(), frame);
+			String index = stmt.getIndex().getName();
+			for (Object item : src) {
+				frame.put(index, item);
+				Object ret = execute(stmt.getBody(), frame);
+				if (ret != null) {
+					return ret;
+				}
+			}
+		}else {
+			return stmt.getRunner().run(frame);
+		}
 		return null;
 
 	}

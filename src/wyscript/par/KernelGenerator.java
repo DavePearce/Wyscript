@@ -102,13 +102,7 @@ public class KernelGenerator {
 	 */
 	private KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
-		try {
-			writer = new KernelWriter(id, environment, loop);
-		} catch (IOException e) {
-			InternalFailure.internalFailure(
-					"An IO Exception occurred while writing to file. \n"
-			+e.getMessage(), id, loop);
-		}
+		writer = new KernelWriter(id, environment, loop);
 		return writer.getRunner();
 	}
 

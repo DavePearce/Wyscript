@@ -47,7 +47,20 @@ public class KernelWriterTests {
 	public void test2() {
 		String code = "void main():\n\tint i = 0";
 		WyscriptFile tree = parseForTest(code);
-		System.out.println(tree);
+
+	}
+	@Test
+	public void test3() {
+		WyscriptFile tree = parseForTest("void main():\n"+
+				"\t[int] a = [1,2,3,4,5]\n"+
+				"\tparFor i in 0..|a|:\n"+
+				"\t\ta[i] = a[i]+1"
+				);
+		WyscriptFile.FunDecl main = tree.functions("main").get(0);
+		KernelWriter writer = new KernelWriter("test", new HashMap<String,Type>(),
+				(Stmt.ParFor)main.statements.get(1));
+		System.out.println(writer.toString());
+		//TODO implement me, test this parallel for!
 	}
 	/**
 	 * Quickly parse a string of WyScript
