@@ -52,6 +52,9 @@ public class KernelWriter {
 	 * @param name
 	 * @param environment
 	 * @param loop
+	 *
+	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
+	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
 	public KernelWriter(String name , Map<String , Type> environment , Stmt.ParFor loop) {
 		this.environment = environment;
@@ -68,7 +71,8 @@ public class KernelWriter {
 	 * loop body for those assignment statements which require parameters to be
 	 * written to kernel.
 	 *
-	 * This function @ensures that all parameters necessary for a Cuda kernel are
+	 * @requires loop != null
+	 * @ensures that all parameters necessary for a Cuda kernel are
 	 * stored.
 	 */
 	private void generateFunctionParameters() {
@@ -134,6 +138,8 @@ public class KernelWriter {
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
 	 * to an int value, and this will be checked.
 	 * @param indexOf
+	 *
+	 * @requires indexOf source to be of Wyscript [int] type
 	 */
 	private void addIndexOfParam(IndexOf indexOf) {
 		Expr expression = indexOf.getSource();
