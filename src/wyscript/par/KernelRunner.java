@@ -16,7 +16,7 @@ import wyscript.util.SyntaxError.InternalFailure;
  * different types of loop runs. Maybe the kernel writer is associated with
  * kernel runner...
  *
- * @author antunomate
+ * @author Mate Antunovic
  *
  */
 public class KernelRunner {

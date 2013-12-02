@@ -490,7 +490,7 @@ public class Parser {
 		int end = index;
 		matchEndLine();
 		List<Stmt> blk = parseBlock(indent);
-		return new Stmt.For(var, source, blk, sourceAttr(start, end - 1));
+		return new Stmt.ParFor(var, source, blk, sourceAttr(start, end - 1));
 	}
 	/**
 	 * Parse an assignment statement of the form "lval = expression".

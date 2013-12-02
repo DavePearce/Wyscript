@@ -21,14 +21,14 @@ public class InterpreterValidTests {
 				+ ".sysout";
 		// Classpath to project root
 		String classPath = "../../src";
-				
-		// First, execute the While program using the interpreter		
+
+		// First, execute the While program using the interpreter
 		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".wys");
-		
+
 		// Second, compare the output!
 		TestUtils.compare(output, sampleOutputFile);
 	}
- 
+
 	// ======================================================================
 	// Tests
 	// ======================================================================
@@ -596,5 +596,21 @@ public class InterpreterValidTests {
 	@Test
 	public void While_Valid_6() {
 		runInterpreterTest("While_Valid_6");
+	}
+	@Test
+	public void parFor_Valid_1() {
+		runInterpreterTest("ParFor_Valid_1");
+	}
+	@Test
+	public void parFor_Valid_2() {
+		runInterpreterTest("ParFor_Valid_2");
+	}
+	@Test
+	public void parFor_Valid_3() {
+		runInterpreterTest("ParFor_Valid_3");
+	}
+	@Test
+	public void parFor_Valid_4() {
+		runInterpreterTest("ParFor_Valid_4");
 	}
 }

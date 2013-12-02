@@ -17,53 +17,53 @@ import static wyscript.util.SyntaxError.*;
  * Additionally, this phase annotates every expression with the type it returns.
  * This information can be used in subsequent phases (e.g. code generation).
  * </p>
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class TypeChecker {
 	private WyscriptFile file;
 	private WyscriptFile.FunDecl function;
-	private HashMap<String,WyscriptFile.FunDecl> functions; 
-	
+	private HashMap<String,WyscriptFile.FunDecl> functions;
+
 	public void check(WyscriptFile wf) {
 		this.file = wf;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
-		
+
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) declaration;
 				this.functions.put(fd.name(), fd);
 			}
 		}
-		
+
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				check((WyscriptFile.FunDecl) declaration);
 			}
 		}
 	}
-	
+
 	public void check(WyscriptFile.FunDecl fd) {
 		this.function = fd;
-		
+
 		// First, initialise the typing environment
 		HashMap<String,Type> environment = new HashMap<String,Type>();
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
-		
+
 		// Second, check all statements in the function body
-		check(fd.statements,environment);				
+		check(fd.statements,environment);
 	}
-	
+
 	public void check(List<Stmt> statements, Map<String,Type> environment) {
 		for(Stmt s : statements) {
 			check(s,environment);
 		}
 	}
-	
-	public void check(Stmt stmt, Map<String,Type> environment) {			
+
+	public void check(Stmt stmt, Map<String,Type> environment) {
 		if(stmt instanceof Stmt.Assign) {
 			check((Stmt.Assign) stmt, environment);
 		} else if(stmt instanceof Stmt.Print) {
@@ -84,22 +84,22 @@ public class TypeChecker {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
-	
+
 	public void check(Stmt.Assign stmt, Map<String,Type> environment) {
 		Type lhs = check(stmt.getLhs(), environment);
 		Type rhs = check(stmt.getRhs(), environment);
 		checkSubtype(lhs,rhs,stmt);
 	}
-	
+
 	public void check(Stmt.Print stmt, Map<String,Type> environment) {
 		check(stmt.getExpr(),environment);
 	}
-	
+
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
 		Type actual = check(stmt.getExpr(), environment);
 		checkSubtype(function.ret, actual, stmt.getExpr());
 	}
-	
+
 	public void check(Stmt.VariableDeclaration stmt, Map<String,Type> environment) {
 		if(environment.containsKey(stmt.getName())) {
 			syntaxError("variable already declared: " + stmt.getName(),
@@ -110,27 +110,27 @@ public class TypeChecker {
 		}
 		environment.put(stmt.getName(), stmt.getType());
 	}
-	
+
 	public void check(Stmt.IfElse stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
-	
+
 	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
 		// TODO: implement me!
 	}
-	
+
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getBody(), new HashMap<String,Type>(environment));
 	}
-	
+
 	public Type check(Expr expr, Map<String,Type> environment) {
 		Type type;
-		
+
 		if(expr instanceof Expr.Binary) {
 			type = check((Expr.Binary) expr, environment);
 		} else if(expr instanceof Expr.Cast) {
@@ -154,27 +154,27 @@ public class TypeChecker {
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 			return null; // dead code
-		} 
-		
+		}
+
 		// Here, we annotate the computed return type to the expression.
 		expr.attributes().add(new Attribute.Type(type));
-		
+
 		return type;
 	}
-	
+
 	public Type check(Expr.Binary expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.Constant expr, Map<String,Type> environment) {
 		Object constant = expr.getValue();
-		
+
 		if(constant instanceof Boolean) {
 			return new Type.Bool();
 		} else if(constant instanceof Character) {
@@ -192,7 +192,7 @@ public class TypeChecker {
 			return null; // dead code
 		}
 	}
-	
+
 	public Type check(Expr.IndexOf expr, Map<String, Type> environment) {
 		Type srcType = check(expr.getSource(), environment);
 		Type indexType = check(expr.getIndex(), environment);
@@ -200,7 +200,7 @@ public class TypeChecker {
 		return checkSubtype(Type.List.class, srcType, expr.getSource())
 				.getElement();
 	}
-	
+
 	public Type check(Expr.Invoke expr, Map<String,Type> environment) {
 		WyscriptFile.FunDecl fn = functions.get(expr.getName());
 		List<Expr> arguments = expr.getArguments();
@@ -216,27 +216,27 @@ public class TypeChecker {
 		}
 		return fn.ret;
 	}
-	
+
 	public Type check(Expr.ListConstructor expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.RecordAccess expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.RecordConstructor expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.Unary expr, Map<String,Type> environment) {
 		// TODO: implement me
 		return null;
 	}
-	
+
 	public Type check(Expr.Variable expr, Map<String, Type> environment) {
 		Type type = environment.get(expr.getName());
 		if (type == null) {
@@ -245,11 +245,11 @@ public class TypeChecker {
 		}
 		return type;
 	}
-	
+
 	/**
 	 * Check that a given type t2 is an instance of of another type t1. This
 	 * method is useful for checking that a type is, for example, a List type.
-	 * 
+	 *
 	 * @param t1
 	 * @param t2
 	 * @param element
@@ -266,10 +266,10 @@ public class TypeChecker {
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Check that a given type t2 is a subtype of another type t1.
-	 * 
+	 *
 	 * @param t1 Supertype to check
 	 * @param t2 Subtype to check
 	 * @param element
@@ -277,7 +277,7 @@ public class TypeChecker {
 	 */
 	public void checkSubtype(Type t1, Type t2, SyntacticElement element) {
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
-			// OK			
+			// OK
 		} else if (t1 instanceof Type.Char && t2 instanceof Type.Char) {
 			// OK
 		} else if (t1 instanceof Type.Int && t2 instanceof Type.Int) {

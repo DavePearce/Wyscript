@@ -20,7 +20,7 @@ import wyscript.util.SyntaxError.InternalFailure;
  * The kernel generator is responsible for the generation Cuda kernels
  * from parallel-for loops. It maps each parallel for loop to a KernelRunner.
  * This runner is then attached to the parallel-for loop.
- * @author antunomate
+ * @author Mate Antunovic
  *
  */
 public class KernelGenerator {
@@ -79,20 +79,6 @@ public class KernelGenerator {
 			}
 		}
 	}
-//	/**
-//	 * Adds a declaration of type to the environment if necessary. Does nothing
-//	 * with statements that have no declarations.
-//	 * @param statement
-//	 * @param environment
-//	 */
-//	private void addToEnvironment(Stmt statement, Map<String, Type> environment) {
-//		if (statement instanceof Stmt.VariableDeclaration) {
-//			Stmt.VariableDeclaration decl = (Stmt.VariableDeclaration)statement;
-//			String name = decl.getName();
-//			Type type = decl.getType();
-//			environment.put(name, type);
-//		}
-//	}
 	/**
 	 * Returns a KernelRunner for this loop.
 	 * @param loop The loop to be converted for running on GPU

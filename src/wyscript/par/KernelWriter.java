@@ -1,11 +1,13 @@
 package wyscript.par;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,12 +26,27 @@ import wyscript.util.SyntaxError.InternalFailure;
  * The first instance of the KernelWriter will take an ordinary for-loop and convert it
  * to Cuda code. There are a number of limitations on what loops can be written. The first goal
  * is simple loops with <i>int</i> and <i>[int]</i> types, with no nested loops and simple
- * conditionals. The kernel writer will compile the cuda code and return an error if this operation
+ * conditionals. The kernel writer will compile the cuda code and throw an exception if this operation
  * is not successful.
- * @author antunomate
+ *
+ * Only certain types of parallel for (parFor) loops can be parallelised by this component.
+ * So far they include loops with statement bodies with <i>only the following</i> statement types
+ * <ul>
+ * <li>assignment</li>
+ * <li>variable declarations</li>
+ * <li>if-else statements</li>
+ * <li></li>
+ * </ul>
+ * Furthermore, expression types are limited to
+ * <ul>
+ * <li>Simple unary and binary operations</li>
+ * <li>Index operations</li>
+ * </ul>
+ * @author Mate Antunovic
  *
  */
 public class KernelWriter {
+	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
 
@@ -69,9 +86,8 @@ public class KernelWriter {
 		tokens.add("{");
 		convertBody(body);
 		tokens.add("}");
-		saveAndCompileKernel(filename);
 	}
-	private void saveAndCompileKernel(String name) throws IOException {
+	public void saveAndCompileKernel(String name) throws IOException {
 		// first save the token list to file
 		File file = new File(name);
 		FileWriter  writer = new FileWriter(file);
@@ -108,7 +124,7 @@ public class KernelWriter {
         }
         String modelString = "-m"+System.getProperty("sun.arch.data.model");
         String command =
-            "nvcc " + modelString + " -ptx "+
+            NVCC_COMMAND + " " + modelString + " -ptx "+
             cuFile.getPath()+" -o "+ptxFileName;
 
         System.out.println("Executing\n"+command);
@@ -135,14 +151,40 @@ public class KernelWriter {
 
         System.out.println("Finished creating PTX file");
         return ptxFileName;
+
+    }
+
+    /**
+     * Fully reads the given InputStream and returns it as a byte array
+     *
+     * @param inputStream The input stream to read
+     * @return The byte array containing the data from the input stream
+     * @throws IOException If an I/O error occurs
+     */
+    private static byte[] toByteArray(InputStream inputStream)
+        throws IOException
+    {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte buffer[] = new byte[8192];
+        while (true)
+        {
+            int read = inputStream.read(buffer);
+            if (read == -1)
+            {
+                break;
+            }
+            baos.write(buffer, 0, read);
+        }
+        return baos.toByteArray();
+    }
+
 	/**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
 	 * written to kernel.
 	 *
-	 * @requires loop != null
-	 * @ensures that all parameters necessary for a Cuda kernel are
-	 * stored.
+	 * @requires loop != null and loop contains no illegal statements
+	 * @ensures that all parameters necessary for a Cuda kernel are stored.
 	 */
 	private void generateFunctionParameters() {
 		//scan the loop body, determine what must be added as parameter
@@ -151,17 +193,26 @@ public class KernelWriter {
 			if (statement instanceof Stmt.Assign) {
 				//this is an assignment, must check the LHS and see where if comes from
 				Stmt.Assign assign = (Stmt.Assign) statement;
-				//assign.g
-				Expr.LVal left = assign.getLhs();
+				//check left hand side first
 				if (assign.getLhs() instanceof Expr.IndexOf) {
 					addIndexOfParam((Expr.IndexOf)assign.getLhs());
 				}else if (assign.getLhs() instanceof Expr.Variable) {
 					addVariableParam((Expr.Variable)assign.getLhs());
-				}//TODO add other case of assignment here
+				}else {
+					InternalFailure.internalFailure("Unknown LVal encountered."
+							, fileName, assign.getLhs());
+				}
+				//now
+				if (assign.getRhs() instanceof Expr.IndexOf) {
+					addIndexOfParam((Expr.IndexOf)assign.getRhs());
+				}else {
+					InternalFailure.internalFailure("Unknown LVal encountered."
+							, fileName, assign.getLhs());
+				}
 
 				//write(left);
 			}
-			if (statement instanceof Stmt.VariableDeclaration) {
+			else if (statement instanceof Stmt.VariableDeclaration) {
 				String name = ((Stmt.VariableDeclaration)statement).getName();
 				int dealiaser = 0;
 				if (name.equals(indexName)) {
@@ -178,6 +229,9 @@ public class KernelWriter {
 	}
 	/**
 	 * Writes the actual kernel's function declaration including name and arguments
+	 *
+	 * @requires The list of parameters to be written is initialised
+	 * @ensures The function declaration is written with the required parameters
 	 */
 	private void writeFunctionDeclaration() {
 		tokens.add("__global__");
@@ -187,6 +241,10 @@ public class KernelWriter {
 			String name = parameters.get(i);
 			//now work out the type of each parameters
 			Type type = environment.get(name);
+			if (type == null) {
+				InternalFailure.internalFailure("Cannot retieve type for name "+name
+						, fileName, type);
+			}
 			//write an array pointer, and also give a parameter for length
 			if (type instanceof Type.List) {
 				Type.List list = (Type.List) type;
@@ -201,6 +259,13 @@ public class KernelWriter {
 				}else {
 					InternalFailure.internalFailure("List type should be int for kernel conversion", null, list);
 				}
+			}else if (type instanceof Type.Int) {
+				tokens.add("int*");
+				tokens.add(name);
+			}
+			else {
+				InternalFailure.internalFailure("Unknown parameter type encountered."
+						, fileName, type);
 			}
 			//TODO WARNING potential off-by-one error
 			if (i>=1 && i < parameters.size()-2) {
@@ -210,7 +275,7 @@ public class KernelWriter {
 		tokens.add(")");
 	}
 	/**
-	 *
+	 * Add a single variable parameter to parameter list
 	 * @param lhs
 	 */
 	private void addVariableParam(Variable lhs) {
@@ -221,38 +286,46 @@ public class KernelWriter {
 	 * to an int value, and this will be checked.
 	 * @param indexOf
 	 *
-	 * @requires indexOf source to be of Wyscript [int] type
+	 * @requires indexOf != null and its source to be of Wyscript [int] type
 	 * @ensures This parameter added to kernel parameter list
 	 */
 	private void addIndexOfParam(IndexOf indexOf) {
-		Expr expression = indexOf.getSource();
-		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO verify whether it is correct to compare these expressions
-			//now need to get name of source expression
-			if (expression instanceof Expr.Variable) {
-				Expr.Variable srcVar = (Expr.Variable)expression;
-				String name = srcVar.getName();
-				//add name to parameter list only
-				parameters.add(name);
-			}else {
-				InternalFailure.internalFailure("Source expression in index of was not variable", null, expression);
+		Expr expression = indexOf.getIndex();
+		if (expression instanceof Expr.Variable) {
+			Expr.Variable indexVar = (Expr.Variable)expression;
+			if (indexVar.getName().equals(loop.getIndex().getName())) {
+				parameters.add(indexVar.getName());
+			}else{
+				InternalFailure.internalFailure("Expression in index did not match loop index", fileName, indexOf);
 			}
 		}else {
-			InternalFailure.internalFailure("Expression in index did not match loop index", null, indexOf);
+			InternalFailure.internalFailure("Expression in index was not " +
+					"variable which cannot match loop index", fileName, indexOf);
 		}
 	}
 	/**
 	 * Maps the body of the loop onto Cuda code
-	 * @param body2
+	 * @param body
+	 *
+	 * @requires body != null and every element of body is a legal statement
 	 */
-	private void convertBody(ArrayList<Stmt> body2) {
+	private void convertBody(ArrayList<Stmt> body) {
+		writeThreadIndex();
 		for (Stmt statement : body) {
 			write(statement);
 		}
+	}
+	private void writeThreadIndex() {
+		// TODO Auto-generated method stub
+
 	}
 	/**
 	 * Convert a single statement to its appropriate kernel form. The statement must
 	 * meet certain requirements of for conversion to Cuda code.
 	 * @param statement
+	 *
+	 * @requires statement != null, statement is a legal and the parameters have been initialised
+	 * @ensures A single statement of Cuda is written that correctly maps the Wyscript functionality
 	 */
 	private void write(Stmt statement) {
 		// what happens here?
@@ -271,21 +344,33 @@ public class KernelWriter {
 	/**
 	 * Writes an assignment statement to the kernel
 	 * @param assign
+	 *
+	 * @requires
+	 * @ensures
 	 */
 	private void write(Stmt.Assign assign) {
 		Expr.LVal lhs = assign.getLhs();
 		write(lhs);
 		tokens.add("=");
-		Expr rhs = assign.getLhs();
+		Expr rhs = assign.getRhs();
 		write(rhs);
 		tokens.add(";");
 	}
 	/**
 	 * Writes a single expression to the kernel
 	 * @param expression
+	 *
+	 * @requires
+	 * @ensures
 	 */
 	private void write(Expr expression) {
 		//TODO What is wrong here? Are there subtypes of expression who overload this method and bypass it completely.
+		//if (expression instanceof Expr.)
+		if (expression instanceof Expr.LVal) {
+			write((Expr.LVal)expression);
+		}else{
+			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", fileName, expression);
+		}
 	}
 	/**
 	 * Writes a single Expr.LVal to the kernel.
@@ -343,7 +428,7 @@ public class KernelWriter {
 		//the condition can only be simple equality, or a statement in boolean
 		//logic
 		Expr expression = statement.getCondition();
-		writeCondition(expression);
+		write(expression);
 		tokens.add(")");
 		//branches may be empty
 		for (Stmt s : statement.getTrueBranch()) {
@@ -356,13 +441,6 @@ public class KernelWriter {
 			write(s); //write the single statement
 		}
 		tokens.add("}");
-	}
-	/**
-	 * Writes a single condition expression without brackets
-	 * @param expression
-	 */
-	private void writeCondition(Expr expression) {
-		// TODO Implement me
 	}
 	/**
 	 * Writes a single variable declaration to the kernel.
