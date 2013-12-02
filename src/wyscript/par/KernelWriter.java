@@ -236,8 +236,13 @@ public class KernelWriter {
 	private void writeFunctionDeclaration() {
 		tokens.add("__global__");
 		tokens.add("void");
+		tokens.add(getFuncName());
 		tokens.add("(");
 		for (int i = 0; i < parameters.size() ; i++) {
+			//TODO WARNING potential off-by-one error
+			if (i>=1 && i < parameters.size()) {
+				tokens.add(",");
+			}
 			String name = parameters.get(i);
 			//now work out the type of each parameters
 			Type type = environment.get(name);
@@ -267,12 +272,12 @@ public class KernelWriter {
 				InternalFailure.internalFailure("Unknown parameter type encountered."
 						, fileName, type);
 			}
-			//TODO WARNING potential off-by-one error
-			if (i>=1 && i < parameters.size()-2) {
-				tokens.add(",");
-			}
 		}
 		tokens.add(")");
+	}
+	private String getFuncName() {
+		//TODO either remove me or implement me
+		return fileName;
 	}
 	/**
 	 * Add a single variable parameter to parameter list
@@ -290,13 +295,11 @@ public class KernelWriter {
 	 * @ensures This parameter added to kernel parameter list
 	 */
 	private void addIndexOfParam(IndexOf indexOf) {
-		Expr expression = indexOf.getIndex();
+		Expr expression = indexOf.getSource();
 		if (expression instanceof Expr.Variable) {
-			Expr.Variable indexVar = (Expr.Variable)expression;
-			if (indexVar.getName().equals(loop.getIndex().getName())) {
-				parameters.add(indexVar.getName());
-			}else{
-				InternalFailure.internalFailure("Expression in index did not match loop index", fileName, indexOf);
+			Expr.Variable srcVar = (Expr.Variable)expression;
+			if (!srcVar.getName().equals(loop.getIndex().getName())) {
+				parameters.add(srcVar.getName());
 			}
 		}else {
 			InternalFailure.internalFailure("Expression in index was not " +
@@ -316,8 +319,11 @@ public class KernelWriter {
 		}
 	}
 	private void writeThreadIndex() {
-		// TODO Auto-generated method stub
-
+		tokens.add("int");
+		tokens.add(indexName);
+		tokens.add("=");
+		tokens.add("blockIdx.x * blockDim.x + threadIdx.x");
+		tokens.add(";");
 	}
 	/**
 	 * Convert a single statement to its appropriate kernel form. The statement must
@@ -375,9 +381,17 @@ public class KernelWriter {
 	/**
 	 * Writes a single Expr.LVal to the kernel.
 	 * @param val
+	 *
+	 * @ensures An expression is written with the correct referencing
+	 * and referencing of pointers.
 	 */
 	private void write(Expr.LVal val) {
-		//val.g
+		if (val instanceof Expr.Variable) {
+			//if this is a parameter, have to dereference the pointer
+			if (parameters.contains(((Expr.Variable)val).getName())) {
+					tokens.add("*");
+			}
+		}
 		if (val instanceof Expr.Variable) {
 			//write a
 			Expr.Variable variable = (Expr.Variable) val;
@@ -477,7 +491,15 @@ public class KernelWriter {
 	}
 	@Override
 	public String toString() {
-		return tokens.toString();
+		StringBuilder builder = new StringBuilder();
+		for (String t : tokens) {
+			builder.append(t);
+			builder.append(" ");
+			if (t.equals(";")) {
+				builder.append("\n");
+			}
+		}
+		return builder.toString();
 	}
 	/**
 	 * Generates a Kernel Runner from the par-for loop

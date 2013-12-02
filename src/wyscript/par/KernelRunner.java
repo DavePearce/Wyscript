@@ -84,16 +84,33 @@ public class KernelRunner {
 		// sanity check the number of arguments -- values is the number of input
 		// objects
 		List<NativePointerObject> paramPointers = new ArrayList<NativePointerObject>();
-		paramPointers.add(Pointer.to(new int[] { numParams })); // add the count
-																// argument
+		paramPointers.add(Pointer.to(new int[] { numParams })); // add the count														// argument
 		// sanity check the input value size
+		marshallParametersIn(frame);
+		Pointer parametersPointer = Pointer.to(kernelParameters);
+		cuLaunchKernel(function, gridDim, 1, 1, blockDim, 1, 1, 0, null,
+				parametersPointer, null);
+		cuCtxSynchronize();
+		marshallParametersOut(frame);
+		return null; //TODO change me
+	}
+	private void marshallParametersOut(HashMap<String, Object> frame) {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * Marshalls the data from the parameters into an appropriate format and
+	 * allocates memory appropriately, filling in pointers for kenrel parameters
+	 * @param frame
+	 */
+	private void marshallParametersIn(HashMap<String, Object> frame) {
 		boolean expectingLengthArg = false;
 		int expectedLength = -1;
 		for (int i = 0; i < symbolTypes.size(); i++) {
 			Type type = symbolTypes.get(i);
 			if (expectingLengthArg) {
-				// String name = params.get(i); //don't actually need to get
-				// name
+				//then the pointer for the length argument is allocated
 				Type symType = symbolTypes.get(i);
 				if (symType instanceof Type.Int) {
 					// paramPointers.add(Pointer.to(); //add the count argument
@@ -113,8 +130,7 @@ public class KernelRunner {
 							.get(name);
 					expectedLength = listObject.size();
 					int[] array = new int[expectedLength];
-					// copy values over, ensuring that they are unwrapped form
-					// Integer type.
+					// unrap all values in array to int type
 					for (int j = 0; j < expectedLength; j++)
 						array[j] = listObject.get(j);
 					CUdeviceptr dpointer = generatePointer(expectedLength,
@@ -122,16 +138,13 @@ public class KernelRunner {
 					kernelParameters[i + 1] = Pointer.to(dpointer);
 					// TODO I believe the value of the list (on the frame) is
 					// ArrayList<Object>
+				}else {
+					InternalFailure.internalFailure("Can only allocate pointer " +
+							"for flat list of element type int" + i, writer.getPtxFile().getPath(), type);
 				}
-			}// end processing list type
-		}// end of the loop over symbol types
-			// verify and check twice all the assumptions made up until this
-			// point!
-		Pointer parametersPointer = Pointer.to(kernelParameters);
-		cuLaunchKernel(function, gridDim, 1, 1, blockDim, 1, 1, 0, null,
-				parametersPointer, null);
-		cuCtxSynchronize();
-		return null; //TODO change me
+			}
+		}
+		//TODO investigate the behaviour of program at this point.
 	}
 
 	/**
