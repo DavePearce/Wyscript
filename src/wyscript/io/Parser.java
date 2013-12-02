@@ -766,7 +766,6 @@ public class Parser {
 		HashSet<String> keys = new HashSet<String>();
 		ArrayList<Pair<String, Expr>> exprs = new ArrayList<Pair<String, Expr>>();
 
-		Token token = tokens.get(index);
 		boolean firstTime = true;
 		while (eventuallyMatch(RightCurly) == null) {
 			if (!firstTime) {
@@ -775,7 +774,6 @@ public class Parser {
 			firstTime = false;
 
 			checkNotEof();
-			token = tokens.get(index);
 			Token n = match(Identifier);
 
 			if (keys.contains(n.text)) {
@@ -788,7 +786,6 @@ public class Parser {
 			exprs.add(new Pair<String, Expr>(n.text, e));
 			keys.add(n.text);
 			checkNotEof();
-			token = tokens.get(index);
 		}
 
 		return new Expr.RecordConstructor(exprs, sourceAttr(start, index - 1));
@@ -884,7 +881,6 @@ public class Parser {
 				firstTime = false;
 
 				checkNotEof();
-				token = tokens.get(index);
 				Type tmp = parseType();
 
 				Token n = match(Identifier);
@@ -894,7 +890,6 @@ public class Parser {
 				}
 				types.put(n.text, tmp);
 				checkNotEof();
-				token = tokens.get(index);
 			}
 
 			return new Type.Record(types, sourceAttr(start, index - 1));
