@@ -39,12 +39,12 @@ public class Main {
 	}
 
 	private static enum Mode { interpret, js };
-	
+
 	public static boolean run(String[] args) {
 		boolean verbose = false;
 		int fileArgsBegin = 0;
 		Mode mode = Mode.interpret;
-		
+
 		for (int i = 0; i != args.length; ++i) {
 			if (args[i].startsWith("-")) {
 				String arg = args[i];
@@ -65,7 +65,6 @@ public class Main {
 				fileArgsBegin = i + 1;
 			}
 		}
-
 		if (fileArgsBegin == args.length) {
 			usage();
 			return false;
@@ -79,24 +78,24 @@ public class Main {
 			Lexer lexer = new Lexer(srcFile.getPath());
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
 			WyscriptFile ast = parser.read();
-			
+
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);
-			
+
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {
 			case interpret:
 				new Interpreter().run(ast);
-				break;			
+				break;
 			case js: {
 				File jsFile = new File(filename.substring(0,filename.lastIndexOf('.')) + ".js");
 				JavaScriptFileWriter jsfw = new JavaScriptFileWriter(jsFile);
-				jsfw.write(ast);	
+				jsfw.write(ast);
 				jsfw.close();
 				break;
-			}			
 			}
-			
+			}
+
 		} catch (SyntaxError e) {
 			if (e.filename() != null) {
 				e.outputSourceError(System.out);
@@ -126,7 +125,7 @@ public class Main {
 
 	/**
 	 * Print out information regarding command-line arguments
-	 * 
+	 *
 	 */
 	public static void usage() {
 		String[][] info = {

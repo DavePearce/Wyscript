@@ -1,25 +1,21 @@
 package wyscript.par;
 
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
+import wyscript.lang.Expr.BOp;
+import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
-import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
-import wyscript.lang.WyscriptFile;
 import wyscript.util.SyntaxError.InternalFailure;
 
 /**
@@ -32,8 +28,8 @@ import wyscript.util.SyntaxError.InternalFailure;
  * Only certain types of parallel for (parFor) loops can be parallelised by this component.
  * So far they include loops with statement bodies with <i>only the following</i> statement types
  * <ul>
- * <li>assignment</li>
- * <li>variable declarations</li>
+ * <li>assignments (int and [int])</li>
+ * <li>variable declarations (int and [int])</li>
  * <li>if-else statements</li>
  * <li></li>
  * </ul>
@@ -58,12 +54,13 @@ public class KernelWriter {
 	private List<String> parameters = new ArrayList<String>();
 
 	private Map<String , Type> environment; //passed to kernel writer at runtime
-	//this is the mapping from array to array length
-	private Map<String,String> lengthFunction = new HashMap<String,String>();
+
+	private Set<String> nonParameterVars = new HashSet<String>();
+
 	public Map<String, Type> getEnvironment() {
 		return environment;
 	}
-	private String indexName = "i"; //TODO assign me an alias if name taken
+	private String indexName = "i";
 	private String fileName;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
@@ -94,6 +91,7 @@ public class KernelWriter {
 		for (String token : tokens) {
 			writer.write(token);
 		}
+		writer.close();
 		//now compile it into a ptx file
 		preparePtxFile(name);
 	}
@@ -127,13 +125,9 @@ public class KernelWriter {
             NVCC_COMMAND + " " + modelString + " -ptx "+
             cuFile.getPath()+" -o "+ptxFileName;
 
-        System.out.println("Executing\n"+command);
+        //System.out.println("Executing\n"+command);
         Process process = Runtime.getRuntime().exec(command);
 
-        String errorMessage =
-            new String(toByteArray(process.getErrorStream()));
-        String outputMessage =
-            new String(toByteArray(process.getInputStream()));
         int exitValue = 0;
         try {
             exitValue = process.waitFor();
@@ -149,36 +143,12 @@ public class KernelWriter {
         			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
         }
 
-        System.out.println("Finished creating PTX file");
+        //System.out.println("Finished creating PTX file");
         return ptxFileName;
 
     }
 
     /**
-     * Fully reads the given InputStream and returns it as a byte array
-     *
-     * @param inputStream The input stream to read
-     * @return The byte array containing the data from the input stream
-     * @throws IOException If an I/O error occurs
-     */
-    private static byte[] toByteArray(InputStream inputStream)
-        throws IOException
-    {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        byte buffer[] = new byte[8192];
-        while (true)
-        {
-            int read = inputStream.read(buffer);
-            if (read == -1)
-            {
-                break;
-            }
-            baos.write(buffer, 0, read);
-        }
-        return baos.toByteArray();
-    }
-
-	/**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
 	 * written to kernel.
@@ -189,35 +159,17 @@ public class KernelWriter {
 	private void generateFunctionParameters() {
 		//scan the loop body, determine what must be added as parameter
 		for (Stmt statement : loop.getBody()) {
-			//an assign statement implies a mutable change
+		//check for mutabilities in assignment
 			if (statement instanceof Stmt.Assign) {
-				//this is an assignment, must check the LHS and see where if comes from
 				Stmt.Assign assign = (Stmt.Assign) statement;
-				//check left hand side first
-				if (assign.getLhs() instanceof Expr.IndexOf) {
-					addIndexOfParam((Expr.IndexOf)assign.getLhs());
-				}else if (assign.getLhs() instanceof Expr.Variable) {
-					addVariableParam((Expr.Variable)assign.getLhs());
-				}else {
-					InternalFailure.internalFailure("Unknown LVal encountered."
-							, fileName, assign.getLhs());
-				}
-				//now
-				if (assign.getRhs() instanceof Expr.IndexOf) {
-					addIndexOfParam((Expr.IndexOf)assign.getRhs());
-				}else {
-					InternalFailure.internalFailure("Unknown LVal encountered."
-							, fileName, assign.getLhs());
-				}
-
-				//write(left);
+				scanAssign(assign);
 			}
+		//ensure index variable not shadowed
 			else if (statement instanceof Stmt.VariableDeclaration) {
 				String name = ((Stmt.VariableDeclaration)statement).getName();
+				nonParameterVars.add(name);
 				int dealiaser = 0;
 				if (name.equals(indexName)) {
-					//this means the index name has to be mangled
-					//TODO verify the mangler here
 					do {
 						indexName = "i_" + dealiaser;
 						dealiaser++;
@@ -225,6 +177,30 @@ public class KernelWriter {
 							parameters.contains(indexName));
 				}
 			}
+		}
+	}
+	/**
+	 * Scans the lhs and rhs of the assign statement.
+	 * @param assign
+	 */
+	private void scanAssign(Stmt.Assign assign) {
+		scanExpr(assign.getLhs());
+		scanExpr(assign.getRhs());
+	}
+	/**
+	 * If this expr represents an access to a variable or index, then it is
+	 * added to the parameter list
+	 * @param expr
+	 */
+	private void scanExpr(Expr expr) {
+		if (expr instanceof Expr.Variable) {
+			scanVariableParam((Variable) expr);
+		}else if (expr instanceof Expr.Binary) {
+			Expr.Binary binary = (Expr.Binary) expr;
+			scanExpr(binary.getLhs());
+			scanExpr(binary.getRhs());
+		}else if (expr instanceof Expr.IndexOf) {
+			scanIndexOf((Expr.IndexOf)expr);
 		}
 	}
 	/**
@@ -239,7 +215,6 @@ public class KernelWriter {
 		tokens.add(getFuncName());
 		tokens.add("(");
 		for (int i = 0; i < parameters.size() ; i++) {
-			//TODO WARNING potential off-by-one error
 			if (i>=1 && i < parameters.size()) {
 				tokens.add(",");
 			}
@@ -248,7 +223,7 @@ public class KernelWriter {
 			Type type = environment.get(name);
 			if (type == null) {
 				InternalFailure.internalFailure("Cannot retieve type for name "+name
-						, fileName, type);
+						, fileName, new Type.Void());
 			}
 			//write an array pointer, and also give a parameter for length
 			if (type instanceof Type.List) {
@@ -258,7 +233,7 @@ public class KernelWriter {
 					tokens.add(name);
 					//note that the length is added to the list parameter
 					tokens.add(",");
-					tokens.add("int");
+					tokens.add("int*");
 					//qualify length of array with '_length'
 					tokens.add(name + "_length");
 				}else {
@@ -283,8 +258,10 @@ public class KernelWriter {
 	 * Add a single variable parameter to parameter list
 	 * @param lhs
 	 */
-	private void addVariableParam(Variable lhs) {
-		parameters.add(lhs.getName());
+	private void scanVariableParam(Variable lhs) {
+		if (!parameters.contains(lhs.getName()) &&
+				!nonParameterVars.contains(lhs.getName())) parameters.add
+				(lhs.getName());
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
@@ -294,12 +271,13 @@ public class KernelWriter {
 	 * @requires indexOf != null and its source to be of Wyscript [int] type
 	 * @ensures This parameter added to kernel parameter list
 	 */
-	private void addIndexOfParam(IndexOf indexOf) {
+	private void scanIndexOf(IndexOf indexOf) {
 		Expr expression = indexOf.getSource();
 		if (expression instanceof Expr.Variable) {
 			Expr.Variable srcVar = (Expr.Variable)expression;
 			if (!srcVar.getName().equals(loop.getIndex().getName())) {
-				parameters.add(srcVar.getName());
+				//parameters.add(srcVar.getName());
+				scanVariableParam(srcVar);
 			}
 		}else {
 			InternalFailure.internalFailure("Expression in index was not " +
@@ -322,7 +300,11 @@ public class KernelWriter {
 		tokens.add("int");
 		tokens.add(indexName);
 		tokens.add("=");
-		tokens.add("blockIdx.x * blockDim.x + threadIdx.x");
+		tokens.add("blockIdx.x");
+		tokens.add("*");
+		tokens.add("blockDim.x");
+		tokens.add("+");
+		tokens.add("threadIdx.x");
 		tokens.add(";");
 	}
 	/**
@@ -366,15 +348,24 @@ public class KernelWriter {
 	 * Writes a single expression to the kernel
 	 * @param expression
 	 *
-	 * @requires
-	 * @ensures
+	 * @requires expression is of an acceptable type and has appropriate parameters
+	 * @ensures the Cuda form of the expression is written to the token list
 	 */
 	private void write(Expr expression) {
-		//TODO What is wrong here? Are there subtypes of expression who overload this method and bypass it completely.
-		//if (expression instanceof Expr.)
 		if (expression instanceof Expr.LVal) {
 			write((Expr.LVal)expression);
-		}else{
+		}else if (expression instanceof Expr.Variable) {
+			write((Expr.Variable) expression);
+		}else if (expression instanceof Expr.ListConstructor) {
+			write((Expr.ListConstructor) expression);
+		}else if (expression instanceof Expr.Constant) {
+			write((Expr.Constant) expression);
+		}else if (expression instanceof Expr.IndexOf) {
+			write((Expr.IndexOf)expression);
+		}else if (expression instanceof Expr.Binary) {
+			write((Expr.Binary) expression);
+		}
+		else{
 			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", fileName, expression);
 		}
 	}
@@ -391,24 +382,54 @@ public class KernelWriter {
 			if (parameters.contains(((Expr.Variable)val).getName())) {
 					tokens.add("*");
 			}
-		}
-		if (val instanceof Expr.Variable) {
 			//write a
 			Expr.Variable variable = (Expr.Variable) val;
 			//simply add the variable name
 			tokens.add(variable.getName());
 		}else if (val instanceof Expr.IndexOf) {
-			writeIndexOf(val);
+			write((Expr.IndexOf)val);
 		}
 
 	}
+	private void write(Expr.Binary binary) {
+		//TODO address the issue of precedence here
+		write(binary.getLhs());
+		writeOp(binary.getOp());
+		write(binary.getRhs());
+	}
+	private void writeOp(BOp op) {
+		tokens.add(op.toString());
+	}
 	/**
-	 * Checks whether an indexOf Expr.LVal left-hand expression matched the
-	 * correct type for kernel conversion. Then writes it to the token list.
-	 * @param val
+	 * Writes a single constant to token list. This constant may be an int only
+	 * @param constant
+	 *
+	 * @requires the constant is an int
 	 */
-	private void writeIndexOf(Expr.LVal val) {
-		Expr.IndexOf indexOf = (Expr.IndexOf) val;
+	private void write(Expr.Constant constant) {
+		Object val = constant.getValue();
+		if (val instanceof Integer) {
+			tokens.add(Integer.toString((Integer)val));
+		}else {
+			InternalFailure.internalFailure("Cannot write this constant: "+val,
+					fileName, constant);
+		}
+	}
+	/**
+	 * This method is not implemented yet.
+	 *
+	 * Writes a list constructor to kernel code.
+	 * @param list
+	 */
+	private void write(Expr.ListConstructor list) {
+		InternalFailure.internalFailure("Writing list constructors not implemented"
+				, fileName, list);
+	}
+	/**
+	 * Write a single indexOf operation to token list
+	 * @param expr
+	 */
+	private void write(Expr.IndexOf indexOf) {
 		if (indexOf.getSource() instanceof Expr.Variable) {
 			Expr.Variable indexVar = (Expr.Variable)indexOf.getSource();
 			//indexVar is an instance of [int]

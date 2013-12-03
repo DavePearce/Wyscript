@@ -1,4 +1,7 @@
 void main():
-    [int] list = [1,2,3,4,5]
-    parFor i in 0..|list|:
-	print list[i]
+    [int] a = [1, 2 , 3, 4]
+    [int] b = [0,0,0,0]
+    parFor i in 0..|a|:
+        b[i] = a[i]
+    for i in 0..|b|:
+        print b[i]

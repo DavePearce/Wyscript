@@ -4,12 +4,14 @@ import static org.junit.Assert.*;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.junit.Test;
 
@@ -24,75 +26,119 @@ import wyscript.par.KernelWriter;
 import wyscript.util.TypeChecker;
 
 public class KernelWriterTests {
-
+	private final String testDir = "/am/state-opera/home1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/partests/";
 	@Test
 	public void test() {
-		Expr.Variable listVar = new Expr.Variable("a");
-		Expr.Variable index = new Expr.Variable("i");
-		Expr.IndexOf indexOf = new Expr.IndexOf(listVar, index);
-		Stmt.Assign assign = new Stmt.Assign(indexOf, new Expr.Constant(1));
-		List<Stmt> body = new ArrayList<Stmt>();
-		//now configure it for the test
-		Map<String,Type> environment = new HashMap<String,Type>();
-		environment.put("a", new Type.List(new Type.Int()));
-		body.add(assign);
-		List<Expr> listContents = new ArrayList<Expr>();
-		listContents.add(new Expr.Constant(1));
-		//construct the for loop
-		Stmt.ParFor forLoop = new Stmt.ParFor(index,
-				new Expr.ListConstructor(listContents)
-				, body);
-		KernelWriter writer = new KernelWriter("test", environment, forLoop);
-		System.out.println(writer.toString());
+		Map<String,Type> env = new HashMap<String,Type>();
+		env.put("i",new Type.Int());
+		env.put("l",new Type.List(new Type.Int()));
+		performTest("test1",env);
 	}
 	@Test
 	public void test2() {
-		String code = "void main():\n\t" +
-				"int x = 0\n\t"
-				+"[int] list = [1,2,3,4,5]\n\t"+
-				"parFor i in 0..|list|:\n\t\t"+
-				"x = list[i]\n";
-		WyscriptFile tree = parseForTest(code,"testfile");
-		WyscriptFile.FunDecl dec = tree.functions("main").get(0);
-		Stmt.ParFor forloop = (Stmt.ParFor) dec.statements.get(2); //is a for loop
-		//TypeChecker check = new TypeChecker();
-		//check.check(tree);
 		Map<String,Type> env = new HashMap<String,Type>();
-		env.put("list", new Type.List(new Type.Int()));
-		env.put("x", new Type.Int());
-		env.put("i", new Type.Int());
-		//check.check(forloop.getBody(),env);
-		KernelWriter writer = new KernelWriter("test", env, forloop);
-		System.out.println(writer);
+		env.put("i",new Type.Int());
+		env.put("a",new Type.List(new Type.Int()));
+		env.put("b",new Type.List(new Type.Int()));
+		env.put("c",new Type.List(new Type.Int()));
+		performTest("test2",env);
 	}
 	@Test
 	public void test3() {
-		WyscriptFile tree = parseForTest("void main():\n"+
-				"\t[int] a = [1,2,3,4,5]\n"+
-				"\tparFor i in 0..|a|:\n"+
-				"\t\ta[i] = a[i]+1","testfile"
-				);
-		WyscriptFile.FunDecl main = tree.functions("main").get(0);
-		KernelWriter writer = new KernelWriter("test", new HashMap<String,Type>(),
-				(Stmt.ParFor)main.statements.get(1));
-		System.out.println(writer.toString());
-		//TODO implement me, test this parallel for!
+		Map<String,Type> env = new HashMap<String,Type>();
+		env.put("i",new Type.Int());
+		env.put("l",new Type.List(new Type.Int()));
+		performTest("test3",env);
+	}
+	@Test
+	public void test4() {
+		Map<String,Type> env = new HashMap<String,Type>();
+		env.put("i",new Type.Int());
+		env.put("a",new Type.List(new Type.Int()));
+		env.put("b",new Type.List(new Type.Int()));
+		env.put("c",new Type.List(new Type.Int()));
+		performTest("test4",env);
+	}
+	@Test
+	public void test5() {
+		Map<String,Type> env = new HashMap<String,Type>();
+		env.put("i",new Type.Int());
+		env.put("x",new Type.Int());
+		env.put("c",new Type.List(new Type.Int()));
+		performTest("test5",env);
 	}
 	/**
-	 * Quickly parse a string of WyScript
+	 * Quickly parse a wyscript file
 	 * @param content
 	 * @return
 	 */
-	private WyscriptFile parseForTest(String content,String name) {
-		BufferedReader reader = new BufferedReader(new StringReader(content));
-		File srcFile = new File(name);
-		Lexer lexer = null;
+	private WyscriptFile parseForFile(String filename) {
+		Lexer lexer = null ;
 		try {
-			lexer = new Lexer(reader);
+			lexer = new Lexer(filename);
 		} catch (IOException e) {
-			fail("Could not run test");
+			fail("Could not lex file.");
 		}
-		Parser parser = new Parser(name, lexer.scan());
+		Parser parser = new Parser(filename, lexer.scan());
 		return parser.read();
+	}
+	private void performTest(String testName , Map<String,Type> environment) {
+		//sort out the files
+		String wyPath = testDir+testName+".wys";
+		String kernelPath = testDir+testName+".cu";
+		File kernelFile = new File(kernelPath);
+		Scanner cuScan = null;
+		WyscriptFile wyFile = parseForFile(wyPath);
+		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
+
+		try {
+			cuScan = new Scanner(kernelFile);
+		} catch (FileNotFoundException e) {
+			fail("Test could not be performed");
+		}
+		KernelWriter writer = new KernelWriter(testName,environment,loop);
+		List<String> tokens = writer.getTokenList();
+		List<String> cuSaved = new ArrayList<String>();
+		List<String> writerSaved = new ArrayList<String>();
+		int i = 0;
+		while (cuScan.hasNext()) {
+			if (i>=tokens.size())  {
+				System.out.println("Unexpectedly reached end of token list");
+				System.out.println("Kernel writer gave this:");
+				printProg(tokens);
+				fail("Reached end of kernel writer output before scan of file complete.");
+			}
+			String token = cuScan.next();
+			if (tokens.get(i).equals(token)) {
+				cuSaved.add(token);
+				writerSaved.add(token);
+				writerSaved.add(tokens.get(i));
+			}
+			i++;
+		}
+		if (i<tokens.size()) {
+			System.out.println("Reached end of .cu output before writer output");
+			System.out.println("Kernel writer gave this:");
+			printProg(tokens);
+			System.out.println("Problematic writer token is '"+tokens.get(i)+"' at index "+i);
+//			System.out.println("Got to this in writer output before failure:");
+//			printProg(writerSaved);
+			fail("Reached end of .cu file before scan of kernel writer output complete.");
+		}
+	}
+	private void printProg(List<String> tokens) {
+		StringBuilder builder = new StringBuilder();
+		for (String str : tokens) {
+			builder.append(str);
+			builder.append(" ");
+		}
+		System.out.println(builder.toString());
+	}
+	private ParFor getFirstLoop(WyscriptFile.FunDecl function) {
+		for (Stmt stmt : function.statements) {
+			if (stmt instanceof Stmt.ParFor) return (ParFor) stmt;
+		}
+		fail("Could not find parFor loop in function");
+		return null; //unreachable
 	}
 }

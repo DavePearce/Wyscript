@@ -2,12 +2,14 @@ package wyscript.par;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
+import wyscript.lang.Expr.Variable;
 import wyscript.util.SyntaxError.InternalFailure;
 
 /**
@@ -32,6 +34,7 @@ public class KernelRunner {
 
 	// List<CUdeviceptr> devicePointers = new ArrayList<CUdeviceptr>();
 	Pointer[] kernelParameters;
+	List<CUdeviceptr> devicePointers;
 	private int numParams; // TODO ensure task parameter is filled with correct
 							// value
 	private KernelWriter writer;
@@ -94,14 +97,45 @@ public class KernelRunner {
 		marshallParametersOut(frame);
 		return null; //TODO change me
 	}
+	/**
+	 * Responsible for converting data back from the GPU to the format
+	 * expected on the frame
+	 * @param frame
+	 */
 	private void marshallParametersOut(HashMap<String, Object> frame) {
-		// TODO Auto-generated method stub
+		//TODO SERIOUS PROBLEM : how to deal with the length arguments in parameter list
+		for (int i = 0 ; i < kernelParameters.length ; i++) {
+			Type type = symbolTypes.get(i); //compensating for offset of 1
+			String name = params.get(i);
+			int size;
+			//convert from int* to [int]
+			if (type instanceof Type.List && ((Type.List)type).getElement()
+					instanceof Type.Int) {
+				//Type.List list = frame.get(name);
+				ArrayList<Object>  vallist = (ArrayList<Object>) frame.get(name);
+				size = vallist.size();
+				int[] newVals = new int[size];
+				//fills the newvals array with the values from the device.
+				cuMemcpyDtoH(Pointer.to(newVals), devicePointers.get(i), size *
+						Sizeof.INT);
+				ArrayList<Object> newList = new ArrayList<Object>();
+				//copy the values over
+				for (int j = 0 ; j < size ; j++) newList.add(newVals[j]);
+				//now object reassigned
+				frame.put(name,newList);
+			}else if (type instanceof Type.Int) {
 
+			}else {
+				InternalFailure.internalFailure("Could not unmarshall " +
+						"unrecognised type", writer.getPtxFile().getPath() , type);
+			}
+		}
 	}
 
 	/**
 	 * Marshalls the data from the parameters into an appropriate format and
-	 * allocates memory appropriately, filling in pointers for kenrel parameters
+	 * allocates memory appropriately, filling in pointers for kenrel parameters.
+	 * This method is called to upload data onto the GPU
 	 * @param frame
 	 */
 	private void marshallParametersIn(HashMap<String, Object> frame) {
@@ -123,28 +157,46 @@ public class KernelRunner {
 				expectedLength = -1;
 			}// end processing int type
 			else if (type instanceof Type.List) {
-				// then the next argument has to be the list length
-				if (((Type.List) type).getElement() instanceof Type.Int) {
-					String name = params.get(i);
-					ArrayList<Integer> listObject = (ArrayList<Integer>) frame
-							.get(name);
-					expectedLength = listObject.size();
-					int[] array = new int[expectedLength];
-					// unrap all values in array to int type
-					for (int j = 0; j < expectedLength; j++)
-						array[j] = listObject.get(j);
-					CUdeviceptr dpointer = generatePointer(expectedLength,
-							array);
-					kernelParameters[i + 1] = Pointer.to(dpointer);
-					// TODO I believe the value of the list (on the frame) is
-					// ArrayList<Object>
-				}else {
-					InternalFailure.internalFailure("Can only allocate pointer " +
-							"for flat list of element type int" + i, writer.getPtxFile().getPath(), type);
-				}
+				marshallList(frame, i, type);
+			}else if (type instanceof Type.Int) {
+				marshallInt(frame, i);
+			}else {
+
 			}
 		}
 		//TODO investigate the behaviour of program at this point.
+	}
+
+	private void marshallInt(HashMap<String, Object> frame, int index) {
+		int value = (Integer) frame.get(params.get(index));
+		CUdeviceptr dpointer = generatePointer(1,
+				new int[] {value});
+		devicePointers.add(dpointer);
+		kernelParameters[index+1] = Pointer.to(dpointer);
+	}
+
+	private void marshallList(HashMap<String, Object> frame, int index, Type type) {
+		int expectedLength;
+		// then the next argument has to be the list length
+		if (((Type.List) type).getElement() instanceof Type.Int) {
+			String name = params.get(index);
+			ArrayList<Integer> listObject = (ArrayList<Integer>) frame
+					.get(name);
+			expectedLength = listObject.size();
+			int[] array = new int[expectedLength];
+			// unrap all values in array to int type
+			for (int j = 0; j < expectedLength; j++)
+				array[j] = listObject.get(j);
+			CUdeviceptr dpointer = generatePointer(expectedLength,
+					array);
+			devicePointers.add(dpointer);
+			kernelParameters[index + 1] = Pointer.to(dpointer);
+			// TODO I believe the value of the list (on the frame) is
+			// ArrayList<Object>
+		}else {
+			InternalFailure.internalFailure("Can only allocate pointer " +
+					"for flat list of element type int" + index, writer.getPtxFile().getPath(), type);
+		}
 	}
 
 	/**

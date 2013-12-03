@@ -80,6 +80,8 @@ public class TypeChecker {
 			check((Stmt.OldFor) stmt, environment);
 		} else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
+		} else if (stmt instanceof Stmt.ParFor) {
+			check((Stmt.ParFor) stmt, environment);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
@@ -117,9 +119,17 @@ public class TypeChecker {
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
-
+	public void check(Stmt.ParFor stmt, Map<String,Type> environment) {
+		//Type type = check(stmt.getSource(),environment);
+		environment.put("i", new Type.Int());
+		for (Stmt statement : stmt.getBody()) {
+			check(statement , new HashMap<String,Type>(environment));
+		}
+	}
 	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
-		// TODO: implement me!
+		for (Stmt statement : stmt.getBody()) {
+			check(statement , new HashMap<String,Type>(environment));
+		}
 	}
 
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
@@ -163,8 +173,9 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Binary expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+		Type lhstype = check(expr.getLhs(),environment);
+		Type rhstype = check(expr.getRhs(),environment);
+		return lhstype;//TODO this is incorrect!
 	}
 
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
@@ -218,8 +229,17 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.ListConstructor expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+		Type solo = null;
+		for (Expr arg : expr.getArguments()) {
+			if (solo == null) solo = check(arg,environment);
+			Type argType = check(arg,environment);
+			checkSubtype(solo,argType,arg);
+		}
+		if (solo != null) {
+			return new Type.List(solo);
+		}else {
+			return new Type.List(new Type.Void());
+		}
 	}
 
 	public Type check(Expr.RecordAccess expr, Map<String,Type> environment) {
