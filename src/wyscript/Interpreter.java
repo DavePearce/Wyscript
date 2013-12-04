@@ -21,6 +21,7 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
 import static wyscript.util.SyntaxError.*;
 

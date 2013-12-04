@@ -251,7 +251,7 @@ public class KernelWriter {
 		}
 		tokens.add(")");
 	}
-	private String getFuncName() {
+	public String getFuncName() {
 		//TODO either remove me or implement me
 		return fileName;
 	}

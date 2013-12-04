@@ -20,7 +20,7 @@ public class InterpreterValidTests {
 		String sampleOutputFile = testdir + File.separatorChar + name
 				+ ".sysout";
 		// Classpath to project root
-		String classPath = "../../src";
+		String classPath = "/home/state-opera1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/bin";
 
 		// First, execute the While program using the interpreter
 		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".wys");

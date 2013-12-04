@@ -24,6 +24,7 @@ import java.io.PrintStream;
 
 import wyscript.io.*;
 import wyscript.lang.WyscriptFile;
+import wyscript.par.KernelGenerator;
 import wyscript.util.*;
 
 public class Main {
@@ -78,6 +79,8 @@ public class Main {
 			Lexer lexer = new Lexer(srcFile.getPath());
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
 			WyscriptFile ast = parser.read();
+			//now generate kernels for parfor loops and append them to parfor loops
+			KernelGenerator.generateKernels(ast);
 
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);

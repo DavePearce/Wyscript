@@ -28,11 +28,14 @@ public class KernelRunner {
 	List<Type> paramTypes;
 	List<CUdeviceptr> devicePointers;
 
+	File file;
+
 	int gridDim;
 	int blockDim;
 
 	public KernelRunner(KernelWriter writer) {
 		this.writer = writer;
+		file = writer.getPtxFile();
 	}
 
 	/**
@@ -40,8 +43,9 @@ public class KernelRunner {
 	 *
 	 * @param ptxFileName
 	 */
-	public void initialise(File ptxFile, String funcName) {
-		String ptxFileName = ptxFile.getAbsolutePath();
+	public void initialise() {
+		String funcname = writer.getFuncName();
+		String ptxFileName =file.getAbsolutePath();
 		// initialise driver and create context
 		cuInit(0);
 		CUdevice device = new CUdevice();
@@ -54,7 +58,7 @@ public class KernelRunner {
 		cuModuleLoad(module, ptxFileName);
 		// Obtain a function pointer to the correct function function.
 		CUfunction function = new CUfunction();
-		cuModuleGetFunction(function, module, funcName);
+		cuModuleGetFunction(function, module, funcname);
 		this.function = function;
 		// host input data ready to be filled
 	}
@@ -73,6 +77,7 @@ public class KernelRunner {
 	 *          placed on frame
 	 */
 	public Object run(HashMap<String, Object> frame) {
+		initialise();
 		//paramPointers.add(Pointer.to(new int[] { numParams })); // add the count
 		List<CUdeviceptr> pointers = marshallParametersToGPU(frame);
 		Pointer parametersPointer = getPointerToParams(pointers);

@@ -26,11 +26,18 @@ public class KernelGenerator {
 	 * Scan the Wyscript file and convert available loops to parallel loops
 	 * @param wyFile
 	 */
-	public KernelGenerator(WyscriptFile wyFile) {
+	private KernelGenerator(){} //cannot instantiate
+	/**
+	 * Modifies the AST so that each ParFor loop is connected to its kernel
+	 * @param wyFile
+	 */
+	public static void generateKernels(WyscriptFile wyFile) {
+		Map<String , WyscriptFile.FunDecl> functions = new HashMap<String ,
+				WyscriptFile.FunDecl>();
 		for (WyscriptFile.Decl declaration : wyFile.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) declaration;
-				this.functions.put(fd.name(), fd);
+				functions.put(fd.name(), fd);
 			}
 		}
 		generateKernels(functions);
@@ -39,7 +46,7 @@ public class KernelGenerator {
 	 * Scan an individual function for loops that can be converted
 	 * @param functions
 	 */
-	private void generateKernels(Map<String, FunDecl> functions) {
+	private static void generateKernels(Map<String, FunDecl> functions) {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
 			//pass the name of the function down so it can be used to address kernel
@@ -51,24 +58,21 @@ public class KernelGenerator {
 	 * @param function
 	 * @param name
 	 */
-	private void scanFuncBody(WyscriptFile.FunDecl function , String name) {
+	private static void scanFuncBody(WyscriptFile.FunDecl function , String name) {
 		int loopPosition = 0;
 		Map<String,Type> environment = new HashMap<String,Type>();
 		TypeChecker checker = new TypeChecker();
-		//generate environment
 		checker.check(function.statements , environment);
-		//now have acquired type information --hopefully!
 		for (int i= 0; i < function.statements.size() ; i++) {
 			Stmt statement = function.statements.get(i);
-//			addToEnvironment(statement , environment);
 			if (statement instanceof Stmt.ParFor) {
-				//this loop can be converted
+				Stmt.ParFor loop = (Stmt.ParFor) statement;
 				String id = name + Integer.toString(loopPosition);
 				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
 						, environment, id);
-				//note that a new hashmap is generated to protect the elements
+				//now plug the kernel runner into the loop
+				loop.setKernelRunner(runner);
 				loopPosition++;
-				forToRunner.put((Stmt.ParFor)statement,runner);
 			}
 		}
 	}
@@ -79,10 +83,9 @@ public class KernelGenerator {
 	 * @param id The file name under which the loop is invoked
 	 * @return
 	 */
-	private KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {
+	private static KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
 		writer = new KernelWriter(id, environment, loop);
 		return writer.getRunner();
 	}
-
 }

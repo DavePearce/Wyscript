@@ -171,12 +171,12 @@ public class TestUtils {
 		try {
 			lexer = new Lexer(filename);
 		} catch (IOException e) {
-			fail("Could not lex file.");
+			fail("Could not lex file. "+e.getMessage());
 		}
 		Parser parser = new Parser(filename, lexer.scan());
 		return parser.read();
 	}
-	public static void performTest(String testName , Map<String,Type> environment) {
+	public static void writerTest(String testName , Map<String,Type> environment) {
 		//sort out the files
 		String wyPath = kernelWriteTestDir+testName+".wys";
 		String kernelPath = kernelWriteTestDir+testName+".cu";
