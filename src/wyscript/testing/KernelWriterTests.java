@@ -2,11 +2,9 @@ package wyscript.testing;
 
 import static org.junit.Assert.*;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -17,16 +15,15 @@ import org.junit.Test;
 
 import wyscript.io.Lexer;
 import wyscript.io.Parser;
-import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.par.KernelWriter;
-import wyscript.util.TypeChecker;
 
 public class KernelWriterTests {
 	private final String testDir = "/am/state-opera/home1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/partests/";
+
 	@Test
 	public void test() {
 		Map<String,Type> env = new HashMap<String,Type>();
@@ -66,6 +63,15 @@ public class KernelWriterTests {
 		env.put("x",new Type.Int());
 		env.put("c",new Type.List(new Type.Int()));
 		performTest("test5",env);
+	}
+	@Test
+	public void test6() {
+		Map<String,Type> env = new HashMap<String,Type>();
+		env.put("i",new Type.Int());
+		env.put("a",new Type.List(new Type.Int()));
+		env.put("b",new Type.List(new Type.Int()));
+		env.put("c",new Type.List(new Type.Int()));
+		performTest("test6",env);
 	}
 	/**
 	 * Quickly parse a wyscript file

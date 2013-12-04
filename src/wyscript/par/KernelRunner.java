@@ -2,14 +2,12 @@ package wyscript.par;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
-import wyscript.lang.Expr.Variable;
 import wyscript.util.SyntaxError.InternalFailure;
 
 /**

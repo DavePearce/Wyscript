@@ -166,6 +166,7 @@ public class KernelWriter {
 			}
 		//ensure index variable not shadowed
 			else if (statement instanceof Stmt.VariableDeclaration) {
+				Stmt.VariableDeclaration vardec = (Stmt.VariableDeclaration)statement;
 				String name = ((Stmt.VariableDeclaration)statement).getName();
 				nonParameterVars.add(name);
 				int dealiaser = 0;
@@ -176,6 +177,7 @@ public class KernelWriter {
 					} while (environment.containsKey(indexName)||
 							parameters.contains(indexName));
 				}
+				scanExpr(vardec.getExpr());
 			}
 		}
 	}

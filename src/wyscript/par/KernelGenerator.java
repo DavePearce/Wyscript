@@ -2,19 +2,14 @@ package wyscript.par;
 
 //TODO consider wether this class is necessary. if not too many responsibilities,remove it!
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import wyscript.lang.Stmt;
-import wyscript.lang.Stmt.For;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
 import wyscript.util.TypeChecker;
-import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * The kernel generator is responsible for the generation Cuda kernels
@@ -27,13 +22,11 @@ public class KernelGenerator {
 	private Map<String , WyscriptFile.FunDecl> functions;
 	private Map<Stmt.ParFor,KernelRunner> forToRunner = new HashMap<Stmt.ParFor,
 			KernelRunner>();
-	private WyscriptFile file;
 	/**
 	 * Scan the Wyscript file and convert available loops to parallel loops
 	 * @param wyFile
 	 */
 	public KernelGenerator(WyscriptFile wyFile) {
-		this.file = wyFile;
 		for (WyscriptFile.Decl declaration : wyFile.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) declaration;
