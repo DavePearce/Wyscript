@@ -145,7 +145,6 @@ public class KernelWriter {
 
         //System.out.println("Finished creating PTX file");
         return ptxFileName;
-
     }
 
     /**

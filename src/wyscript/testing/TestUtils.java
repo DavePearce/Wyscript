@@ -3,20 +3,32 @@ package wyscript.testing;
 import static org.junit.Assert.fail;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+
+import wyscript.io.Lexer;
+import wyscript.io.Parser;
+import wyscript.lang.Stmt;
+import wyscript.lang.Type;
+import wyscript.lang.WyscriptFile;
+import wyscript.lang.Stmt.ParFor;
+import wyscript.par.KernelWriter;
 
 /**
  * Provides some simple helper functions used by all test harnesses.
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class TestUtils {
-
+	private static final String kernelWriteTestDir = "/am/state-opera/home1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/partests/";
 	/**
 	 * Execute a given class file using the "java" command, and return all
 	 * output written to stdout. In the case of some kind of failure, write the
 	 * generated stderr stream to this processes stdout.
-	 * 
+	 *
 	 * @param classPath
 	 *            Class path to use when executing Java code. Note, directories
 	 *            can always be safely separated with '/', and path separated
@@ -69,7 +81,7 @@ public class TestUtils {
 	 * Compare the output of executing java on the test case with a reference
 	 * file. If the output differs from the reference output, then the offending
 	 * line is written to the stdout and an exception is thrown.
-	 * 
+	 *
 	 * @param output
 	 *            This provides the output from executing java on the test case.
 	 * @param referenceFile
@@ -123,9 +135,9 @@ public class TestUtils {
 	 * reading from other streams can happen concurrently. For example, we can
 	 * read concurrently from <code>stdin</code> and <code>stderr</code> for
 	 * some process without blocking that process.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	static public class StreamGrabber extends Thread {
 		private InputStream input;
@@ -147,5 +159,80 @@ public class TestUtils {
 			} catch (IOException ioe) {
 			}
 		}
+	}
+	///////// MATE'S UTILS BEGIN HERE
+	/**
+	 * Quickly parse a wyscript file
+	 * @param content
+	 * @return
+	 */
+	public static WyscriptFile parseForFile(String filename) {
+		Lexer lexer = null ;
+		try {
+			lexer = new Lexer(filename);
+		} catch (IOException e) {
+			fail("Could not lex file.");
+		}
+		Parser parser = new Parser(filename, lexer.scan());
+		return parser.read();
+	}
+	public static void performTest(String testName , Map<String,Type> environment) {
+		//sort out the files
+		String wyPath = kernelWriteTestDir+testName+".wys";
+		String kernelPath = kernelWriteTestDir+testName+".cu";
+		File kernelFile = new File(kernelPath);
+		Scanner cuScan = null;
+		WyscriptFile wyFile = parseForFile(wyPath);
+		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
+
+		try {
+			cuScan = new Scanner(kernelFile);
+		} catch (FileNotFoundException e) {
+			fail("Test could not be performed");
+		}
+		KernelWriter writer = new KernelWriter(testName,environment,loop);
+		List<String> tokens = writer.getTokenList();
+		List<String> cuSaved = new ArrayList<String>();
+		List<String> writerSaved = new ArrayList<String>();
+		int i = 0;
+		while (cuScan.hasNext()) {
+			if (i>=tokens.size())  {
+				System.out.println("Unexpectedly reached end of token list");
+				System.out.println("Kernel writer gave this:");
+				printProg(tokens);
+				fail("Reached end of kernel writer output before scan of file complete.");
+			}
+			String token = cuScan.next();
+			if (tokens.get(i).equals(token)) {
+				cuSaved.add(token);
+				writerSaved.add(token);
+				writerSaved.add(tokens.get(i));
+			}
+			i++;
+		}
+		if (i<tokens.size()) {
+			System.out.println("Reached end of .cu output before writer output");
+			System.out.println("Kernel writer gave this:");
+			printProg(tokens);
+			System.out.println("Problematic writer token is '"+tokens.get(i)+"' at index "+i);
+//			System.out.println("Got to this in writer output before failure:");
+//			printProg(writerSaved);
+			fail("Reached end of .cu file before scan of kernel writer output complete.");
+		}
+	}
+	public static void printProg(List<String> tokens) {
+		StringBuilder builder = new StringBuilder();
+		for (String str : tokens) {
+			builder.append(str);
+			builder.append(" ");
+		}
+		System.out.println(builder.toString());
+	}
+	public static ParFor getFirstLoop(WyscriptFile.FunDecl function) {
+		for (Stmt stmt : function.statements) {
+			if (stmt instanceof Stmt.ParFor) return (ParFor) stmt;
+		}
+		fail("Could not find parFor loop in function");
+		return null; //unreachable
 	}
 }
