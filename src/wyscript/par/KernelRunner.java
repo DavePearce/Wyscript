@@ -36,6 +36,9 @@ public class KernelRunner {
 	public KernelRunner(KernelWriter writer) {
 		this.writer = writer;
 		file = writer.getPtxFile();
+		parameters = new ArrayList<String>();
+		paramTypes = new ArrayList<Type>();
+		devicePointers = new ArrayList<CUdeviceptr>();
 	}
 
 	/**
