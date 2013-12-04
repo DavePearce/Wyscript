@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-2.4-1.40.13 (Web2C 2012) (format=latex 2013.2.21)  4 DEC 2013 16:59
+This is pdfTeX, Version 3.1415926-2.4-1.40.13 (Web2C 2012) (format=latex 2013.2.21)  4 DEC 2013 17:19
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -231,6 +231,6 @@ Here is how much of TeX's memory you used:
  4901 multiletter control sequences out of 15000+200000
  12787 words of font info for 36 fonts, out of 3000000 for 9000
  648 hyphenation exceptions out of 8191
- 25i,16n,20p,219b,302s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 25i,16n,20p,219b,300s stack positions out of 5000i,500n,10000p,200000b,50000s
 
 Output written on wls.dvi (6 pages, 36104 bytes).

@@ -53,6 +53,54 @@
 \centering
 \fbox{
 \begin{tabular}{rcll}
+
+$prgrm$ & $::=$ & $(\;d\;)^*$ & {\em // WyScript Program}\\
+
+&&&\\
+&&&\\
+
+$d$ & $::=$ & & {\em // Declarations}\\
+
+&{\huge\strut}$|$ & $\typet \; \idt \; \ist \; t\;\newlinet $ & {\em // Type Declarations}\\
+
+&{\huge\strut}$|$ & $\constt \; \idt \; \ist \; e\;\newlinet $ & {\em // Constant Declarations}\\
+
+&{\huge\strut}$|$ & $t\;\idt\;\lb\;[\;t\;\idt\;(\;\comma\;t\;\idt\;)^*\;]\;\rb \;\colont\; B\; \newlinet $ & {\em // Function Declarations}\\
+
+&&&\\
+&&&\\
+
+$B$ & $:==$ & $(\;\indentt\; m\;)^* $& {\em // Blocks}\\
+
+&&&\\
+&&&\\
+
+$m$ & $:==$ & & {\em // Statements}\\
+
+&{\huge\strut}$|$ & $\returnt \; [ \; e \; ]\;\newlinet $ & {\em // Return Statements}\\
+
+&{\huge\strut}$|$ & $\printt \; e\;\newlinet $ & {\em // Print Statements}\\
+
+&{\huge\strut}$|$ & $\ift \; e \; \colont\; \newlinet\; B\; [ \; \elset \; \colont\; \newlinet\; B\; ] $ & {\em // If Statements}\\
+
+&{\huge\strut}$|$ & $\whilet \; e\; \colont \; \newlinet\; B $ & {\em // While Statements}\\
+
+&{\huge\strut}$|$ & $\fort \; \idt \; \ins \; e \; \colont\; \newlinet\; B $ & {\em // For Statements}\\
+
+&{\huge\strut}$|$ & $ \idt\;\lb\;[\;e\;(\;\comma\; e\; )^*\;]\;\rb \; \newlinet $ & {\em // Invoke Statements}\\
+
+&{\huge\strut}$|$ & $t \; n \; [\;\eqt\; e\;]\;\newlinet $ & {\em // Variable Declaration Statements}\\
+
+&{\huge\strut}$|$ & $(\;n \;|\; e_1\;\lsb\;e_2\;\rsb\;|\; e\; \dott \; \idt\; )\; \eqt \; e \; \newlinet $ & {\em // Assignment Statements}\\
+
+\end{tabular}}
+\caption{Syntax for Declarations, Blocks and Statements}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\fbox{
+\begin{tabular}{rcll}
 $e$ & $::=$ & & {\em // Expressions}\\
 &{\huge\strut}$|$&$ b $ & {\em // Boolean constants}\\
 
@@ -125,52 +173,4 @@ $t$ & $::=$ & & {\em // Types}\\
 
 \end{tabular}}
 \caption{Syntax for Operations and Types}
-\end{figure}
-
-\begin{figure}[!t]
-\centering
-\fbox{
-\begin{tabular}{rcll}
-
-$prgrm$ & $::=$ & $(\;d\;)^*$ & {\em // WyScript Program}\\
-
-&&&\\
-&&&\\
-
-$d$ & $::=$ & & {\em // Declarations}\\
-
-&{\huge\strut}$|$ & $\typet \; \idt \; \ist \; t\;\newlinet $ & {\em // Type Declarations}\\
-
-&{\huge\strut}$|$ & $\constt \; \idt \; \ist \; e\;\newlinet $ & {\em // Constant Declarations}\\
-
-&{\huge\strut}$|$ & $t\;\idt\;\lb\;[\;t\;\idt\;(\;\comma\;t\;\idt\;)^*\;]\;\rb \;\colont\; B\; \newlinet $ & {\em // Function Declarations}\\
-
-&&&\\
-&&&\\
-
-$B$ & $:==$ & $(\;\indentt\; m\;)^* $& {\em // Blocks}\\
-
-&&&\\
-&&&\\
-
-$m$ & $:==$ & & {\em // Statements}\\
-
-&{\huge\strut}$|$ & $\returnt \; [ \; e \; ]\;\newlinet $ & {\em // Return Statements}\\
-
-&{\huge\strut}$|$ & $\printt \; e\;\newlinet $ & {\em // Print Statements}\\
-
-&{\huge\strut}$|$ & $\ift \; e \; \colont\; \newlinet\; B\; [ \; \elset \; \colont\; \newlinet\; B\; ] $ & {\em // If Statements}\\
-
-&{\huge\strut}$|$ & $\whilet \; e\; \colont \; \newlinet\; B $ & {\em // While Statements}\\
-
-&{\huge\strut}$|$ & $\fort \; \idt \; \ins \; e \; \colont\; \newlinet\; B $ & {\em // For Statements}\\
-
-&{\huge\strut}$|$ & $ \idt\;\lb\;[\;e\;(\;\comma\; e\; )^*\;]\;\rb \; \newlinet $ & {\em // Invoke Statements}\\
-
-&{\huge\strut}$|$ & $t \; n \; [\;\eqt\; e\;]\;\newlinet $ & {\em // Variable Declaration Statements}\\
-
-&{\huge\strut}$|$ & $(\;n \;|\; e_1\;\lsb\;e_2\;\rsb\;|\; e\; \dott \; \idt\; )\; \eqt \; e \; \newlinet $ & {\em // Assignment Statements}\\
-
-\end{tabular}}
-\caption{Syntax for Declarations, Blocks and Statements}
 \end{figure}
