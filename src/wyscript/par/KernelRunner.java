@@ -45,7 +45,7 @@ public class KernelRunner {
 	 */
 	public void initialise() {
 		String funcname = writer.getFuncName();
-		String ptxFileName =file.getAbsolutePath();
+		String ptxFileName = file.getAbsolutePath();
 		// initialise driver and create context
 		cuInit(0);
 		CUdevice device = new CUdevice();

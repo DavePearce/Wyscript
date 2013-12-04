@@ -501,7 +501,7 @@ public class KernelWriter {
 	 * @return
 	 */
 	public File getPtxFile() {
-		return null;
+		return new File(fileName);
 	}
 	/**
 	 * Returns a List of the string representation of the kernel writer's tokens

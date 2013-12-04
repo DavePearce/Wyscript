@@ -8,6 +8,7 @@ import wyscript.Interpreter;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.par.KernelGenerator;
+import wyscript.util.TypeChecker;
 import static wyscript.testing.TestUtils.*;
 
 public class KernelTests {
@@ -65,7 +66,9 @@ public class KernelTests {
 	@Test
 	public void test1_run() {
 		WyscriptFile ast = parseForFile(testDir+"runtest1.wys");
-		KernelGenerator.generateKernels(ast);
+		TypeChecker checker = new TypeChecker();
+		checker.check(ast);
+		KernelGenerator.generateKernels(ast,checker.getEnvs());
 		Interpreter interpreter = new Interpreter();
 		interpreter.run(ast);
 	}

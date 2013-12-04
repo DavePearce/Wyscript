@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import wyscript.lang.*;
+import wyscript.lang.WyscriptFile.FunDecl;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -25,6 +26,7 @@ public class TypeChecker {
 	private WyscriptFile file;
 	private WyscriptFile.FunDecl function;
 	private HashMap<String,WyscriptFile.FunDecl> functions;
+	private HashMap<String, Map<String,Type>> environments = new HashMap<String, Map<String,Type>>();
 
 	public void check(WyscriptFile wf) {
 		this.file = wf;
@@ -52,7 +54,7 @@ public class TypeChecker {
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
-
+		environments.put(fd.name , environment);
 		// Second, check all statements in the function body
 		check(fd.statements,environment);
 	}
@@ -253,8 +255,7 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Unary expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+		return check(expr.getExpr(),environment);
 	}
 
 	public Type check(Expr.Variable expr, Map<String, Type> environment) {
@@ -317,5 +318,9 @@ public class TypeChecker {
 			syntaxError("expected type " + t1
 					+ ", found " + t2, file.filename, element);
 		}
+	}
+
+	public Map<String, Map<String, Type>> getEnvs() {
+		return environments;
 	}
 }

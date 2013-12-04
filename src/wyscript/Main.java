@@ -80,10 +80,11 @@ public class Main {
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
 			WyscriptFile ast = parser.read();
 			//now generate kernels for parfor loops and append them to parfor loops
-			KernelGenerator.generateKernels(ast);
-
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);
+			TypeChecker checker = new TypeChecker();
+			checker.check(ast);
+			KernelGenerator.generateKernels(ast,checker.getEnvs());
 
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {

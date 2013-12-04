@@ -1,6 +1,6 @@
 package wyscript.par;
 
-//TODO consider wether this class is necessary. if not too many responsibilities,remove it!
+//TODO consider whether this class is necessary. if not too many responsibilities,remove it!
 
 import java.util.HashMap;
 import java.util.Map;
@@ -19,9 +19,6 @@ import wyscript.util.TypeChecker;
  *
  */
 public class KernelGenerator {
-	private Map<String , WyscriptFile.FunDecl> functions;
-	private Map<Stmt.ParFor,KernelRunner> forToRunner = new HashMap<Stmt.ParFor,
-			KernelRunner>();
 	/**
 	 * Scan the Wyscript file and convert available loops to parallel loops
 	 * @param wyFile
@@ -30,8 +27,9 @@ public class KernelGenerator {
 	/**
 	 * Modifies the AST so that each ParFor loop is connected to its kernel
 	 * @param wyFile
+	 * @param environment
 	 */
-	public static void generateKernels(WyscriptFile wyFile) {
+	public static void generateKernels(WyscriptFile wyFile, Map<String,Map<String,Type>> envs) {
 		Map<String , WyscriptFile.FunDecl> functions = new HashMap<String ,
 				WyscriptFile.FunDecl>();
 		for (WyscriptFile.Decl declaration : wyFile.declarations) {
@@ -40,29 +38,32 @@ public class KernelGenerator {
 				functions.put(fd.name(), fd);
 			}
 		}
-		generateKernels(functions);
+		generateKernels(functions,envs);
 	}
 	/**
 	 * Scan an individual function for loops that can be converted
 	 * @param functions
+	 * @param environment
 	 */
-	private static void generateKernels(Map<String, FunDecl> functions) {
+	private static void generateKernels(Map<String, FunDecl> functions, Map<String,Map<String, Type>> envs) {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
+			Map<String, Type> environment = envs.get(func.name);
 			//pass the name of the function down so it can be used to address kernel
-			scanFuncBody(func , fname);
+			scanFuncBody(func , fname, environment);
 		}
 	}
 	/**
 	 * Scans the function body and identifies parallel for loops
 	 * @param function
 	 * @param name
+	 * @param environment
 	 */
-	private static void scanFuncBody(WyscriptFile.FunDecl function , String name) {
+	private static void scanFuncBody(WyscriptFile.FunDecl function , String name, Map<String, Type> environment) {
 		int loopPosition = 0;
-		Map<String,Type> environment = new HashMap<String,Type>();
 		TypeChecker checker = new TypeChecker();
-		checker.check(function.statements , environment);
+		//Map<String, Type> environment = new HashMap<String,Type>();
+		//checker.check(function.statements , environment);
 		for (int i= 0; i < function.statements.size() ; i++) {
 			Stmt statement = function.statements.get(i);
 			if (statement instanceof Stmt.ParFor) {
