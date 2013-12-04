@@ -49,7 +49,7 @@
 
 \chapter{Syntax}
 
-\begin{figure}[!htbp]
+\begin{figure}[!t]
 \centering
 \fbox{
 \begin{tabular}{rcll}
