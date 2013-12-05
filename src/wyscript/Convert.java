@@ -41,12 +41,12 @@ public class Convert {
 	}
 
 	private static enum Mode { interpret, js };
-	
+
 	public static boolean run(String[] args) {
 		boolean verbose = false;
 		int fileArgsBegin = 0;
 		Mode mode = Mode.interpret;
-		
+
 		for (int i = 0; i != args.length; ++i) {
 			if (args[i].startsWith("-")) {
 				String arg = args[i];
@@ -85,10 +85,10 @@ public class Convert {
 
 			WyscriptFile ast = parser.read();
 			convert(ast);
-			
+
 		} catch (SyntaxError e) {
 			if (e.filename() != null) {
-				e.outputSourceError(System.out);
+				SyntaxError.outputSourceError(System.out, e.getMessage(), e.filename(), e.start(), e.end());
 			} else {
 				System.err.println("syntax error (" + e.getMessage() + ").");
 			}
@@ -115,7 +115,7 @@ public class Convert {
 
 	/**
 	 * Print out information regarding command-line arguments
-	 * 
+	 *
 	 */
 	public static void usage() {
 		String[][] info = {
@@ -143,31 +143,31 @@ public class Convert {
 			System.out.println(p[1]);
 		}
 	}
-	
+
 	private static void convert(WyscriptFile file) {
 		for(WyscriptFile.Decl decl : file.declarations) {
 			if(decl instanceof WyscriptFile.ConstDecl) {
-				print((WyscriptFile.ConstDecl) decl);	
+				print((WyscriptFile.ConstDecl) decl);
 			} else if(decl instanceof WyscriptFile.TypeDecl) {
 				print((WyscriptFile.TypeDecl) decl);
 			} else {
 				print((WyscriptFile.FunDecl) decl);
-			}		
+			}
 		}
 	}
-	
+
 	public static void print(WyscriptFile.TypeDecl decl) {
 		System.out.print("type " + decl.name + " is ");
 		print(decl.type);
 		System.out.println("\n");
 	}
-	
+
 	public static void print(WyscriptFile.ConstDecl decl) {
 		System.out.print("constant " + decl.name + " is ");
 		print(decl.constant);
 		System.out.println("\n");
 	}
-	
+
 	public static void print(WyscriptFile.FunDecl decl) {
 		print(decl.ret);
 		System.out.print(" " + decl.name + "(");
@@ -184,7 +184,7 @@ public class Convert {
 		print(decl.statements,4);
 		System.out.println();
 	}
-	
+
 	public static void print(List<Stmt> stmts, int indent) {
 		for(Stmt stmt : stmts) {
 			if(stmt instanceof Stmt.Print) {
@@ -209,7 +209,7 @@ public class Convert {
 			}
 		}
 	}
-	
+
 	public static void print(Stmt.Assign stmt, int indent) {
 		indent(indent);
 		print(stmt.getLhs());
@@ -217,11 +217,11 @@ public class Convert {
 		print(stmt.getRhs());
 		System.out.println();
 	}
-	
+
 	public static void print(Stmt.OldFor stmt, int indent) {
 		// TODO
 	}
-	
+
 	public static void print(Stmt.IfElse stmt, int indent) {
 		indent(indent);
 		System.out.print("if ");
@@ -233,7 +233,7 @@ public class Convert {
 			print(stmt.getFalseBranch(),indent+4);
 		}
 	}
-	
+
 	public static void print(Stmt.While stmt, int indent) {
 		indent(indent);
 		System.out.print("while ");
@@ -241,25 +241,25 @@ public class Convert {
 		System.out.println(":");
 		print(stmt.getBody(),indent+4);
 	}
-	
+
 	public static void print(Stmt.VariableDeclaration stmt, int indent) {
 		indent(indent);
 		print(stmt.getType());
 		System.out.print(" " + stmt.getName());
 		if(stmt.getExpr() != null) {
 			System.out.print(" = ");
-			print(stmt.getExpr());			
+			print(stmt.getExpr());
 		}
 		System.out.println();
 	}
-	
+
 	public static void print(Stmt.Print stmt, int indent) {
 		indent(indent);
 		System.out.print("print ");
 		print(stmt.getExpr());
 		System.out.println();
 	}
-	
+
 	public static void print(Stmt.Return stmt, int indent) {
 		indent(indent);
 		System.out.print("return");
@@ -269,7 +269,7 @@ public class Convert {
 		}
 		System.out.println();
 	}
-	
+
 	public static void print(Type t) {
 		if(t instanceof Type.Void) {
 			System.out.print("void");
@@ -303,7 +303,7 @@ public class Convert {
 				}
 				firstTime=false;
 				print(ce.getValue());
-				System.out.print(" " + ce.getKey());				
+				System.out.print(" " + ce.getKey());
 			}
 			System.out.print("}");
 		} else if(t instanceof Type.Union) {
@@ -320,7 +320,7 @@ public class Convert {
 			throw new RuntimeException("Unknown type: " + t.getClass().getName());
 		}
 	}
-	
+
 	public static void print(Expr e) {
 		if(e instanceof Expr.Constant) {
 			Expr.Constant c = (Expr.Constant) e;
@@ -338,10 +338,10 @@ public class Convert {
 		} else if(e instanceof Expr.Unary) {
 			Expr.Unary u = (Expr.Unary) e;
 			switch(u.getOp()) {
-			case NOT:				
+			case NOT:
 			case NEG:
 				System.out.print(u.getOp() + " ");
-				print(u.getExpr());				
+				print(u.getExpr());
 				break;
 			case LENGTHOF:
 				System.out.print("|");
@@ -352,7 +352,7 @@ public class Convert {
 			Expr.Binary b = (Expr.Binary) e;
 			print(b.getLhs());
 			System.out.print(" " + b.getOp() + " ");
-			print(b.getRhs());			
+			print(b.getRhs());
 		} else if(e instanceof Expr.Cast) {
 			Expr.Cast c = (Expr.Cast) e;
 			System.out.print("(");
@@ -410,7 +410,7 @@ public class Convert {
 			throw new RuntimeException("Unknown expression: " + e.getClass().getName());
 		}
 	}
-	
+
 	public static void indent(int indent) {
 		for(int i=0;i!=indent;++i) {
 			System.out.print(" ");

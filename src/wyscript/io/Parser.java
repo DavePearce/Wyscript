@@ -249,15 +249,7 @@ public class Parser {
 		if (isStartOfType(index)) {
 			return parseVariableDeclaration();
 		} else {
-			// invocation or assignment
-			int start = index;
-			Expr t = parseExpression();
-			if (t instanceof Expr.Invoke) {
-				return (Expr.Invoke) t;
-			} else {
-				index = start;
-				return parseAssign();
-			}
+			return parseAssign();
 		}
 	}
 

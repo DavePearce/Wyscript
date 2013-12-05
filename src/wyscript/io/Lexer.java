@@ -28,12 +28,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import wyscript.util.SyntaxError;
+import wyscript.error.LexerErrorData;
+import static wyscript.error.LexerErrorHandler.handle;
 
 /**
  * Responsible for turning a stream of characters into a sequence of tokens.
  *
- * @author Daivd J. Pearce
+ * @author David J. Pearce
  *
  */
 public class Lexer {
@@ -67,11 +68,14 @@ public class Lexer {
 	/**
 	 * Scan all characters from the input stream and generate a corresponding
 	 * list of tokens, whilst discarding all whitespace and comments.
+	 * Stores a list of all errors encountered, in order to be able to
+	 * attempt error recovery
 	 *
 	 * @return
 	 */
 	public List<Token> scan() {
 		ArrayList<Token> tokens = new ArrayList<Token>();
+		ArrayList<LexerErrorData> errors = new ArrayList<LexerErrorData>();
 		pos = 0;
 
 		while (pos < input.length()) {
@@ -80,19 +84,21 @@ public class Lexer {
 			if (Character.isDigit(c)) {
 				tokens.add(scanNumericConstant());
 			} else if (c == '"') {
-				tokens.add(scanStringConstant());
+				tokens.add(scanStringConstant(errors));
 			} else if (c == '\'') {
-				tokens.add(scanCharacterConstant());
+				tokens.add(scanCharacterConstant(errors));
 			} else if (isOperatorStart(c)) {
-				tokens.add(scanOperator());
+				tokens.add(scanOperator(errors));
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());
 			} else if(Character.isWhitespace(c)) {
-				scanWhiteSpace(tokens);
+				scanWhiteSpace(tokens, errors);
 			} else {
-				syntaxError("syntax error");
+				errors.add(new LexerErrorData(pos++, filename, c, LexerErrorData.ErrorType.INVALID_CHARACTER));
 			}
 		}
+		if (!errors.isEmpty())
+			handle(errors);
 
 		return tokens;
 	}
@@ -135,7 +141,7 @@ public class Lexer {
 	 *
 	 * @return
 	 */
-	public Token scanCharacterConstant() {
+	public Token scanCharacterConstant(List<LexerErrorData> errors) {
 		int start = pos;
 		pos++;
 		char c = input.charAt(pos++);
@@ -149,18 +155,20 @@ public class Lexer {
 				c = '\n';
 				break;
 			default:
-				syntaxError("unrecognised escape character", pos);
+				errors.add(new LexerErrorData(pos-1, filename, c, LexerErrorData.ErrorType.INVALID_ESCAPE));
+				c = '\n';
 			}
 		}
 		if (input.charAt(pos) != '\'') {
-			syntaxError("unexpected end-of-character", pos);
+			errors.add(new LexerErrorData(pos, filename, input.charAt(pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
+			pos--; //This simulates adding a closing quote
 		}
 		pos = pos + 1;
 		return new Token(Token.Kind.CharValue, input.substring(start, pos),
 				start);
 	}
 
-	public Token scanStringConstant() {
+	public Token scanStringConstant(List<LexerErrorData> errors) {
 		int start = pos;
 		pos++;
 		while (pos < input.length()) {
@@ -171,14 +179,14 @@ public class Lexer {
 			}
 			pos = pos + 1;
 		}
-		syntaxError("unexpected end-of-string", pos - 1);
-		return null;
+		errors.add(new LexerErrorData(start, filename, null, LexerErrorData.ErrorType.MISSING_STRING_END));
+		return new Token(Token.Kind.StringValue, input.substring(start, pos), start);
 	}
 
 
 	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
 			'-', '*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|',
-			'.', '~' };
+			'.'};
 
 	public boolean isOperatorStart(char c) {
 		for (char o : opStarts) {
@@ -189,7 +197,7 @@ public class Lexer {
 		return false;
 	}
 
-	public Token scanOperator() {
+	public Token scanOperator(List<LexerErrorData> errors) {
 		char c = input.charAt(pos);
 
 		switch(c) {
@@ -278,8 +286,11 @@ public class Lexer {
 			}
 		}
 
-		syntaxError("unknown operator encountered: " + c);
-		return null;
+		//Shouldn't be possible, but will handle it anyway
+		errors.add(new LexerErrorData(pos, filename, c, LexerErrorData.ErrorType.INVALID_OP));
+
+		//Semicolon is not used for anything, so makes a good dud value
+		return new Token(Token.Kind.SemiColon, ";", pos++);
 	}
 
 	public Token scanIdentifier() {
@@ -299,7 +310,7 @@ public class Lexer {
 		return new Token(kind, text, start);
 	}
 
-	public void scanWhiteSpace(List<Token> tokens) {
+	public void scanWhiteSpace(List<Token> tokens, List<LexerErrorData> errors) {
 		while (pos < input.length()
 				&& Character.isWhitespace(input.charAt(pos))) {
 			if (input.charAt(pos) == ' ' || input.charAt(pos) == '\t') {
@@ -314,8 +325,11 @@ public class Lexer {
 						pos + 2), pos));
 				pos = pos + 2;
 			} else {
-				syntaxError("unknown whitespace character encounterd: \""
-						+ input.charAt(pos));
+				errors.add(new LexerErrorData(pos, filename, input.charAt(pos),
+						LexerErrorData.ErrorType.INVALID_WHITESPACE));
+
+				//Just skip over the bad whitespace
+				pos++;
 			}
 		}
 	}
@@ -346,28 +360,6 @@ public class Lexer {
 				&& (input.charAt(pos) == '\n' || input.charAt(pos) == '\t')) {
 			pos++;
 		}
-	}
-
-	/**
-	 * Raise a syntax error with a given message at given index.
-	 *
-	 * @param msg
-	 *            --- message to raise.
-	 * @param index
-	 *            --- index position to associate the error with.
-	 */
-	private void syntaxError(String msg, int index) {
-		throw new SyntaxError(msg, filename, index, index);
-	}
-
-	/**
-	 * Raise a syntax error with a given message at the current index.
-	 *
-	 * @param msg
-	 * @param index
-	 */
-	private void syntaxError(String msg) {
-		throw new SyntaxError(msg, filename, pos, pos);
 	}
 
 	/**
