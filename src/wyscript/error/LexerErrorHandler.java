@@ -27,7 +27,7 @@ public class LexerErrorHandler {
 				break;
 
 			case INVALID_ESCAPE:
-				msg = String.format("Invalid escape character: '\\%c'\nOnly escape charracters '\\n' and '\\t' allowed.", data.found());
+				msg = String.format("Invalid escape character: '\\%c'\nOnly escape characters '\\n' and '\\t' allowed.", data.found());
 				outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 				break;
 
@@ -48,8 +48,8 @@ public class LexerErrorHandler {
 				outputSourceError(Main.errout, "Error, missing string literal closing \"", data.filename(), data.pos(), data.pos());
 				break;
 			}
-			//Dead code
-			throw new SyntaxError("syntax error", data.filename(), data.pos(), data.pos());
 		}
+
+		throw new HandledException();
 	}
 }

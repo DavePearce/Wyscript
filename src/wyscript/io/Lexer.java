@@ -155,7 +155,7 @@ public class Lexer {
 				c = '\n';
 				break;
 			default:
-				errors.add(new LexerErrorData(pos-1, filename, c, LexerErrorData.ErrorType.INVALID_ESCAPE));
+				errors.add(new LexerErrorData(pos-1, filename, input.charAt(pos-1), LexerErrorData.ErrorType.INVALID_ESCAPE));
 				c = '\n';
 			}
 		}
