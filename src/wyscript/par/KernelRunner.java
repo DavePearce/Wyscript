@@ -105,7 +105,7 @@ public class KernelRunner {
 		List<CUdeviceptr> pointers = marshallParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
 		//marshallParametersToGPU(frame);
-		System.out.println("MARSHALL TO GPU TOOK : "+(System.currentTimeMillis()-time));
+		//System.out.println("MARSHALL TO GPU TOOK : "+(System.currentTimeMillis()-time));
 		time = System.currentTimeMillis();
 		int result = cuLaunchKernel(function,
 				gridDim, 1, 1,
@@ -113,20 +113,20 @@ public class KernelRunner {
 				0, null,
 				Pointer.to(parametersPointer), null);
 		int syncResult = cuCtxSynchronize();
-		System.out.println("CALC TOOK : "+(System.currentTimeMillis()-time));
+		//System.out.println("CALC TOOK : "+(System.currentTimeMillis()-time));
 		stopIfFailed(syncResult);
 		if (result != CUDA_SUCCESS) {
-			System.out.println(result);
+			//System.out.println(result);
 			InternalFailure.internalFailure("Kernel did not launch successfully." +
 					cudaGetErrorString(result), file.getName(), writer.getLoop());
 		}
 		time = System.currentTimeMillis();
 		marshallParametersFromGPU(frame);
-		System.out.println("MARSHALL FROM GPU TOOK : "+(System.currentTimeMillis()-time));
+		//System.out.println("MARSHALL FROM GPU TOOK : "+(System.currentTimeMillis()-time));
 		time = System.currentTimeMillis();
 		cuCtxDestroy(context);
 		cleanUp(pointers);
-		System.out.println("CLEANUP TOOK : "+(System.currentTimeMillis()-time));
+		//System.out.println("CLEANUP TOOK : "+(System.currentTimeMillis()-time));
 		return null; //TODO check whether this should be changed
 	}
 	private void cleanUp(List<CUdeviceptr> pointers) {

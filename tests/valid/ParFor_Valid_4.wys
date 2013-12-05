@@ -1,5 +1,5 @@
 void main():
-    v = [1,2,3,4]
+    [int] v = [1,2,3,4]
     parFor i in 0..|v|:
         int x = v[i]
         x = x + 1

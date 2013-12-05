@@ -26,6 +26,8 @@ import wyscript.util.TypeChecker;
  */
 public class TestUtils {
 	private static final String kernelWriteTestDir = "/am/state-opera/home1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/partests/";
+	private static final String JCUDA_HOME = "/home/state-opera1/antunomate/summer_research/jcuda_bin/JCuda-All-0.5.0b-bin-linux-x86_64";
+
 	/**
 	 * Execute a given class file using the "java" command, and return all
 	 * output written to stdout. In the case of some kind of failure, write the
@@ -49,7 +51,7 @@ public class TestUtils {
 			classPath = classPath.replace('/', File.separatorChar);
 			classPath = classPath.replace(':', File.pathSeparatorChar);
 			srcDir = srcDir.replace('/', File.separatorChar);
-			String tmp = "java -cp " + classPath + " " + className;
+			String tmp = "java -Djava.library.path="+JCUDA_HOME+" -cp " + classPath + " " + className;
 			for (String arg : args) {
 				tmp += " " + arg;
 			}

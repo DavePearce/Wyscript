@@ -10,6 +10,7 @@ public class InterpreterValidTests {
 	 * Path to test directory.
 	 */
 	private String testdir = "tests/valid/";
+	private String JCUDA_JAR_PATH="/home/state-opera1/antunomate/summer_research/jcuda_bin/JCuda-All-0.5.0b-bin-linux-x86_64/jcuda-0.5.0b.jar";
 
 	// ======================================================================
 	// Test Harness
@@ -23,7 +24,7 @@ public class InterpreterValidTests {
 		String classPath = "/home/state-opera1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/bin";
 
 		// First, execute the While program using the interpreter
-		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".wys");
+		String output = TestUtils.exec(classPath+":"+JCUDA_JAR_PATH, testdir, "wyscript.Main", name + ".wys");
 
 		// Second, compare the output!
 		TestUtils.compare(output, sampleOutputFile);

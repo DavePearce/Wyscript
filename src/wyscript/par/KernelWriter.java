@@ -96,7 +96,7 @@ public class KernelWriter {
 		// first save the token list to file
 		File file = new File(name);
 		FileWriter  writer = new FileWriter(file);
-		System.out.println("Compiling in "+file.getAbsolutePath());
+		//System.out.println("Compiling in "+file.getAbsolutePath());
 
 		for (String token : tokens) {
 			writer.write(token);
