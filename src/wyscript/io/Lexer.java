@@ -460,7 +460,13 @@ public class Lexer {
 			LogicalOr { public String toString() { return "||"; }},
 			// Other
 			NewLine,
-			Indent
+			Indent,
+
+			//Used by error handler to identify expected types
+			ExprLval { public String toString() { return "variable, list access, or record access"; }},
+			Expression { public String toString() { return "<<Expression>>"; }},
+			Statement { public String toString() { return "<<Statement>>"; }},
+			Type2 { public String toString() { return "<<Type>>"; }}
 		}
 
 		public final Kind kind;

@@ -24,33 +24,30 @@ public class LexerErrorHandler {
 			case INVALID_CHARACTER:
 				msg = String.format("Invalid character in file: %c" +
 						"\nTokens must be a valid java identifier, an operator, whitespace, or a string/char/number constant", data.found());
-				outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 				break;
 
 			case INVALID_ESCAPE:
 				msg = String.format("Invalid escape character: '\\%c'\nOnly escape characters '\\n' and '\\t' allowed.", data.found());
-				outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 				break;
 
 			case INVALID_OP:
-				outputSourceError(Main.errout, "Invalid operator in file: " + data.found(), data.filename(), data.pos(), data.pos());
+				msg = "Invalid operator in file: " + data.found();
 				break;
 
 			case INVALID_WHITESPACE:
 				msg = String.format("Invalid whitespace: '\\%c'\nOnly '\\t', ' ', '\\n' and \"\\r\\n\" allowed.", data.found());
-				outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 				break;
 
 			case MISSING_CHAR_END:
-				outputSourceError(Main.errout, "Error, missing closing '", data.filename(), data.pos(), data.pos());
+				msg = "Error, missing closing '";
 				break;
 
 			case MISSING_STRING_END:
-				outputSourceError(Main.errout, "Error, missing closing \"", data.filename(), data.pos(), data.pos());
+				msg = "Error, missing closing \"";
 				break;
 			}
+			outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 		}
-
 		throw new HandledException();
 	}
 }
