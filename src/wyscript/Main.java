@@ -19,9 +19,9 @@
 package wyscript;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 
+import wyscript.error.HandledException;
 import wyscript.io.*;
 import wyscript.lang.WyscriptFile;
 import wyscript.util.*;
@@ -39,12 +39,12 @@ public class Main {
 	}
 
 	private static enum Mode { interpret, js };
-	
+
 	public static boolean run(String[] args) {
 		boolean verbose = false;
 		int fileArgsBegin = 0;
 		Mode mode = Mode.interpret;
-		
+
 		for (int i = 0; i != args.length; ++i) {
 			if (args[i].startsWith("-")) {
 				String arg = args[i];
@@ -79,27 +79,27 @@ public class Main {
 			Lexer lexer = new Lexer(srcFile.getPath());
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
 			WyscriptFile ast = parser.read();
-			
+
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);
-			
+
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {
 			case interpret:
 				new Interpreter().run(ast);
-				break;			
+				break;
 			case js: {
 				File jsFile = new File(filename.substring(0,filename.lastIndexOf('.')) + ".js");
 				JavaScriptFileWriter jsfw = new JavaScriptFileWriter(jsFile);
-				jsfw.write(ast);	
+				jsfw.write(ast);
 				jsfw.close();
 				break;
-			}			
 			}
-			
+			}
+
 		} catch (SyntaxError e) {
 			if (e.filename() != null) {
-				e.outputSourceError(System.out);
+				SyntaxError.outputSourceError(System.out, e.getMessage(), e.filename(), e.start(), e.end());
 			} else {
 				System.err.println("syntax error (" + e.getMessage() + ").");
 			}
@@ -108,6 +108,9 @@ public class Main {
 				e.printStackTrace(errout);
 			}
 
+			return false;
+		} catch (HandledException e) {
+			//This is an exception that has already been handled, so just end quietly
 			return false;
 		} catch (Exception e) {
 			errout.println("Error: " + e.getMessage());
@@ -126,7 +129,7 @@ public class Main {
 
 	/**
 	 * Print out information regarding command-line arguments
-	 * 
+	 *
 	 */
 	public static void usage() {
 		String[][] info = {
