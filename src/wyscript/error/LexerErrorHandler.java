@@ -3,7 +3,6 @@ package wyscript.error;
 import java.util.List;
 
 import wyscript.Main;
-import wyscript.util.SyntaxError;
 import static wyscript.util.SyntaxError.outputSourceError;
 
 /**
@@ -23,7 +22,9 @@ public class LexerErrorHandler {
 			switch (data.type()) {
 
 			case INVALID_CHARACTER:
-				outputSourceError(Main.errout, "Invalid character in file: " + data.found(), data.filename(), data.pos(), data.pos());
+				msg = String.format("Invalid character in file: %c" +
+						"\nTokens must be a valid java identifier, an operator, whitespace, or a string/char/number constant", data.found());
+				outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 				break;
 
 			case INVALID_ESCAPE:
@@ -41,11 +42,11 @@ public class LexerErrorHandler {
 				break;
 
 			case MISSING_CHAR_END:
-				outputSourceError(Main.errout, "Error, character literal must end with '", data.filename(), data.pos(), data.pos());
+				outputSourceError(Main.errout, "Error, missing closing '", data.filename(), data.pos(), data.pos());
 				break;
 
 			case MISSING_STRING_END:
-				outputSourceError(Main.errout, "Error, missing string literal closing \"", data.filename(), data.pos(), data.pos());
+				outputSourceError(Main.errout, "Error, missing closing \"", data.filename(), data.pos(), data.pos());
 				break;
 			}
 		}

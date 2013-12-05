@@ -94,6 +94,7 @@ public class Lexer {
 			} else if(Character.isWhitespace(c)) {
 				scanWhiteSpace(tokens, errors);
 			} else {
+				//Skip over the offending token for now
 				errors.add(new LexerErrorData(pos++, filename, c, LexerErrorData.ErrorType.INVALID_CHARACTER));
 			}
 		}
@@ -160,8 +161,8 @@ public class Lexer {
 			}
 		}
 		if (input.charAt(pos) != '\'') {
-			errors.add(new LexerErrorData(pos, filename, input.charAt(pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
-			pos--; //This simulates adding a closing quote
+			//This simulates adding a closing quote
+			errors.add(new LexerErrorData(--pos, filename, input.charAt(--pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
 		}
 		pos = pos + 1;
 		return new Token(Token.Kind.CharValue, input.substring(start, pos),
@@ -185,7 +186,7 @@ public class Lexer {
 
 
 	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
-			'-', '*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|',
+			'-', '*', '/', '%', '!', '=', '<', '>', ':', ';', '&', '|',
 			'.'};
 
 	public boolean isOperatorStart(char c) {
