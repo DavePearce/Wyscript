@@ -29,7 +29,7 @@ public class KernelGenerator {
 	 * @param wyFile
 	 * @param environment
 	 */
-	public static void generateKernels(WyscriptFile wyFile, Map<String,Map<String,Type>> envs) {
+	public static void generateKernels(WyscriptFile wyFile) {
 		Map<String , WyscriptFile.FunDecl> functions = new HashMap<String ,
 				WyscriptFile.FunDecl>();
 		for (WyscriptFile.Decl declaration : wyFile.declarations) {
@@ -38,19 +38,21 @@ public class KernelGenerator {
 				functions.put(fd.name(), fd);
 			}
 		}
-		generateKernels(functions,envs);
+		generateKernels(functions);
 	}
 	/**
 	 * Scan an individual function for loops that can be converted
 	 * @param functions
 	 * @param environment
 	 */
-	private static void generateKernels(Map<String, FunDecl> functions, Map<String,Map<String, Type>> envs) {
+	private static void generateKernels(Map<String, FunDecl> functions) {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
-			Map<String, Type> environment = envs.get(func.name);
+			TypeChecker checker = new TypeChecker();
+			Map<String,Type> env = new HashMap<String,Type>();
+			checker.check(func.statements,env);
 			//pass the name of the function down so it can be used to address kernel
-			scanFuncBody(func , fname, environment);
+			scanFuncBody(func , fname, env);
 		}
 	}
 	/**

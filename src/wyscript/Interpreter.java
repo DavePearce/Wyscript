@@ -182,6 +182,7 @@ public class Interpreter {
 	}
 
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
+		long time = System.currentTimeMillis();
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
@@ -191,6 +192,7 @@ public class Interpreter {
 				return ret;
 			}
 		}
+		System.out.println("For loop took: "+(System.currentTimeMillis()-time));
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
@@ -205,7 +207,10 @@ public class Interpreter {
 				}
 			}
 		}else {
-			return stmt.getRunner().run(frame);
+			long time = System.currentTimeMillis();
+			Object out = stmt.getRunner().run(frame);
+			System.out.println("ParFor loop took: "+(System.currentTimeMillis()-time));
+			return out;
 		}
 		return null;
 

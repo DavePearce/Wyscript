@@ -4,6 +4,7 @@ import static org.junit.Assert.fail;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
@@ -15,6 +16,7 @@ import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.Stmt.ParFor;
 import wyscript.par.KernelWriter;
+import wyscript.util.TypeChecker;
 
 /**
  * Provides some simple helper functions used by all test harnesses.
@@ -185,6 +187,11 @@ public class TestUtils {
 		WyscriptFile wyFile = parseForFile(wyPath);
 		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
 
+		doKernelTest(testName, environment, kernelFile, cuScan, loop);
+	}
+
+	private static void doKernelTest(String testName, Map<String, Type> environment,
+			File kernelFile, Scanner cuScan, ParFor loop) {
 		try {
 			cuScan = new Scanner(kernelFile);
 		} catch (FileNotFoundException e) {
@@ -197,16 +204,22 @@ public class TestUtils {
 		int i = 0;
 		while (cuScan.hasNext()) {
 			if (i>=tokens.size())  {
-				System.out.println("Unexpectedly reached end of token list");
+				System.out.println("Unexpectedly reached end of kernel writer token list");
 				System.out.println("Kernel writer gave this:");
 				printProg(tokens);
 				fail("Reached end of kernel writer output before scan of file complete.");
 			}
 			String token = cuScan.next();
 			if (tokens.get(i).equals(token)) {
-				cuSaved.add(token);
-				writerSaved.add(token);
+				cuSaved.add(tokens.get(i));
 				writerSaved.add(tokens.get(i));
+				//writerSaved.add(tokens.get(i));
+			}else {
+				System.out.println("Kernel writer gave this:");
+				printProg(tokens);
+				System.out.println("Got up to here: ");
+				printProg(cuSaved);
+				fail("Tokens do not match: expected '"+token+"' got '"+tokens.get(i)+"'");
 			}
 			i++;
 		}
@@ -215,10 +228,21 @@ public class TestUtils {
 			System.out.println("Kernel writer gave this:");
 			printProg(tokens);
 			System.out.println("Problematic writer token is '"+tokens.get(i)+"' at index "+i);
-//			System.out.println("Got to this in writer output before failure:");
-//			printProg(writerSaved);
 			fail("Reached end of .cu file before scan of kernel writer output complete.");
 		}
+	}
+	public static void writerTest(String testName) {
+		TypeChecker checker = new TypeChecker();
+		String wyPath = kernelWriteTestDir+testName+".wys";
+		String kernelPath = kernelWriteTestDir+testName+".cu";
+		File kernelFile = new File(kernelPath);
+		Scanner cuScan = null;
+		WyscriptFile wyFile = parseForFile(wyPath);
+		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
+		checker.check(wyFile);
+		Map<String,Type> environment = checker.check(wyFile.functions("main").get(0));
+
+		doKernelTest(testName, environment, kernelFile, cuScan, loop);
 	}
 	public static void printProg(List<String> tokens) {
 		StringBuilder builder = new StringBuilder();

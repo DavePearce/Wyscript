@@ -1,0 +1,1 @@
+externC__global__voidmain0(int*a,int*a_length){inti=blockIdx.x*blockDim.x+threadIdx.x;a[i]=(a[i])+(1);}

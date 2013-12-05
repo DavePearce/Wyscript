@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +15,9 @@ import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
+import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
+
 
 /**
  * The first instance of the KernelWriter will take an ordinary for-loop and convert it
@@ -62,6 +63,7 @@ public class KernelWriter {
 	}
 	private String indexName = "i";
 	private String fileName;
+	private String ptxFileName;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -83,13 +85,25 @@ public class KernelWriter {
 		tokens.add("{");
 		convertBody(body);
 		tokens.add("}");
+		try {
+			saveAndCompileKernel(fileName+".cu");
+		} catch (IOException e) {
+			InternalFailure.internalFailure(
+					"Could not save kernel file. Got error: "+e.getMessage(), fileName, loop);
+		}
 	}
 	public void saveAndCompileKernel(String name) throws IOException {
 		// first save the token list to file
 		File file = new File(name);
 		FileWriter  writer = new FileWriter(file);
+		System.out.println("Compiling in "+file.getAbsolutePath());
+
 		for (String token : tokens) {
 			writer.write(token);
+			if (token.equals(";") || token.equals("{")) {
+				writer.write("\n");
+			}
+			writer.write(" ");
 		}
 		writer.close();
 		//now compile it into a ptx file
@@ -110,10 +124,7 @@ public class KernelWriter {
             endIndex = cuFileName.length()-1;
         }
         String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
-        File ptxFile = new File(ptxFileName);
-        if (ptxFile.exists()) {
-            return ptxFileName;
-        }
+        this.ptxFileName = ptxFileName;
 
         File cuFile = new File(cuFileName);
         if (!cuFile.exists())
@@ -139,6 +150,7 @@ public class KernelWriter {
         }
 
         if (exitValue != 0) {
+        	System.out.println(convertStreamToString(process.getErrorStream()));
         	InternalFailure.internalFailure("Failed to compile .ptx file for " +
         			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
         }
@@ -146,7 +158,10 @@ public class KernelWriter {
         //System.out.println("Finished creating PTX file");
         return ptxFileName;
     }
-
+    static String convertStreamToString(java.io.InputStream is) {
+        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
+        return s.hasNext() ? s.next() : "";
+    }
     /**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
@@ -211,6 +226,8 @@ public class KernelWriter {
 	 * @ensures The function declaration is written with the required parameters
 	 */
 	private void writeFunctionDeclaration() {
+		tokens.add("extern");
+		tokens.add("\"C\"");
 		tokens.add("__global__");
 		tokens.add("void");
 		tokens.add(getFuncName());
@@ -394,9 +411,13 @@ public class KernelWriter {
 	}
 	private void write(Expr.Binary binary) {
 		//TODO address the issue of precedence here
+		tokens.add("(");
 		write(binary.getLhs());
+		tokens.add(")");
 		writeOp(binary.getOp());
+		tokens.add("(");
 		write(binary.getRhs());
+		tokens.add(")");
 	}
 	private void writeOp(BOp op) {
 		tokens.add(op.toString());
@@ -501,7 +522,7 @@ public class KernelWriter {
 	 * @return
 	 */
 	public File getPtxFile() {
-		return new File(fileName);
+		return new File(ptxFileName);
 	}
 	/**
 	 * Returns a List of the string representation of the kernel writer's tokens
@@ -538,5 +559,11 @@ public class KernelWriter {
 	}
 	public int getIncrement() {
 		return increment;
+	}
+	public List<String> getParameters() {
+		return new ArrayList<String>(parameters);
+	}
+	public SyntacticElement getLoop() {
+		return loop;
 	}
 }

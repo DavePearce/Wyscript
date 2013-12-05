@@ -46,7 +46,7 @@ public class TypeChecker {
 		}
 	}
 
-	public void check(WyscriptFile.FunDecl fd) {
+	public Map<String,Type> check(WyscriptFile.FunDecl fd) {
 		this.function = fd;
 
 		// First, initialise the typing environment
@@ -54,9 +54,9 @@ public class TypeChecker {
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
-		environments.put(fd.name , environment);
 		// Second, check all statements in the function body
 		check(fd.statements,environment);
+		return environment;
 	}
 
 	public void check(List<Stmt> statements, Map<String,Type> environment) {
@@ -84,7 +84,10 @@ public class TypeChecker {
 			check((Stmt.While) stmt, environment);
 		} else if (stmt instanceof Stmt.ParFor) {
 			check((Stmt.ParFor) stmt, environment);
-		} else {
+		} else if (stmt instanceof Stmt.For) {
+			check((Stmt.For) stmt, environment);
+		}
+		  else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
@@ -111,8 +114,11 @@ public class TypeChecker {
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
 			checkSubtype(stmt.getType(),type,stmt);
+			environment.put(stmt.getName(), type);
+		}else {
+			InternalFailure.internalFailure("Expression for variable declaration" +
+					" was null", file.filename, stmt);
 		}
-		environment.put(stmt.getName(), stmt.getType());
 	}
 
 	public void check(Stmt.IfElse stmt, Map<String,Type> environment) {
@@ -123,9 +129,20 @@ public class TypeChecker {
 	}
 	public void check(Stmt.ParFor stmt, Map<String,Type> environment) {
 		//Type type = check(stmt.getSource(),environment);
-		environment.put("i", new Type.Int());
+		Map<String,Type> newEnvironment = new HashMap<String,Type>(environment);
+ 		newEnvironment.put(stmt.getIndex().getName(), check(stmt.getSource()
+ 				,newEnvironment));
 		for (Stmt statement : stmt.getBody()) {
-			check(statement , new HashMap<String,Type>(environment));
+			check(statement , newEnvironment);
+		}
+	}
+	public void check(Stmt.For stmt, Map<String,Type> environment) {
+		//Type type = check(stmt.getSource(),environment);
+		Map<String,Type> newEnvironment = new HashMap<String,Type>(environment);
+ 		newEnvironment.put(stmt.getIndex().getName(), check(stmt.getSource()
+ 				,newEnvironment));
+		for (Stmt statement : stmt.getBody()) {
+			check(statement , newEnvironment);
 		}
 	}
 	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {

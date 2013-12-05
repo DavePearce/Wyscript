@@ -1,5 +1,5 @@
-__global__ void test2 ( int* c , int* c_length ) {
+__global__ void test5 ( int* c , int* c_length ) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x ;
 	int x = 3 ;
-	c [i] = c [i] + x ;
+	c [i] = ( c [i] ) + ( x ) ;
 }

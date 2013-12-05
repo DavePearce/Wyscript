@@ -84,7 +84,7 @@ public class Main {
 			// new TypeChecker().check(ast);
 			TypeChecker checker = new TypeChecker();
 			checker.check(ast);
-			KernelGenerator.generateKernels(ast,checker.getEnvs());
+			KernelGenerator.generateKernels(ast);
 
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {

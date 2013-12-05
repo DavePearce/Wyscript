@@ -61,15 +61,37 @@ public class KernelTests {
 		env.put("a",new Type.List(new Type.Int()));
 		env.put("b",new Type.List(new Type.Int()));
 		env.put("c",new Type.List(new Type.Int()));
-		writerTest("test6",env);
+		env.put("x",new Type.List(new Type.Int()));
+		writerTest("test6");
 	}
 	@Test
 	public void test1_run() {
 		WyscriptFile ast = parseForFile(testDir+"runtest1.wys");
+		runRunTest(ast);
+	}
+
+	@Test
+	public void test2_run() {
+		WyscriptFile ast = parseForFile(testDir+"runtest2.wys");
+		runRunTest(ast);
+	}
+	@Test
+	public void test3_run() {
+		WyscriptFile ast = parseForFile(testDir+"runtest3.wys");
+		runRunTest(ast);
+	}
+	@Test
+	public void test4_run() {
+		WyscriptFile ast = parseForFile(testDir+"runtest4_gpu.wys");
+		runRunTest(ast);
+	}
+	private void runRunTest(WyscriptFile ast) {
 		TypeChecker checker = new TypeChecker();
 		checker.check(ast);
-		KernelGenerator.generateKernels(ast,checker.getEnvs());
+		KernelGenerator.generateKernels(ast);
 		Interpreter interpreter = new Interpreter();
+		long time = System.currentTimeMillis();
 		interpreter.run(ast);
+		System.out.println("Took: "+(System.currentTimeMillis()-time));
 	}
 }
