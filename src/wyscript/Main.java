@@ -19,9 +19,9 @@
 package wyscript;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintStream;
 
+import wyscript.error.HandledException;
 import wyscript.io.*;
 import wyscript.lang.WyscriptFile;
 import wyscript.par.KernelGenerator;
@@ -102,7 +102,7 @@ public class Main {
 
 		} catch (SyntaxError e) {
 			if (e.filename() != null) {
-				e.outputSourceError(System.out);
+				SyntaxError.outputSourceError(System.out, e.getMessage(), e.filename(), e.start(), e.end());
 			} else {
 				System.err.println("syntax error (" + e.getMessage() + ").");
 			}
@@ -111,6 +111,9 @@ public class Main {
 				e.printStackTrace(errout);
 			}
 
+			return false;
+		} catch (HandledException e) {
+			//This is an exception that has already been handled, so just end quietly
 			return false;
 		} catch (Exception e) {
 			errout.println("Error: " + e.getMessage());

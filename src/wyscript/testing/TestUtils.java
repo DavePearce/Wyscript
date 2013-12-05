@@ -3,20 +3,6 @@ package wyscript.testing;
 import static org.junit.Assert.fail;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-
-import wyscript.io.Lexer;
-import wyscript.io.Parser;
-import wyscript.lang.Stmt;
-import wyscript.lang.Type;
-import wyscript.lang.WyscriptFile;
-import wyscript.lang.Stmt.ParFor;
-import wyscript.par.KernelWriter;
-import wyscript.util.TypeChecker;
 
 /**
  * Provides some simple helper functions used by all test harnesses.
@@ -25,8 +11,6 @@ import wyscript.util.TypeChecker;
  *
  */
 public class TestUtils {
-	private static final String kernelWriteTestDir = "/am/state-opera/home1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/partests/";
-	private static final String JCUDA_HOME = "/home/state-opera1/antunomate/summer_research/jcuda_bin/JCuda-All-0.5.0b-bin-linux-x86_64";
 
 	/**
 	 * Execute a given class file using the "java" command, and return all
@@ -51,7 +35,59 @@ public class TestUtils {
 			classPath = classPath.replace('/', File.separatorChar);
 			classPath = classPath.replace(':', File.pathSeparatorChar);
 			srcDir = srcDir.replace('/', File.separatorChar);
-			String tmp = "java -Djava.library.path="+JCUDA_HOME+" -cp " + classPath + " " + className;
+			String tmp = "java -cp " + classPath + " " + className;
+			for (String arg : args) {
+				tmp += " " + arg;
+			}
+			Process p = Runtime.getRuntime().exec(tmp, null, new File(srcDir));
+
+			StringBuffer syserr = new StringBuffer();
+			StringBuffer sysout = new StringBuffer();
+			new StreamGrabber(p.getErrorStream(), syserr);
+			new StreamGrabber(p.getInputStream(), sysout);
+			int exitCode = p.waitFor();
+			if (exitCode != 0) {
+				System.err
+						.println("============================================================");
+				System.err.println(className);
+				System.err
+						.println("============================================================");
+				System.err.println(syserr);
+				return null;
+			} else {
+				return sysout.toString();
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Problem running compiled test");
+		}
+
+		return null;
+	}
+	/**
+	 * Execute a given class file using the "java" command, and return all
+	 * output written to stdout. In the case of some kind of failure, write the
+	 * generated stderr stream to this processes stdout.
+	 *
+	 * @param classPath
+	 *            Class path to use when executing Java code. Note, directories
+	 *            can always be safely separated with '/', and path separated
+	 *            with ':'.
+	 * @param srcDir
+	 *            Path to root of package containing class. Note, directories
+	 *            can always be safely separated with '/'.
+	 * @param className
+	 *            Name of class to execute
+	 * @param args
+	 *            Arguments to supply on the command-line.
+	 * @return All output generated from the class that was written to stdout.
+	 */
+	public static String parExec(String classPath, String srcDir, String className, String... args) {
+		try {
+			classPath = classPath.replace('/', File.separatorChar);
+			classPath = classPath.replace(':', File.pathSeparatorChar);
+			srcDir = srcDir.replace('/', File.separatorChar);
+			String tmp = "java -cp " + classPath + " " + className;
 			for (String arg : args) {
 				tmp += " " + arg;
 			}
@@ -163,102 +199,5 @@ public class TestUtils {
 			} catch (IOException ioe) {
 			}
 		}
-	}
-	///////// MATE'S UTILS BEGIN HERE
-	/**
-	 * Quickly parse a wyscript file
-	 * @param content
-	 * @return
-	 */
-	public static WyscriptFile parseForFile(String filename) {
-		Lexer lexer = null ;
-		try {
-			lexer = new Lexer(filename);
-		} catch (IOException e) {
-			fail("Could not lex file. "+e.getMessage());
-		}
-		Parser parser = new Parser(filename, lexer.scan());
-		return parser.read();
-	}
-	public static void writerTest(String testName , Map<String,Type> environment) {
-		//sort out the files
-		String wyPath = kernelWriteTestDir+testName+".wys";
-		String kernelPath = kernelWriteTestDir+testName+".cu";
-		File kernelFile = new File(kernelPath);
-		Scanner cuScan = null;
-		WyscriptFile wyFile = parseForFile(wyPath);
-		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
-
-		doKernelTest(testName, environment, kernelFile, cuScan, loop);
-	}
-
-	private static void doKernelTest(String testName, Map<String, Type> environment,
-			File kernelFile, Scanner cuScan, ParFor loop) {
-		try {
-			cuScan = new Scanner(kernelFile);
-		} catch (FileNotFoundException e) {
-			fail("Test could not be performed");
-		}
-		KernelWriter writer = new KernelWriter(testName,environment,loop);
-		List<String> tokens = writer.getTokenList();
-		List<String> cuSaved = new ArrayList<String>();
-		List<String> writerSaved = new ArrayList<String>();
-		int i = 0;
-		while (cuScan.hasNext()) {
-			if (i>=tokens.size())  {
-				System.out.println("Unexpectedly reached end of kernel writer token list");
-				System.out.println("Kernel writer gave this:");
-				printProg(tokens);
-				fail("Reached end of kernel writer output before scan of file complete.");
-			}
-			String token = cuScan.next();
-			if (tokens.get(i).equals(token)) {
-				cuSaved.add(tokens.get(i));
-				writerSaved.add(tokens.get(i));
-				//writerSaved.add(tokens.get(i));
-			}else {
-				System.out.println("Kernel writer gave this:");
-				printProg(tokens);
-				System.out.println("Got up to here: ");
-				printProg(cuSaved);
-				fail("Tokens do not match: expected '"+token+"' got '"+tokens.get(i)+"'");
-			}
-			i++;
-		}
-		if (i<tokens.size()) {
-			System.out.println("Reached end of .cu output before writer output");
-			System.out.println("Kernel writer gave this:");
-			printProg(tokens);
-			System.out.println("Problematic writer token is '"+tokens.get(i)+"' at index "+i);
-			fail("Reached end of .cu file before scan of kernel writer output complete.");
-		}
-	}
-	public static void writerTest(String testName) {
-		TypeChecker checker = new TypeChecker();
-		String wyPath = kernelWriteTestDir+testName+".wys";
-		String kernelPath = kernelWriteTestDir+testName+".cu";
-		File kernelFile = new File(kernelPath);
-		Scanner cuScan = null;
-		WyscriptFile wyFile = parseForFile(wyPath);
-		ParFor loop = getFirstLoop(wyFile.functions("main").get(0));
-		checker.check(wyFile);
-		Map<String,Type> environment = checker.check(wyFile.functions("main").get(0));
-
-		doKernelTest(testName, environment, kernelFile, cuScan, loop);
-	}
-	public static void printProg(List<String> tokens) {
-		StringBuilder builder = new StringBuilder();
-		for (String str : tokens) {
-			builder.append(str);
-			builder.append(" ");
-		}
-		System.out.println(builder.toString());
-	}
-	public static ParFor getFirstLoop(WyscriptFile.FunDecl function) {
-		for (Stmt stmt : function.statements) {
-			if (stmt instanceof Stmt.ParFor) return (ParFor) stmt;
-		}
-		fail("Could not find parFor loop in function");
-		return null; //unreachable
 	}
 }
