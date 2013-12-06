@@ -82,8 +82,7 @@ public class Main {
 			//now generate kernels for parfor loops and append them to parfor loops
 			// Second, we'd want to perform some kind of type checking here.
 			// new TypeChecker().check(ast);
-			TypeChecker checker = new TypeChecker();
-			checker.check(ast);
+
 			KernelGenerator.generateKernels(ast);
 
 			// Third, we'd want to run the interpreter or compile the file.

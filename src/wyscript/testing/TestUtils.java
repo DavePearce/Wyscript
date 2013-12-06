@@ -40,7 +40,7 @@ public class TestUtils {
 				tmp += " " + arg;
 			}
 			Process p = Runtime.getRuntime().exec(tmp, null, new File(srcDir));
-
+			System.out.println("Executing "+tmp);
 			StringBuffer syserr = new StringBuffer();
 			StringBuffer sysout = new StringBuffer();
 			new StreamGrabber(p.getErrorStream(), syserr);
@@ -87,7 +87,7 @@ public class TestUtils {
 			classPath = classPath.replace('/', File.separatorChar);
 			classPath = classPath.replace(':', File.pathSeparatorChar);
 			srcDir = srcDir.replace('/', File.separatorChar);
-			String tmp = "java -cp " + classPath + " " + className;
+			String tmp = "java -Djava.library.path=../../bin/ -cp " + classPath + " " + className;
 			for (String arg : args) {
 				tmp += " " + arg;
 			}

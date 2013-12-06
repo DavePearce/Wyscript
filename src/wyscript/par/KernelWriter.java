@@ -453,23 +453,25 @@ public class KernelWriter {
 	 */
 	private void write(Expr.IndexOf indexOf) {
 		if (indexOf.getSource() instanceof Expr.Variable) {
-			Expr.Variable indexVar = (Expr.Variable)indexOf.getSource();
+			Expr.Variable srcVar = (Expr.Variable)indexOf.getSource();
 			//indexVar is an instance of [int]
 			//source expression must be of type...
-			Type typeOfVar = environment.get(indexVar.getName());
+			Type typeOfVar = environment.get(srcVar.getName());
 			if (typeOfVar instanceof Type.List) {
 				Type listType = ((Type.List)typeOfVar).getElement();
 				if (listType instanceof Type.Int) {
 					//the type is correct for a kernel, write it here
-					tokens.add(indexVar.getName());
+					tokens.add(srcVar.getName());
 					tokens.add("["+indexName+"]");
 				}else{
-					InternalFailure.internalFailure("List type should be int for kernel conversion", null, indexVar);
+					InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, srcVar);
 				}
+			}else {
+				InternalFailure.internalFailure("Can only perform indexof on list", fileName, indexOf);
 			}
 
 		}else {
-			InternalFailure.internalFailure("Expected source type to be of type list", null, indexOf.getSource());
+			InternalFailure.internalFailure("Expected source type to be of type list", fileName, indexOf.getSource());
 		}
 		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO Potential issue with comparing indices
 

@@ -13,6 +13,7 @@ import wyscript.lang.*;
 import wyscript.util.SyntaxError.InternalFailure;
 import static jcuda.driver.CUresult.*;
 import static jcuda.runtime.JCuda.*;
+
 /**
  * What might the kernel runner do? It will require some data structures to
  * marshall between Cuda and Wyscript. It also needs to be extensible to allow
