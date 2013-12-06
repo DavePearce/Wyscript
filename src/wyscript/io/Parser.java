@@ -493,7 +493,7 @@ public class Parser {
 		int start = index;
 		Expr lhs = parseExpression(errors);
 		if (!(lhs instanceof Expr.LVal)) {
-			errors.add(new ParserExprErrorData(filename, lhs, ExprLval, lhs.attribute(Attribute.Source.class).start,
+			errors.add(new ParserExprErrorData(filename, lhs, tokens.get(start), ExprLval, lhs.attribute(Attribute.Source.class).start,
 					lhs.attribute(Attribute.Source.class).end, ErrorType.BAD_EXPRESSION_TYPE));
 			handle(errors);
 		}

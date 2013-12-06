@@ -1,5 +1,6 @@
 package wyscript.error;
 
+import wyscript.io.Lexer.Token;
 import wyscript.io.Lexer.Token.Kind;
 import wyscript.lang.Expr;
 
@@ -13,8 +14,8 @@ public class ParserExprErrorData extends ParserErrorData {
 
 	private Expr expr;
 
-	public ParserExprErrorData(String n, Expr ex, Kind e, int s, int d, ErrorType t) {
-		super(n, null, e, s, d, t);
+	public ParserExprErrorData(String n, Expr ex, Token f, Kind e, int s, int d, ErrorType t) {
+		super(n, f, e, s, d, t);
 		expr = ex;
 	}
 

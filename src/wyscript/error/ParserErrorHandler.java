@@ -1,6 +1,6 @@
 package wyscript.error;
 
-import static wyscript.util.SyntaxError.outputSourceError;
+import static wyscript.util.SyntaxError.*;
 
 import java.util.List;
 
@@ -19,36 +19,44 @@ public class ParserErrorHandler {
 	public static void handle(List<ParserErrorData> errors) {
 
 		for (ParserErrorData data : errors) {
-			String msg = "blah";
+			String msg = null;
+			String suggestion = null;
 
 			switch (data.type()) {
 
 			//The generic case where a match failed. Simply tell them what was missing and where
 			case MISSING_TOKEN:
 				msg = String.format("Error: '%s' expected", data.expected());
+				suggestion = data.expected().toString();
 				break;
 
 			case BAD_INDENT:
 				msg = "Error: indentation must not increase within a block";
+				suggestion = "";
 				break;
 
 			case DUPLICATE_TOKEN:
 				msg = "Error: There already exists a record attribute with name " + data.found().text;
+				suggestion = data.found().text+"Copy";
 				break;
 
 			case INVALID_TYPE:
 				msg = "Error: <<type>> expected.\nNeed a base type, a list, a record, a union or a user defined type";
+				suggestion = "void";
 				break;
 
 			case MISSING_EXPRESSION:
-				msg = String.format("Error: found %s, required <<expression>>", data.found().kind);
+				msg = String.format("Error: found '%s', required <<expression>>", data.found().kind);
+				suggestion = "null";
 				break;
 
-			default:
+			case BAD_EXPRESSION_TYPE:
 				msg = handleExpr(data);
+				suggestion = "int example";
 				break;
 			}
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());
+			outputSuggestion(Main.errout, suggestion, data.filename(), data.start(), data.end());
 		}
 
 		throw new HandledException();

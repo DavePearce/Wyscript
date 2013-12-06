@@ -35,9 +35,9 @@ public interface Expr extends SyntacticElement {
 	/**
 	 * Captures the expression kinds which are permitted on the left-side of an
 	 * assignment statement.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public interface LVal extends Expr {
 	}
@@ -46,9 +46,9 @@ public interface Expr extends SyntacticElement {
 	 * Represents a single occurrence of a variable within a expression. For
 	 * example, the expression <code>x+x+y</code> will contain three instances
 	 * of <code>Variable</code> --- one for each variable usage.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Variable extends SyntacticElement.Impl implements Expr,
 			LVal {
@@ -57,7 +57,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Construct a variable expression from a given variable name.
-		 * 
+		 *
 		 * @param name
 		 *            Must be non-null.
 		 * @param attributes
@@ -73,7 +73,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the name of the variable in question.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public String getName() {
@@ -89,9 +89,9 @@ public interface Expr extends SyntacticElement {
 	 * Represents the occurrence of a constant value within an expression. For
 	 * example, in the expression <code>1+x</code>, an instance of
 	 * <code>Constant</code> is used to represent the value <code>1</code>.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Constant extends SyntacticElement.Impl implements Expr {
 
@@ -101,7 +101,7 @@ public interface Expr extends SyntacticElement {
 		 * Construct a constant expression from a given (primitive) value. The
 		 * value must be either a boolean, character, integer, real, or string
 		 * constant; alternative, it can be null (to signal the null constant).
-		 * 
+		 *
 		 * @param value
 		 *            Must be an instance of <code>java.lang.Boolean</code>,
 		 *            <code>java.lang.Character</code>,
@@ -128,7 +128,7 @@ public interface Expr extends SyntacticElement {
 		 * of <code>java.lang.Boolean</code>, <code>java.lang.Character</code>,
 		 * <code>java.lang.Integer</code>, <code>java.lang.Double</code>,
 		 * <code>java.lang.String</code> or <code>null</code>.
-		 * 
+		 *
 		 * @return
 		 */
 		public Object getValue() {
@@ -231,9 +231,9 @@ public interface Expr extends SyntacticElement {
 	 * we have an instance of <code>Binary</code> to represent the addition
 	 * whose left-hand side is an instance of <code>Constant</code> and
 	 * right-hand side is an instance of <code>Variable</code>.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Binary extends SyntacticElement.Impl implements Expr {
 
@@ -244,7 +244,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a binary expression from a given left-hand expression and
 		 * right-hand expression.
-		 * 
+		 *
 		 * @param op
 		 *            The operation this expression descibes; may not be null.
 		 * @param lhs
@@ -263,7 +263,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a binary expression from a given left-hand expression and
 		 * right-hand expression.
-		 * 
+		 *
 		 * @param op
 		 *            The operation this expression descibes; may not be null.
 		 * @param lhs
@@ -281,12 +281,12 @@ public interface Expr extends SyntacticElement {
 		}
 
 		public String toString() {
-			return "(" + getOp() + " " + getLhs() + " " + getRhs() + ")";
+			return "(" + getLhs() + " " + getOp() + " " + getRhs() + ")";
 		}
 
 		/**
 		 * Get the left-hand side of this binary expression.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Expr getLhs() {
@@ -295,7 +295,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the right-hand side of this binary expression.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Expr getRhs() {
@@ -304,7 +304,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the operation that this binary expression represents.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public BOp getOp() {
@@ -318,9 +318,9 @@ public interface Expr extends SyntacticElement {
 	 * we have an instance of <code>Is</code> to represent the type test
 	 * whose left-hand side is an instance of <code>Variable</code> and
 	 * right-hand side is an instance of <code>Int</code>.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Is extends SyntacticElement.Impl implements Expr {
 
@@ -330,7 +330,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a type test from a given left-hand expression and
 		 * right-hand type.
-		 * 
+		 *
 		 * @param lhs
 		 *            The left-hand side; may not be null.
 		 * @param rhs
@@ -346,7 +346,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a type test from a given left-hand expression and
 		 * right-hand type.
-		 * 
+		 *
 		 * @param lhs
 		 *            The left-hand side; may not be null.
 		 * @param rhs
@@ -358,14 +358,14 @@ public interface Expr extends SyntacticElement {
 			this.lhs = lhs;
 			this.rhs = rhs;
 		}
-		
+
 		public String toString() {
 			return "(is " + getLhs() + " " + getRhs() + ")";
 		}
 
 		/**
 		 * Get the left-hand side of this type test.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Expr getLhs() {
@@ -374,14 +374,14 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the right-hand side of this type test.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Type getRhs() {
 			return rhs;
 		}
 	}
-	
+
 	/**
 	 * <p>
 	 * Represents a list or string access expression, which may also form the
@@ -394,9 +394,9 @@ public interface Expr extends SyntacticElement {
 	 * exceptions, in the case that the index is negative or larger or equal to
 	 * the size of the source list.
 	 * </p>
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class IndexOf extends SyntacticElement.Impl implements
 			Expr, LVal {
@@ -407,7 +407,7 @@ public interface Expr extends SyntacticElement {
 		 * Create a list access expression from a given source expression (which
 		 * must evaluate to a list value) and index expression (which must
 		 * evaluate to an integer value).
-		 * 
+		 *
 		 * @param source
 		 *            The source expression which generates a list value; may
 		 *            not be null.
@@ -426,7 +426,7 @@ public interface Expr extends SyntacticElement {
 		 * Create a list access expression from a given source expression (which
 		 * must evaluate to a list value) and index expression (which must
 		 * evaluate to an integer value).
-		 * 
+		 *
 		 * @param source
 		 *            The source expression which generates a list value; may
 		 *            not be null.
@@ -447,7 +447,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the source expression for this list access.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Expr getSource() {
@@ -456,7 +456,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the index expression for this list access.
-		 * 
+		 *
 		 * @return Guaranteed to be non-null.
 		 */
 		public Expr getIndex() {
@@ -485,9 +485,9 @@ public interface Expr extends SyntacticElement {
 	 * expression. For example, in the expression <code>!x</code> which have a
 	 * <code>Unary</code> instance representing the logical inversion whose
 	 * sub-expression is a <code>Variable</code> instance.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Unary extends SyntacticElement.Impl implements Expr {
 
@@ -497,7 +497,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a unary expression from a given unary operation, and
 		 * sub-expression.
-		 * 
+		 *
 		 * @param op
 		 *            The unary operation this expression represents; may not be
 		 *            null.
@@ -519,7 +519,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the operation this unary expression represents; guaranteed to be
 		 * non-null.
-		 * 
+		 *
 		 * @return
 		 */
 		public UOp getOp() {
@@ -529,7 +529,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the sub-expression this unary expression operates over;
 		 * guaranteed to be non-null.
-		 * 
+		 *
 		 * @return
 		 */
 		public Expr getExpr() {
@@ -540,20 +540,20 @@ public interface Expr extends SyntacticElement {
 	/**
 	 * Represents a cast expression, which converts an expression of one type to
 	 * an expression of another.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Cast extends SyntacticElement.Impl implements Expr {
 		private final Type type;
 		private final Expr source;
-		
+
 		public Cast(Type type, Expr src, Attribute... attributes) {
 			super(attributes);
 			this.type = type;
 			this.source = src;
 		}
-		
+
 		public Cast(Type type, Expr src, Collection<Attribute> attributes) {
 			super(attributes);
 			this.type = type;
@@ -573,9 +573,9 @@ public interface Expr extends SyntacticElement {
 	 * more element expressions. For example, <code>[1,2,3]</code>,
 	 * <code>[1,x]</code> and <code>[]</code> are valid list constructor
 	 * expressions.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class ListConstructor extends SyntacticElement.Impl implements
 			Expr {
@@ -585,7 +585,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a list constructor expression from a list of zero or more
 		 * element expressions.
-		 * 
+		 *
 		 * @param arguments
 		 *            A list of zero or more element expressions; may not be
 		 *            null.
@@ -600,7 +600,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a list constructor expression from a list of zero or more
 		 * element expressions.
-		 * 
+		 *
 		 * @param arguments
 		 *            A list of zero or more element expressions; may not be
 		 *            null.
@@ -617,7 +617,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the list of element expressions used in this list constructor
 		 * expression.
-		 * 
+		 *
 		 * @return A list of zero or more expression; guaranteed to be non-null.
 		 */
 		public List<Expr> getArguments() {
@@ -630,9 +630,9 @@ public interface Expr extends SyntacticElement {
 	 * expression</i> and <i>field name</i>. For example, in the expression
 	 * <code>x.f</code> the variable <code>x</code> is the source expression,
 	 * whilst the field name is <code>f</code>.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class RecordAccess extends SyntacticElement.Impl implements
 			LVal {
@@ -643,7 +643,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a record access expression from a given source expression
 		 * and field name.
-		 * 
+		 *
 		 * @param source
 		 *            An expression which must evaluate to a record containing a
 		 *            field with the given name; may not be null.
@@ -664,7 +664,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the source expression for this record access.
-		 * 
+		 *
 		 * @return
 		 */
 		public Expr getSource() {
@@ -673,7 +673,7 @@ public interface Expr extends SyntacticElement {
 
 		/**
 		 * Get the field name for this record access.
-		 * 
+		 *
 		 * @return
 		 */
 		public String getName() {
@@ -687,9 +687,9 @@ public interface Expr extends SyntacticElement {
 	 * <code>{x: 1, y: 2}</code> evaluates to produce a record containing the
 	 * fields <code>x</code> and <code>y</code> which (respectively) hold the
 	 * values <code>1</code> and <code>2</code>.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class RecordConstructor extends SyntacticElement.Impl
 			implements Expr {
@@ -699,7 +699,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a record constructor expression from a given mapping of
 		 * field names to their generating expressions.
-		 * 
+		 *
 		 * @param fields
 		 *            A map of zero or more field names to generating
 		 *            expressions; may not be null.
@@ -714,7 +714,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the mapping from field names to generating expressions;
 		 * guaranteed to be non-null.
-		 * 
+		 *
 		 * @return
 		 */
 		public List<Pair<String, Expr>> getFields() {
@@ -727,9 +727,9 @@ public interface Expr extends SyntacticElement {
 	 * name</i> and zero or more <i>argument expressions</i>. For example,
 	 * <code>f(1)</code> is an invocation expression for the function named
 	 * <code>f</code> which accepts a single argument.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Invoke extends SyntacticElement.Impl implements Expr,
 			Stmt {
@@ -740,7 +740,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Construct a function invocation expression from a given function name
 		 * and list of zero or more argument expressions.
-		 * 
+		 *
 		 * @param name
 		 *            The function name that this invocation will call; may not
 		 *            be null.
@@ -759,7 +759,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the function name being invoked in this expression; guaranteed to
 		 * be non-null.
-		 * 
+		 *
 		 * @return
 		 */
 		public String getName() {
@@ -769,7 +769,7 @@ public interface Expr extends SyntacticElement {
 		/**
 		 * Get the list of zero or more argument expression being pass to the
 		 * function being invoked in this expression; guaranteed to be non-null.
-		 * 
+		 *
 		 * @return
 		 */
 		public List<Expr> getArguments() {
