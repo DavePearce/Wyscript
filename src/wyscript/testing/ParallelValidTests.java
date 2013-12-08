@@ -9,13 +9,14 @@ import org.junit.Test;
 import static wyscript.testing.TestUtils.*;
 public class ParallelValidTests {
 	private static final String testdir = "partests/runtests/";
+	private static final String JCUDA_HOME = "";
 
 	protected void runParInterpreterTest(String name) {
 		// The name of the file which contains the output for this test
 		String sampleOutputFile = testdir + File.separatorChar + name
 				+ ".sysout";
 		// Classpath to project root
-		String classPath = "../../bin/";
+		String classPath = "../../bin/:"+JCUDA_HOME;
 
 		// First, execute the While program using the interpreter
 		String output = TestUtils.parExec(classPath, testdir, "wyscript.Main", name + ".wys");
@@ -39,5 +40,12 @@ public class ParallelValidTests {
 	public void parFor_Valid_4() {
 		runParInterpreterTest("ParFor_Valid_4");
 	}
-
+	@Test
+	public void parFor_Valid_5() {
+		runParInterpreterTest("ParFor_Valid_5");
+	}
+	@Test
+	public void parFor_Valid_6() {
+		runParInterpreterTest("ParFor_Valid_6");
+	}
 }

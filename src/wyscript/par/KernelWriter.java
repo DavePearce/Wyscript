@@ -4,14 +4,20 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import com.sun.org.apache.xml.internal.utils.ObjectPool;
+
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
 import wyscript.lang.Expr.BOp;
+import wyscript.lang.Expr.LVal;
+import wyscript.lang.Expr.Unary;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
@@ -47,20 +53,11 @@ public class KernelWriter {
 	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
 
-	private int begin;
-	private int end;
-	private int increment;
-
 	private List<String> tokens = new ArrayList<String>();
 	private List<String> parameters = new ArrayList<String>();
-
 	private Map<String , Type> environment; //passed to kernel writer at runtime
-
 	private Set<String> nonParameterVars = new HashSet<String>();
-
-	public Map<String, Type> getEnvironment() {
-		return environment;
-	}
+	private Map<String,String> lengthMap = new HashMap<String,String>();
 	private String indexName = "i";
 	private String fileName;
 	private String ptxFileName;
@@ -80,10 +77,10 @@ public class KernelWriter {
 		this.fileName = filename;
 		this.body = loop.getBody();
 		this.loop = loop;
-		generateFunctionParameters();
+		generateFunctionParameters(loop.getBody());
 		writeFunctionDeclaration();
 		tokens.add("{");
-		convertBody(body);
+		writeBody(body);
 		tokens.add("}");
 		try {
 			saveAndCompileKernel(fileName+".cu");
@@ -95,6 +92,7 @@ public class KernelWriter {
 	public void saveAndCompileKernel(String name) throws IOException {
 		// first save the token list to file
 		File file = new File(name);
+		//System.out.println("Wrote file to "+file.getAbsolutePath());
 		FileWriter  writer = new FileWriter(file);
 		//System.out.println("Compiling in "+file.getAbsolutePath());
 
@@ -150,7 +148,7 @@ public class KernelWriter {
         }
 
         if (exitValue != 0) {
-        	System.out.println(convertStreamToString(process.getErrorStream()));
+        	///System.out.println(convertStreamToString(process.getErrorStream()));
         	InternalFailure.internalFailure("Failed to compile .ptx file for " +
         			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
         }
@@ -158,7 +156,7 @@ public class KernelWriter {
         //System.out.println("Finished creating PTX file");
         return ptxFileName;
     }
-    static String convertStreamToString(java.io.InputStream is) {
+    private static String convertStreamToString(java.io.InputStream is) {
         java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
         return s.hasNext() ? s.next() : "";
     }
@@ -170,9 +168,11 @@ public class KernelWriter {
 	 * @requires loop != null and loop contains no illegal statements
 	 * @ensures that all parameters necessary for a Cuda kernel are stored.
 	 */
-	private void generateFunctionParameters() {
+	private void generateFunctionParameters(Collection<Stmt> body) {
 		//scan the loop body, determine what must be added as parameter
-		for (Stmt statement : loop.getBody()) {
+		//first exclude the loop index
+		nonParameterVars.add(loop.getIndex().getName());
+		for (Stmt statement : body) {
 		//check for mutabilities in assignment
 			if (statement instanceof Stmt.Assign) {
 				Stmt.Assign assign = (Stmt.Assign) statement;
@@ -192,6 +192,14 @@ public class KernelWriter {
 							parameters.contains(indexName));
 				}
 				scanExpr(vardec.getExpr());
+			}else if (statement instanceof Stmt.IfElse) {
+				Stmt.IfElse ifelse = (Stmt.IfElse) statement;
+				scanExpr(ifelse.getCondition());
+				generateFunctionParameters(ifelse.getTrueBranch());
+				generateFunctionParameters(ifelse.getFalseBranch());
+			}else {
+				InternalFailure.internalFailure("Encountered unexpected statement type "
+			+statement.getClass(), fileName, statement);
 			}
 		}
 	}
@@ -217,6 +225,8 @@ public class KernelWriter {
 			scanExpr(binary.getRhs());
 		}else if (expr instanceof Expr.IndexOf) {
 			scanIndexOf((Expr.IndexOf)expr);
+		}else {
+			//should not have to worry, this expr won't need params
 		}
 	}
 	/**
@@ -253,7 +263,14 @@ public class KernelWriter {
 					tokens.add(",");
 					tokens.add("int*");
 					//qualify length of array with '_length'
-					tokens.add(name + "_length");
+					String lengthName = name + "_length";
+					if (parameters.contains(lengthName)) {
+						//TODO make this fail-safe and de-alias the name
+						InternalFailure.internalFailure("Parameter with name "+
+					lengthName+" preventing addition of length parameter", fileName, type);
+					}
+					tokens.add(lengthName);
+					lengthMap.put(name, lengthName);
 				}else {
 					InternalFailure.internalFailure("List type should be int for kernel conversion", null, list);
 				}
@@ -308,10 +325,34 @@ public class KernelWriter {
 	 *
 	 * @requires body != null and every element of body is a legal statement
 	 */
-	private void convertBody(ArrayList<Stmt> body) {
+	private void writeBody(ArrayList<Stmt> body) {
 		writeThreadIndex();
+		writeGuardBegin();
 		for (Stmt statement : body) {
 			write(statement);
+		}
+		tokens.add("}"); //add end of guard
+	}
+	private void writeGuardBegin() {
+		Expr src = loop.getSource();
+		Expr.Binary srcBinary = (Expr.Binary) src;
+		if (srcBinary.getOp().equals(Expr.BOp.RANGE)) {
+			Expr low = srcBinary.getLhs();
+			Expr.Unary high = (Unary) srcBinary.getRhs();
+			tokens.add("if");
+			tokens.add("(");
+			tokens.add(indexName);
+			tokens.add("<");
+			write(high);
+			tokens.add("&&");
+			tokens.add(indexName);
+			tokens.add(">=");
+			write(low);
+			tokens.add(")");
+			tokens.add("{");
+		}else {
+			InternalFailure.internalFailure("Expected loop source to be range " +
+					"operator", fileName, src);
 		}
 	}
 	private void writeThreadIndex() {
@@ -382,6 +423,8 @@ public class KernelWriter {
 			write((Expr.IndexOf)expression);
 		}else if (expression instanceof Expr.Binary) {
 			write((Expr.Binary) expression);
+		}else if (expression instanceof Expr.Unary) {
+			write((Expr.Unary)expression);
 		}
 		else{
 			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", fileName, expression);
@@ -395,6 +438,7 @@ public class KernelWriter {
 	 * and referencing of pointers.
 	 */
 	private void write(Expr.LVal val) {
+		tokens.add("(");
 		if (val instanceof Expr.Variable) {
 			//if this is a parameter, have to dereference the pointer
 			if (parameters.contains(((Expr.Variable)val).getName())) {
@@ -404,8 +448,10 @@ public class KernelWriter {
 			Expr.Variable variable = (Expr.Variable) val;
 			//simply add the variable name
 			tokens.add(variable.getName());
+			tokens.add(")");
 		}else if (val instanceof Expr.IndexOf) {
 			write((Expr.IndexOf)val);
+			tokens.add(")");
 		}
 
 	}
@@ -418,6 +464,43 @@ public class KernelWriter {
 		tokens.add("(");
 		write(binary.getRhs());
 		tokens.add(")");
+	}
+	private void write(Expr.Unary unary) {
+		//TODO fill me up so that I take length operations
+		switch (unary.getOp()) {
+		case LENGTHOF:
+			writeLengthOf(unary.getExpr());
+			break;
+		case NEG:
+			tokens.add("-");
+			tokens.add("(");
+			write(unary.getExpr());
+			tokens.add(")");
+			break;
+		case NOT:
+			tokens.add("!");
+			tokens.add("(");
+			write(unary.getExpr());
+			tokens.add(")");
+			break;
+		default:
+			InternalFailure.internalFailure("Unknown unary expression encountered"
+					, fileName, unary);
+
+		}
+	}
+	private void writeLengthOf(Expr expr) {
+		if (expr instanceof Expr.Variable) {
+			String name = ((Expr.Variable)expr).getName();
+			tokens.add("(");
+			tokens.add("*");
+			String lengthName = lengthMap.get(name);
+			tokens.add(lengthName);
+			tokens.add(")");
+		}else {
+			//TODO Implement me
+			InternalFailure.internalFailure("Writing length of this expression not implemented", fileName, expr);
+		}
 	}
 	private void writeOp(BOp op) {
 		tokens.add(op.toString());
@@ -489,6 +572,7 @@ public class KernelWriter {
 		Expr expression = statement.getCondition();
 		write(expression);
 		tokens.add(")");
+		tokens.add("{");
 		//branches may be empty
 		for (Stmt s : statement.getTrueBranch()) {
 			write(s); //write the single statement
@@ -553,19 +637,13 @@ public class KernelWriter {
 	public KernelRunner getRunner() {
 		return new KernelRunner(this);
 	}
-	public int getBegin() {
-		return begin;
-	}
-	public int getEnd() {
-		return end;
-	}
-	public int getIncrement() {
-		return increment;
-	}
 	public List<String> getParameters() {
 		return new ArrayList<String>(parameters);
 	}
 	public SyntacticElement getLoop() {
 		return loop;
+	}
+	public Map<String, Type> getEnvironment() {
+		return environment;
 	}
 }

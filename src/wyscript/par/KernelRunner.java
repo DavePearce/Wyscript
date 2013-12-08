@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import jcuda.*;
+import jcuda.NativePointerObject;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
@@ -102,11 +103,8 @@ public class KernelRunner {
 	 */
 	public Object run(HashMap<String, Object> frame) {
 		long time = System.currentTimeMillis();
-		//paramPointers.add(Pointer.to(new int[] { numParams })); // add the count
 		List<CUdeviceptr> pointers = marshallParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
-		//marshallParametersToGPU(frame);
-		//System.out.println("MARSHALL TO GPU TOOK : "+(System.currentTimeMillis()-time));
 		time = System.currentTimeMillis();
 		int result = cuLaunchKernel(function,
 				gridDim, 1, 1,
@@ -169,7 +167,7 @@ public class KernelRunner {
 				i++;
 				listCount++;
 			}else if (type instanceof Type.Int) {
-				marshallIntFromGPU(frame,i);
+				marshallIntFromGPU(frame,i-listCount);
 			}else {
 				InternalFailure.internalFailure("Could not unmarshall " +
 						"unrecognised type", writer.getPtxFile().getPath() , type);

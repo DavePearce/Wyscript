@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 
 import wyscript.lang.Expr;
-import wyscript.lang.Expr.Binary;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
@@ -68,7 +67,6 @@ public class KernelGenerator {
 	 */
 	private static void scanFuncBody(WyscriptFile.FunDecl function , String funcname , WyscriptFile file) {
 		int loopPosition = 0;
-		TypeChecker checker = new TypeChecker();
 		//Map<String, Type> environment = new HashMap<String,Type>();
 		//checker.check(function.statements , environment);
 		Map<String,Type> env = new HashMap<String,Type>();
@@ -78,9 +76,12 @@ public class KernelGenerator {
 			env = getEnvironment(statement, file , env);
 			if (statement instanceof Stmt.ParFor) {
 				Stmt.ParFor loop = (Stmt.ParFor) statement;
+				String indexName = loop.getIndex().getName();
+				HashMap<String,Type> newEnv = new HashMap<String,Type>(env);
+//				newEnv.put(indexName, new Type.Int());
 				String id = funcname + Integer.toString(loopPosition);
 				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
-						, new HashMap<String,Type>(env), id);
+						, newEnv , id);
 				//now plug the kernel runner into the loop
 				loop.setKernelRunner(runner);
 				loopPosition++;
@@ -94,7 +95,8 @@ public class KernelGenerator {
 	 * @param id The file name under which the loop is invoked
 	 * @return
 	 */
-	private static KernelRunner generateForKernel(Stmt.ParFor loop , Map<String,Type> environment , String id) {
+	private static KernelRunner generateForKernel(Stmt.ParFor loop ,
+			Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
 		writer = new KernelWriter(id, environment, loop);
 		return writer.getRunner();
@@ -105,13 +107,16 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	public static Map<String,Type> getEnvironment(Stmt stmt, WyscriptFile file,Map<String,Type> env) {
+	public static Map<String,Type> getEnvironment(Stmt stmt, WyscriptFile file,
+			Map<String,Type> env) {
 		if (stmt instanceof Stmt.VariableDeclaration) {
 				getEnvironment((Stmt.VariableDeclaration)stmt,env,file);
 		}
 		return env;
 	}
-	private static void getEnvironment(Stmt.VariableDeclaration stmt, Map<String, Type> environment, WyscriptFile file) {
+
+	private static void getEnvironment(Stmt.VariableDeclaration stmt, Map<String, Type>
+	environment, WyscriptFile file) {
 		Expr expression = stmt.getExpr();
 		String name = stmt.getName();
 		environment.put(name, getType(expression,file));
@@ -127,10 +132,11 @@ public class KernelGenerator {
 			//return the element type of the list
 			return getType((Expr.IndexOf)expression,file);
 		}else if (expression instanceof Expr.ListConstructor) {
-			//return the element of greatest type
+			//return the element of greatest type from the list
+			//TODO this may be incorrect.
 			return getType((Expr.ListConstructor)expression,file);
 		}else if (expression instanceof Expr.Variable) {
-			//returns the
+			//returns the type of a declared variable
 			return getType((Expr.Variable)expression,file);
 		}else if (expression instanceof Expr.Cast) {
 			return getType((Expr.Cast)expression,file);
@@ -172,6 +178,13 @@ public class KernelGenerator {
 	private static Type getType(Expr.Cast expression,WyscriptFile file) {
 		return expression.getType();
 	}
+	/**
+	 * Returns the type of the expression referenced by the given
+	 * indexOF expression.
+	 * @param expression
+	 * @param file
+	 * @return
+	 */
 	private static Type getType(Expr.IndexOf expression,WyscriptFile file) {
 		Type srcType = getType(expression.getSource(),file);
 		if (srcType instanceof Type.List) {
@@ -182,6 +195,12 @@ public class KernelGenerator {
 		}
 		return null; //unreachable
 	}
+	/**
+	 * Returns the return-type of a "invoke" expression
+	 * @param expression
+	 * @param file
+	 * @return
+	 */
 	private static Type getType(Expr.Invoke expression,WyscriptFile file) {
 		String name = expression.getName();
 		List<WyscriptFile.FunDecl> decls = file.functions(name);
@@ -236,7 +255,7 @@ public class KernelGenerator {
 	/**
 	 * Returns the greater of the two types.
 	 *
-	 * If both t1 and t2 are equivilent, then t1 is returned.
+	 * If both t1 and t2 are equivalent, then t1 is returned.
 	 * @param t1
 	 * @param t2
 	 * @param file

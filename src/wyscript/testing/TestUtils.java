@@ -91,6 +91,7 @@ public class TestUtils {
 			for (String arg : args) {
 				tmp += " " + arg;
 			}
+			System.out.println("Running command: "+tmp);
 			Process p = Runtime.getRuntime().exec(tmp, null, new File(srcDir));
 
 			StringBuffer syserr = new StringBuffer();
@@ -100,11 +101,11 @@ public class TestUtils {
 			int exitCode = p.waitFor();
 			if (exitCode != 0) {
 				System.err
-						.println("============================================================");
+						.println("====================ERROR  BEGIN============================");
 				System.err.println(className);
-				System.err
-						.println("============================================================");
 				System.err.println(syserr);
+				System.err
+						.println("====================ERROR  END =============================");
 				return null;
 			} else {
 				return sysout.toString();
