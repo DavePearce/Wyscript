@@ -97,6 +97,9 @@ public class KernelWriter {
 		//System.out.println("Compiling in "+file.getAbsolutePath());
 
 		for (String token : tokens) {
+			if (token ==null) {
+				System.out.println("Null token");
+			}
 			writer.write(token);
 			if (token.equals(";") || token.equals("{")) {
 				writer.write("\n");
@@ -172,6 +175,7 @@ public class KernelWriter {
 		//scan the loop body, determine what must be added as parameter
 		//first exclude the loop index
 		nonParameterVars.add(loop.getIndex().getName());
+		scanExpr(loop.getSource());
 		for (Stmt statement : body) {
 		//check for mutabilities in assignment
 			if (statement instanceof Stmt.Assign) {
@@ -225,7 +229,10 @@ public class KernelWriter {
 			scanExpr(binary.getRhs());
 		}else if (expr instanceof Expr.IndexOf) {
 			scanIndexOf((Expr.IndexOf)expr);
-		}else {
+		}else if (expr instanceof Expr.Unary) {
+			scanExpr(((Expr.Unary) expr).getExpr());
+		}
+		else {
 			//should not have to worry, this expr won't need params
 		}
 	}
@@ -338,7 +345,7 @@ public class KernelWriter {
 		Expr.Binary srcBinary = (Expr.Binary) src;
 		if (srcBinary.getOp().equals(Expr.BOp.RANGE)) {
 			Expr low = srcBinary.getLhs();
-			Expr.Unary high = (Unary) srcBinary.getRhs();
+			Expr high = srcBinary.getRhs();
 			tokens.add("if");
 			tokens.add("(");
 			tokens.add(indexName);

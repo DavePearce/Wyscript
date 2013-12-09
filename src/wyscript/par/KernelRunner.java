@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 
 import jcuda.*;
-import jcuda.NativePointerObject;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
@@ -160,14 +159,15 @@ public class KernelRunner {
 		int listCount = 0;
 		for (int i = 0 ; i < devicePointers.size() ; i++) {
 			Map<String, Type> environment = writer.getEnvironment();
-			Type type = environment.get(parameters.get(i-listCount)); //compensating for offset of 1
+			String parameter = parameters.get(i-listCount);
+			Type type = environment.get(parameter); //compensating for offset of 1
 			//convert from int* to [int]
 			if (type instanceof Type.List) {
-				marshallListFromGPU(frame,i-listCount,type);
+				marshallFromGPUList(frame,parameter,i,type);
 				i++;
 				listCount++;
 			}else if (type instanceof Type.Int) {
-				marshallIntFromGPU(frame,i-listCount);
+				marshallFromGPUInt(frame,parameter,i);
 			}else {
 				InternalFailure.internalFailure("Could not unmarshall " +
 						"unrecognised type", writer.getPtxFile().getPath() , type);
@@ -180,8 +180,7 @@ public class KernelRunner {
 	 * @param index
 	 * @param type
 	 */
-	private void marshallListFromGPU(HashMap<String, Object> frame, int index,Type type) {
-		String name = parameters.get(index);
+	private void marshallFromGPUList(HashMap<String, Object> frame, String name , int index,Type type) {
 		ArrayList<Integer> listObject = (ArrayList<Integer>) frame.get(name);
 		//prepare variables for copying
 		int length = listObject.size();
@@ -198,13 +197,13 @@ public class KernelRunner {
 	/**
 	 * Marshalls a single int from the GPU and places it on the frame.
 	 * @param frame
-	 * @param index
+	 * @param name
+	 * @param paramIndex
 	 */
-	private void marshallIntFromGPU(HashMap<String, Object> frame, int index) {
-		String name = parameters.get(index);
+	private void marshallFromGPUInt(HashMap<String, Object> frame, String name, int paramIndex) {
 		int[] data = new int[1];
 		//copy only one integer (maybe 4 bytes)
-		cuMemcpyDtoH(Pointer.to(data), devicePointers.get(index), Sizeof.INT);
+		cuMemcpyDtoH(Pointer.to(data), devicePointers.get(paramIndex), Sizeof.INT);
 		//change frame
 		frame.put(name, data[0]);
 	}
@@ -224,7 +223,7 @@ public class KernelRunner {
 			if (type instanceof Type.List) {
 				marshallListToGPU(frame, i , (Type.List) type);
 			}else if (type instanceof Type.Int) {
-				marshallIntToGPU(frame, i);
+				marshallToGPUInt(frame, i);
 			}else {
 				InternalFailure.internalFailure("Could not marshall paramater to GPU",
 						file.getName(), type);
@@ -237,7 +236,7 @@ public class KernelRunner {
 	 * @param frame
 	 * @param index
 	 */
-	private void marshallIntToGPU(HashMap<String, Object> frame, int index) {
+	private void marshallToGPUInt(HashMap<String, Object> frame, int index) {
 		int value = (Integer) frame.get(parameters.get(index));
 		CUdeviceptr dpointer = generateH2DPointer(1,
 				new int[] {value});

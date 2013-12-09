@@ -119,34 +119,34 @@ public class KernelGenerator {
 	environment, WyscriptFile file) {
 		Expr expression = stmt.getExpr();
 		String name = stmt.getName();
-		environment.put(name, getType(expression,file));
+		environment.put(name, getType(expression,file,environment));
 	}
-	private static Type getType(Expr expression,WyscriptFile file) {
+	private static Type getType(Expr expression,WyscriptFile file, Map<String, Type> env) {
 		if (expression instanceof Expr.Binary) {
 			//return the greater of either types
-			return getType((Expr.Binary)expression,file);
+			return getType((Expr.Binary)expression,file,env);
 		}else if (expression instanceof Expr.Constant) {
 			Expr.Constant constant = (Expr.Constant)expression;
-			return getType(constant,file);
+			return getType(constant,file,env);
 		}else if (expression instanceof Expr.IndexOf) {
 			//return the element type of the list
-			return getType((Expr.IndexOf)expression,file);
+			return getType((Expr.IndexOf)expression,file,env);
 		}else if (expression instanceof Expr.ListConstructor) {
 			//return the element of greatest type from the list
 			//TODO this may be incorrect.
-			return getType((Expr.ListConstructor)expression,file);
+			return getType((Expr.ListConstructor)expression,file,env);
 		}else if (expression instanceof Expr.Variable) {
 			//returns the type of a declared variable
-			return getType((Expr.Variable)expression,file);
+			return getType((Expr.Variable)expression,file,env);
 		}else if (expression instanceof Expr.Cast) {
-			return getType((Expr.Cast)expression,file);
+			return getType((Expr.Cast)expression,file,env);
 		}else if (expression instanceof Expr.Invoke){
-			return getType((Expr.Invoke)expression,file);
+			return getType((Expr.Invoke)expression,file,env);
 		}else if (expression instanceof Expr.RecordAccess){
-			return getType((Expr.RecordAccess)expression,file);
+			return getType((Expr.RecordAccess)expression,file,env);
 		}else if (expression instanceof Expr.Unary) {
 			Expr.Unary unary = (Expr.Unary)expression;
-			return getType(unary.getExpr(),file);
+			return getType(unary,file,env);
 		}
 		return null;
 	}
@@ -157,14 +157,38 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.Binary expression, WyscriptFile file) {
-		Expr lhs = expression.getLhs();
-		Expr rhs = expression.getRhs();
-		Type t1 = getType(lhs, file);
-		Type t2 = getType(rhs, file);
-		return greaterType(t1,t2,file);
+	private static Type getType(Expr.Binary expression, WyscriptFile file,Map<String,Type> env) {
+		switch (expression.getOp()) {
+		case APPEND:
+			InternalFailure.internalFailure("Cannot infer type of APPEND -- not implemented",
+					file.filename,expression);
+			break;
+		case EQ:
+			InternalFailure.internalFailure("Cannot infer type of EQ -- not implemented",
+					file.filename,expression);
+			break;
+		case NEQ:
+			InternalFailure.internalFailure("Cannot infer type of NEQ -- not implemented",
+					file.filename,expression);
+			break;
+		case RANGE:
+			Type t1 = getType(expression.getLhs(), file, env);
+			Type t2 = getType(expression.getRhs(), file, env);
+			Type greater = greaterType(t1,t2,file);
+			return new Type.List(greater);
+		default:
+			Expr lhs = expression.getLhs();
+			Expr rhs = expression.getRhs();
+			t1 = getType(lhs, file ,env);
+			t2 = getType(rhs, file,env);
+			return greaterType(t1,t2,file);
+		}
+		return null; //unreachable
 	}
-	private static Type getType(Expr.Constant constant,WyscriptFile file) {
+	private static Type getType(Expr.Variable variable, WyscriptFile file,Map<String,Type> env) {
+		return env.get(variable.getName());
+	}
+	private static Type getType(Expr.Constant constant,WyscriptFile file,Map<String,Type> env) {
 		Object val = constant.getValue();
 		if (val instanceof Integer) return new Type.Int();
 		else if (val instanceof Double) return new Type.Real(); //ahem is this correct
@@ -175,7 +199,7 @@ public class KernelGenerator {
 		else InternalFailure.internalFailure("Could not infer constant type", file.filename, constant);
 		return null; //unreachable
 	}
-	private static Type getType(Expr.Cast expression,WyscriptFile file) {
+	private static Type getType(Expr.Cast expression,WyscriptFile file,Map<String,Type> env) {
 		return expression.getType();
 	}
 	/**
@@ -185,8 +209,8 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.IndexOf expression,WyscriptFile file) {
-		Type srcType = getType(expression.getSource(),file);
+	private static Type getType(Expr.IndexOf expression,WyscriptFile file,Map<String,Type> env) {
+		Type srcType = getType(expression.getSource(),file,env);
 		if (srcType instanceof Type.List) {
 			return ((Type.List)srcType).getElement();
 		}else {
@@ -201,7 +225,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.Invoke expression,WyscriptFile file) {
+	private static Type getType(Expr.Invoke expression,WyscriptFile file,Map<String,Type> env) {
 		String name = expression.getName();
 		List<WyscriptFile.FunDecl> decls = file.functions(name);
 		if (decls.size() == 0) {
@@ -219,7 +243,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return The type of the list constructor, which is invariably a List with a certain element type
 	 */
-	private static Type getType(Expr.ListConstructor expression,WyscriptFile file) {
+	private static Type getType(Expr.ListConstructor expression,WyscriptFile file,Map<String,Type> env) {
 		Expr expr1 = null;
 		Expr expr2 = null;
 		Type greatest = null;
@@ -229,8 +253,8 @@ public class KernelGenerator {
 				expr2 = expr;
 			}else {
 				//both expr1 and expr2 are non-null
-				Type t1 = getType(expr1, file);
-				Type t2 = getType(expr2, file);
+				Type t1 = getType(expr1, file,env);
+				Type t2 = getType(expr2, file,env);
 				greatest = greaterType(t1, t2, file);
 				expr2 = expr1;
 				expr2 = expr;
@@ -239,18 +263,30 @@ public class KernelGenerator {
 		if (expr1==null && expr2==null) {
 			return new Type.List(new Type.Void()); //TODO empty list may not have Void type element
 		}else if (expr1 != null && expr2 == null) {
-			return new Type.List(getType(expr1,file));
+			return new Type.List(getType(expr1,file,env));
 		}else {
 			return new Type.List(greatest);
 		}
 	}
-	private static Type getType(Expr.RecordAccess expression,WyscriptFile file) {
+	private static Type getType(Expr.RecordAccess expression,WyscriptFile file,Map<String,Type> env) {
 		//TODO Implement me!
 		return null;
 
 	}
-	private static Type getType(Expr.Unary expression,WyscriptFile file) {
-		return getType(expression.getExpr(),file);
+	private static Type getType(Expr.Unary expression,WyscriptFile file,Map<String,Type> env) {
+		switch (expression.getOp()) {
+		case LENGTHOF:
+			return new Type.Int();
+		case NEG:
+			return getType(expression.getExpr(), file, env);
+		case NOT:
+			return getType(expression.getExpr(),file,env);
+		default:
+			InternalFailure.internalFailure("Unknown unary operator: "+expression.getOp(),
+					file.filename, expression);
+
+		}
+		return null; //unreachable code
 	}
 	/**
 	 * Returns the greater of the two types.

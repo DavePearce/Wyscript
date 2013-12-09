@@ -1,5 +1,5 @@
-extern "C" __global__ void main0 ( int* c , int* c_length , int* a , int* a_length , int* b , int* b_length ) {
+extern "C" __global__ void main0 ( int* list , int* list_length ) {
  int i = blockIdx.x * blockDim.x + threadIdx.x ;
- if ( i < ( * a_length ) && i >= 0 ) {
- ( c [i] ) = ( ( a [i] ) ) * ( ( b [i] ) ) ;
+ if ( i < ( * list_length ) && i >= 0 ) {
+ ( list [i] ) = ( * list_length ) ;
  } } 

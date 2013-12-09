@@ -1,0 +1,6 @@
+void main():
+	[int] list = 0..20
+	parFor i in 0..|list|:
+		list[i] = |list|
+	for i in 0..|list|:
+		print list[i]
