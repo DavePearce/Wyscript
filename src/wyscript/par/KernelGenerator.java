@@ -99,7 +99,8 @@ public class KernelGenerator {
 			Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
 		writer = new KernelWriter(id, environment, loop);
-		return writer.getRunner();
+		KernelRunner runner = writer.getRunner();
+		return runner;
 	}
 	/**
 	 * Returns the entire environment of the function

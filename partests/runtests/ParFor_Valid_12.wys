@@ -1,0 +1,8 @@
+void main():
+	[int] lista = 0..20
+	[int] listb = 0..20
+	[int] listc = 0..20
+	parFor i in 0..|lista|:
+		listc[i] = lista[a]*listb[i] + (lista[i]*listb[i])*lista[i] - (lista[i]*listb[i])*lista[i] - (1 + 1 - 1 +  1 + lista[i]*listb[i])
+	for i in 0..|listc|:
+		print listc[i]

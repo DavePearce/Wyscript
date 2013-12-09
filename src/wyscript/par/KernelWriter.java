@@ -58,6 +58,7 @@ public class KernelWriter {
 	private Map<String , Type> environment; //passed to kernel writer at runtime
 	private Set<String> nonParameterVars = new HashSet<String>();
 	private Map<String,String> lengthMap = new HashMap<String,String>();
+
 	private String indexName = "i";
 	private String fileName;
 	private String ptxFileName;
@@ -158,10 +159,6 @@ public class KernelWriter {
 
         //System.out.println("Finished creating PTX file");
         return ptxFileName;
-    }
-    private static String convertStreamToString(java.io.InputStream is) {
-        java.util.Scanner s = new java.util.Scanner(is).useDelimiter("\\A");
-        return s.hasNext() ? s.next() : "";
     }
     /**
 	 * This method generates a string of function parameters and analyses the
@@ -293,7 +290,6 @@ public class KernelWriter {
 		tokens.add(")");
 	}
 	public String getFuncName() {
-		//TODO either remove me or implement me
 		return fileName;
 	}
 	/**
@@ -418,12 +414,13 @@ public class KernelWriter {
 	 * @ensures the Cuda form of the expression is written to the token list
 	 */
 	private void write(Expr expression) {
-		if (expression instanceof Expr.LVal) {
+		if (expression instanceof Expr.ListConstructor) {
+			write((Expr.ListConstructor) expression);
+		}
+		else if (expression instanceof Expr.LVal) {
 			write((Expr.LVal)expression);
 		}else if (expression instanceof Expr.Variable) {
 			write((Expr.Variable) expression);
-		}else if (expression instanceof Expr.ListConstructor) {
-			write((Expr.ListConstructor) expression);
 		}else if (expression instanceof Expr.Constant) {
 			write((Expr.Constant) expression);
 		}else if (expression instanceof Expr.IndexOf) {
@@ -432,6 +429,8 @@ public class KernelWriter {
 			write((Expr.Binary) expression);
 		}else if (expression instanceof Expr.Unary) {
 			write((Expr.Unary)expression);
+		}else if ((expression instanceof Expr.ListConstructor)) {
+			write((Expr.ListConstructor)expression);
 		}
 		else{
 			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", fileName, expression);
@@ -463,7 +462,6 @@ public class KernelWriter {
 
 	}
 	private void write(Expr.Binary binary) {
-		//TODO address the issue of precedence here
 		tokens.add("(");
 		write(binary.getLhs());
 		tokens.add(")");
@@ -473,7 +471,6 @@ public class KernelWriter {
 		tokens.add(")");
 	}
 	private void write(Expr.Unary unary) {
-		//TODO fill me up so that I take length operations
 		switch (unary.getOp()) {
 		case LENGTHOF:
 			writeLengthOf(unary.getExpr());
@@ -534,8 +531,16 @@ public class KernelWriter {
 	 * @param list
 	 */
 	private void write(Expr.ListConstructor list) {
-		InternalFailure.internalFailure("Writing list constructors not implemented"
-				, fileName, list);
+		tokens.add("{");
+		boolean needComma = false;
+		for (Expr expr : list.getArguments()) {
+			if (needComma) tokens.add(",");
+			write(expr);
+			needComma = true;
+		}
+		tokens.add("}");
+/*		InternalFailure.internalFailure("Writing list constructors not implemented"
+				, fileName, list);*/
 	}
 	/**
 	 * Write a single indexOf operation to token list
@@ -605,8 +610,21 @@ public class KernelWriter {
 			//now write the expression
 			write(decl.getExpr());
 			tokens.add(";");
-		}else {
-			InternalFailure.internalFailure("Cannot write variable declaration for the given type",null,null);
+		}else if (type instanceof Type.List) {
+			Type element = ((Type.List) type).getElement();
+			if (element instanceof Type.Int && decl.getExpr() instanceof Expr.ListConstructor) {
+				List<Expr> elements = ((Expr.ListConstructor)decl.getExpr()).getArguments();
+				tokens.add("int");
+				tokens.add(decl.getName());
+				tokens.add("["+elements.size()+"]");
+				tokens.add("=");
+				write((Expr.ListConstructor)decl.getExpr());
+			}else {
+				InternalFailure.internalFailure("Can only write explicit list of integers",fileName,decl);
+			}
+		}
+		else {
+			InternalFailure.internalFailure("Cannot write variable declaration for the given type",fileName,decl);
 
 		}
 	}
