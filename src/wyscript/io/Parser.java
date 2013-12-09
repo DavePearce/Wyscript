@@ -1617,6 +1617,7 @@ public class Parser {
 	private Token match(List<ParserErrorData> errors, Token.Kind kind,
 			Token.Kind follow) {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
+		followSet.add(follow);
 		return match(errors, kind, followSet);
 	}
 
