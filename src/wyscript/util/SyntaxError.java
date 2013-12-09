@@ -222,7 +222,7 @@ public class SyntaxError extends RuntimeException {
 
 		lineEnd = Math.min(lineEnd, text.length());
 		String[] result = {text.substring(lineStart, start), text.substring(Math.min(end+1, lineEnd), lineEnd)};
-
+		if (result[1].equals("")) result[1] = "\n";
 		output.println("Suggestion:\n" + result[0] + suggestion + result[1]);
 	}
 
