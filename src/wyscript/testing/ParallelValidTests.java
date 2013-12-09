@@ -60,4 +60,24 @@ public class ParallelValidTests {
 	public void parFor_valid_9() {
 		runParInterpreterTest("ParFor_Valid_9");
 	}
+	@Test
+	public void parFor_valid_10() {
+		runParInterpreterTest("ParFor_Valid_10");
+	}
+	@Test
+	public void parFor_valid_11() {
+		runParInterpreterTest("ParFor_valid_11");
+	}
+	@Test
+	public void parFor_valid_12() {
+		runParInterpreterTest("ParFor_Valid_12");
+	}
+	@Test
+	public void parFor_valid_13() {
+		runParInterpreterTest("ParFor_Valid_13");
+	}
+	@Test
+	public void parFor_valid_14() {
+		runParInterpreterTest("ParFor_Valid_14");
+	}
 }
