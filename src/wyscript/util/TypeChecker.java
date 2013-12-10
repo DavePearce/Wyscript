@@ -17,53 +17,59 @@ import static wyscript.util.SyntaxError.*;
  * Additionally, this phase annotates every expression with the type it returns.
  * This information can be used in subsequent phases (e.g. code generation).
  * </p>
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class TypeChecker {
 	private WyscriptFile file;
 	private WyscriptFile.FunDecl function;
-	private HashMap<String,WyscriptFile.FunDecl> functions; 
-	
+	private HashMap<String,WyscriptFile.FunDecl> functions;
+	private HashMap<String, Type> userTypes;
+
 	public void check(WyscriptFile wf) {
 		this.file = wf;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
-		
+		this.userTypes = new HashMap<String, Type>();
+
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				WyscriptFile.FunDecl fd = (WyscriptFile.FunDecl) declaration;
 				this.functions.put(fd.name(), fd);
 			}
+			else if (declaration instanceof WyscriptFile.TypeDecl) {
+				WyscriptFile.TypeDecl td = (WyscriptFile.TypeDecl) declaration;
+				userTypes.put(td.name(), td.type);
+			}
 		}
-		
+
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
 				check((WyscriptFile.FunDecl) declaration);
 			}
 		}
 	}
-	
+
 	public void check(WyscriptFile.FunDecl fd) {
 		this.function = fd;
-		
+
 		// First, initialise the typing environment
 		HashMap<String,Type> environment = new HashMap<String,Type>();
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
-		
+
 		// Second, check all statements in the function body
-		check(fd.statements,environment);				
+		check(fd.statements,environment);
 	}
-	
+
 	public void check(List<Stmt> statements, Map<String,Type> environment) {
 		for(Stmt s : statements) {
 			check(s,environment);
 		}
 	}
-	
-	public void check(Stmt stmt, Map<String,Type> environment) {			
+
+	public void check(Stmt stmt, Map<String,Type> environment) {
 		if(stmt instanceof Stmt.Assign) {
 			check((Stmt.Assign) stmt, environment);
 		} else if(stmt instanceof Stmt.Print) {
@@ -78,28 +84,30 @@ public class TypeChecker {
 			check((Stmt.IfElse) stmt, environment);
 		} else if(stmt instanceof Stmt.OldFor) {
 			check((Stmt.OldFor) stmt, environment);
-		} else if(stmt instanceof Stmt.While) {
+		} else if(stmt instanceof Stmt.For) {
+			check((Stmt.For) stmt, environment);
+		}	else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
-	
+
 	public void check(Stmt.Assign stmt, Map<String,Type> environment) {
 		Type lhs = check(stmt.getLhs(), environment);
 		Type rhs = check(stmt.getRhs(), environment);
 		checkSubtype(lhs,rhs,stmt);
 	}
-	
+
 	public void check(Stmt.Print stmt, Map<String,Type> environment) {
 		check(stmt.getExpr(),environment);
 	}
-	
+
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
 		Type actual = check(stmt.getExpr(), environment);
 		checkSubtype(function.ret, actual, stmt.getExpr());
 	}
-	
+
 	public void check(Stmt.VariableDeclaration stmt, Map<String,Type> environment) {
 		if(environment.containsKey(stmt.getName())) {
 			syntaxError("variable already declared: " + stmt.getName(),
@@ -110,27 +118,54 @@ public class TypeChecker {
 		}
 		environment.put(stmt.getName(), stmt.getType());
 	}
-	
+
 	public void check(Stmt.IfElse stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
-	
+
 	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
-		// TODO: implement me!
+		Stmt.VariableDeclaration d = stmt.getDeclaration();
+		if (d != null)
+			check(d, environment);
+
+		Expr e = stmt.getCondition();
+		if (e != null) {
+			Type e_t = check(e, environment);
+			checkSubtype(Type.Bool.class, e_t, e);
+		}
+
+		Stmt s = stmt.getIncrement();
+		if (s != null) {
+			check(s, environment);
+		}
+		check(stmt.getBody(), new HashMap<String,Type>(environment));
 	}
-	
+
+	public void check(Stmt.For stmt, Map<String, Type> environment) {
+		Expr e = stmt.getSource();
+		Expr.Variable v = stmt.getIndex();
+
+		Type t = check(e, environment);
+		if (!(t instanceof Type.List))
+			syntaxError("For loop source expression must evaluate to a list type", file.filename, e);
+
+		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
+		newEnv.put(v.getName(), ((Type.List)t).getElement());
+		check(stmt.getBody(), newEnv);
+	}
+
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getBody(), new HashMap<String,Type>(environment));
 	}
-	
+
 	public Type check(Expr expr, Map<String,Type> environment) {
 		Type type;
-		
+
 		if(expr instanceof Expr.Binary) {
 			type = check((Expr.Binary) expr, environment);
 		} else if(expr instanceof Expr.Cast) {
@@ -146,35 +181,116 @@ public class TypeChecker {
 		} else if(expr instanceof Expr.RecordAccess) {
 			type = check((Expr.RecordAccess) expr, environment);
 		} else if(expr instanceof Expr.RecordConstructor) {
-			type = check((Expr.ListConstructor) expr, environment);
+			type = check((Expr.RecordConstructor) expr, environment);
 		} else if(expr instanceof Expr.Unary) {
 			type = check((Expr.Unary) expr, environment);
 		} else if(expr instanceof Expr.Variable) {
 			type = check((Expr.Variable) expr, environment);
+		} else if(expr instanceof Expr.Is) {
+			type = check((Expr.Is) expr, environment);
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 			return null; // dead code
-		} 
-		
+		}
+
 		// Here, we annotate the computed return type to the expression.
 		expr.attributes().add(new Attribute.Type(type));
-		
+
 		return type;
 	}
-	
+
 	public Type check(Expr.Binary expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+		switch (expr.getOp()) {
+
+		case APPEND:
+			//Check if lhs is a string, or both types are lists
+			boolean isString = false;
+			Type left = check(expr.getLhs(), environment);
+			Type right = check(expr.getRhs(), environment);
+
+			isString = checkPossibleSubtype(new Type.Strung(), left);
+
+			if (!isString) {
+				checkSubtype(Type.List.class, left, expr.getLhs());
+				checkSubtype(Type.List.class, right, expr.getRhs());
+
+				//Check that the RHS is a subtype of the LHS
+				checkSubtype(left, right, expr.getRhs());
+			}
+
+			return left;
+
+		case AND:
+		case OR:
+			checkSubtype(Type.Bool.class, check(expr.getLhs(), environment), expr.getLhs());
+			checkSubtype(Type.Bool.class, check(expr.getRhs(), environment), expr.getRhs());
+			return new Type.Bool();
+
+		case EQ:
+		case NEQ:
+			return new Type.Bool();
+
+		case GT:
+		case GTEQ:
+		case LT:
+		case LTEQ:
+			Type lhs = check(expr.getLhs(), environment);
+			Type rhs = check(expr.getRhs(), environment);
+
+			if (!checkPossibleSubtype(new Type.Int(), lhs)) {
+				checkSubtype(Type.Real.class, lhs, expr.getLhs());
+			}
+			if (!checkPossibleSubtype(new Type.Int(), rhs)) {
+				checkSubtype(Type.Real.class, rhs, expr.getRhs());
+			}
+
+			return new Type.Bool();
+
+		case RANGE:
+			checkSubtype(Type.Int.class, check(expr.getLhs(), environment), expr.getLhs());
+			checkSubtype(Type.Int.class, check(expr.getRhs(), environment), expr.getRhs());
+			return new Type.List(new Type.Int());
+
+		case REM:
+		case SUB:
+		case ADD:
+		case DIV:
+		case MUL:
+			Type lhs2  = check(expr.getLhs(), environment);
+			Type rhs2 = check(expr.getRhs(), environment);
+			boolean promote = false;
+
+			if (!checkPossibleSubtype(new Type.Int(), lhs2)) {
+				checkSubtype(Type.Real.class, lhs2, expr.getLhs());
+				promote = true;
+			}
+			if (!checkPossibleSubtype(new Type.Int(), rhs2)) {
+				checkSubtype(Type.Real.class, rhs2, expr.getRhs());
+			}
+
+			return (promote) ? new Type.Real() : new Type.Int();
+
+		default:
+			internalFailure("Unknown binary operator encountered", file.filename, expr);
+			return null;
+		}
 	}
-	
+
+	public Type check(Expr.Is expr, Map<String,Type> environment) {
+		//TODO: check with Dave
+		//Like == or !=, there's no way to have a 'bad' is expression
+		return new Type.Bool();
+	}
+
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+
+		checkSubtype(expr.getType(), check(expr.getSource(), environment), expr.getSource());
+		return expr.getType();
 	}
-	
+
 	public Type check(Expr.Constant expr, Map<String,Type> environment) {
 		Object constant = expr.getValue();
-		
+
 		if(constant instanceof Boolean) {
 			return new Type.Bool();
 		} else if(constant instanceof Character) {
@@ -183,7 +299,7 @@ public class TypeChecker {
 			return new Type.Int();
 		} else if(constant instanceof Double) {
 			return new Type.Real();
-		} else if(constant instanceof String) {
+		} else if(constant instanceof StringBuffer) {
 			return new Type.Strung();
 		} else if(constant == null) {
 			return new Type.Null();
@@ -192,15 +308,20 @@ public class TypeChecker {
 			return null; // dead code
 		}
 	}
-	
+
 	public Type check(Expr.IndexOf expr, Map<String, Type> environment) {
 		Type srcType = check(expr.getSource(), environment);
 		Type indexType = check(expr.getIndex(), environment);
 		checkSubtype(Type.Int.class, indexType, expr.getIndex());
+
+		//Check not indexing a String
+		if (checkPossibleSubtype(new Type.Strung(), srcType))
+			return new Type.Char();
+
 		return checkSubtype(Type.List.class, srcType, expr.getSource())
 				.getElement();
 	}
-	
+
 	public Type check(Expr.Invoke expr, Map<String,Type> environment) {
 		WyscriptFile.FunDecl fn = functions.get(expr.getName());
 		List<Expr> arguments = expr.getArguments();
@@ -216,27 +337,76 @@ public class TypeChecker {
 		}
 		return fn.ret;
 	}
-	
+
 	public Type check(Expr.ListConstructor expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+		List<Expr> args = expr.getArguments();
+		if (args.isEmpty())
+			return new Type.List(new Type.Null());
+		//TODO: check with Dave
+		//we take the type of the first element and check all other elements are a subtype of that
+		else {
+			Type t = check(args.get(0), environment);
+			for (Expr e : args) {
+				Type t2 = check(e, environment);
+				checkSubtype(t, t2, e);
+			}
+			return new Type.List(t);
+		}
 	}
-	
+
 	public Type check(Expr.RecordAccess expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+
+		Type t = check(expr.getSource(), environment);
+		Type.Record r = checkSubtype(Type.Record.class, t, expr.getSource());
+		if (r == null)
+			syntaxError("Can't access field of non-record type", file.filename, expr.getSource());
+
+		Type result = r.getFields().get(expr.getName());
+		if (result == null)
+			syntaxError("Field does not exist", file.filename, expr.getSource());
+
+		return result;
 	}
-	
+
 	public Type check(Expr.RecordConstructor expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+
+		Map<String, Type> fields = new HashMap<String, Type>();
+
+		for (Pair<String, Expr> p : expr.getFields()) {
+			fields.put(p.first(), check(p.second(), environment));
+		}
+		return new Type.Record(fields);
 	}
-	
+
 	public Type check(Expr.Unary expr, Map<String,Type> environment) {
-		// TODO: implement me
-		return null;
+
+		switch(expr.getOp()) {
+
+		case LENGTHOF:
+			if (!checkPossibleSubtype(new Type.Strung(), check(expr.getExpr(), environment))) {
+				checkSubtype(Type.List.class, check(expr.getExpr(), environment), expr.getExpr());
+			}
+			return new Type.Int();
+
+		case NEG:
+			Type t = check(expr.getExpr(), environment);
+
+			if (!checkPossibleSubtype(new Type.Int(), t)) {
+				checkSubtype(Type.Real.class, t, expr.getExpr());
+				return new Type.Real();
+			}
+			return new Type.Int();
+
+		case NOT:
+			checkSubtype(Type.Bool.class, check(expr.getExpr(), environment), expr.getExpr());
+			return new Type.Bool();
+
+		default:
+			internalFailure("Unknown unary operator encountered", file.filename, expr);
+			return null;
+		}
 	}
-	
+
 	public Type check(Expr.Variable expr, Map<String, Type> environment) {
 		Type type = environment.get(expr.getName());
 		if (type == null) {
@@ -245,11 +415,11 @@ public class TypeChecker {
 		}
 		return type;
 	}
-	
+
 	/**
 	 * Check that a given type t2 is an instance of of another type t1. This
 	 * method is useful for checking that a type is, for example, a List type.
-	 * 
+	 *
 	 * @param t1
 	 * @param t2
 	 * @param element
@@ -260,42 +430,160 @@ public class TypeChecker {
 			SyntacticElement element) {
 		if (t1.isInstance(t2)) {
 			return (T) t2;
-		} else {
-			syntaxError("expected instance of " + t1.getClass().getName()
+		}
+		else if (t2 instanceof Type.Named)
+			return (checkSubtype(t1, userTypes.get(((Type.Named)t2).getName()), element));
+		else {
+			syntaxError("expected instance of " + t1.getSimpleName()
 					+ ", found " + t2, file.filename, element);
 			return null;
 		}
 	}
-	
+
 	/**
 	 * Check that a given type t2 is a subtype of another type t1.
-	 * 
+	 *
 	 * @param t1 Supertype to check
 	 * @param t2 Subtype to check
 	 * @param element
 	 *            Used for determining where to report syntax errors.
 	 */
 	public void checkSubtype(Type t1, Type t2, SyntacticElement element) {
+
+		if (checkPossibleSubtype(t1, t2)) {
+			//OK!
+		}
+		else {
+			syntaxError("expected type " + t1
+					+ ", found " + t2, file.filename, element);
+		}
+	}
+
+	/**
+	 * Utility method - checks if a type is a subtype of another type, returning
+	 * the result of that check.
+	 *
+	 * @param t1 - The supertype
+	 * @param t2 - The (possible) subtype being checked
+	 */
+	private boolean checkPossibleSubtype(Type t1, Type t2) {
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
-			// OK			
+			return true;
 		} else if (t1 instanceof Type.Char && t2 instanceof Type.Char) {
-			// OK
+			return true;
 		} else if (t1 instanceof Type.Int && t2 instanceof Type.Int) {
-			// OK
+			return true;
 		} else if (t1 instanceof Type.Real && t2 instanceof Type.Real) {
-			// OK
+			return true;
 		} else if (t1 instanceof Type.Strung && t2 instanceof Type.Strung) {
-			// OK
-		} else if (t1 instanceof Type.List && t2 instanceof Type.List) {
+			return true;
+		} else if (t1 instanceof Type.Void && t2 instanceof Type.Void) {
+			return true;
+		} else if (t1 instanceof Type.Null && t2 instanceof Type.Null) {
+			return true;
+		} else if (t1 instanceof Type.Real && t2 instanceof Type.Int) {
+			return true;
+		}
+
+		else if (t1 instanceof Type.List && t2 instanceof Type.List) {
 			Type.List l1 = (Type.List) t1;
 			Type.List l2 = (Type.List) t2;
 			// The following is safe because While has value semantics. In a
 			// conventional language, like Java, this is not safe because of
 			// references.
-			checkSubtype(l1.getElement(),l2.getElement(),element);
-		} else {
-			syntaxError("expected type " + t1
-					+ ", found " + t2, file.filename, element);
+			return checkPossibleSubtype(l1.getElement(),l2.getElement());
 		}
+		//Records implement depth subtyping, but not width subtyping. Thus a record is
+		//a subtype of another record if it has the same number of fields, those
+		//fields have the same names, and the types of t2's fields are subtypes of the
+		//types of t1's fields
+		else if (t1 instanceof Type.Record && t2 instanceof Type.Record) {
+
+			Type.Record r1 = (Type.Record) t1;
+			Type.Record r2 = (Type.Record) t2;
+			Map<String, Type> f1 = r1.getFields();
+			Map<String, Type> f2 = r2.getFields();
+
+			if (f1.size() != f2.size())
+				return false;
+
+			for (String s : f1.keySet()) {
+				if (f2.get(s) == null)
+					return false;
+
+				if (checkPossibleSubtype(f1.get(s), f2.get(s)) == false)
+					return false;
+			}
+			return true;
+		}
+		//A union is a subtype of a union if the size of its bounds is not greater
+		//than the supertype, and all its bounds are subtypes of t1's bounds
+		else if (t1 instanceof Type.Union && t2 instanceof Type.Union) {
+
+			Type.Union u1 = (Type.Union) t1;
+			Type.Union u2 = (Type.Union) t2;
+			if (u1.getBounds().size() < u2.getBounds().size())
+				return false;
+
+			for (Type ut2 : u2.getBounds()) {
+				boolean subtype = false;
+				for (Type ut1 : u1.getBounds()) {
+					if (checkPossibleSubtype(ut1, ut2)) {
+						subtype = true;
+						break;
+					}
+				}
+				if (!subtype)
+					return false;
+			}
+			return true;
+		}
+		else if (t2 instanceof Type.Union) {
+			Type.Union u2 = (Type.Union) t2;
+			boolean subtype = false;
+			for (Type t : u2.getBounds()) {
+				if (checkPossibleSubtype(t1, t)) {
+					subtype = true;
+					break;
+				}
+			}
+			return subtype;
+		}
+		else if (t1 instanceof Type.Union) {
+			Type.Union u1 = (Type.Union) t1;
+			boolean subtype = false;
+			for (Type t : u1.getBounds()) {
+				if (checkPossibleSubtype(t, t2)) {
+					subtype = true;
+					break;
+				}
+			}
+			return subtype;
+		}
+		//When checking named types, need to convert to actual type
+		else if (t1 instanceof Type.Named || t2 instanceof Type.Named) {
+			Type tt1, tt2;
+
+			if (t1 instanceof Type.Named) {
+				tt1 = userTypes.get(((Type.Named)t1).getName());
+				if (tt1 == null)
+					internalFailure("Error, couldn't find type associated with " + t1, file.filename, t2);
+			}
+			else tt1 = t1;
+
+			if (t2 instanceof Type.Named) {
+				tt2 = userTypes.get(((Type.Named)t2).getName());
+				if (tt2 == null)
+					internalFailure("Error, couldn't find type associated with " + t2, file.filename, t2);
+			}
+			else tt2 = t2;
+
+			return checkPossibleSubtype(tt1, tt2);
+		}
+		//TODO: Check with Dave if this is correct
+		//null is a subtype of every type
+		else if (t2 instanceof Type.Null) {
+			return true;
+		} else return false;
 	}
 }

@@ -1979,4 +1979,8 @@ public class Parser {
 	 */
 	private static final Indent ROOT_INDENT = new Indent("", 0);
 
+	public Set<String> getUserTypes() {
+		return userDefinedTypes;
+	}
+
 }
