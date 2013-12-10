@@ -1,6 +1,5 @@
 package wyscript.error;
 
-import java.util.List;
 import wyscript.io.Lexer.Token;
 
 /**
@@ -12,28 +11,50 @@ import wyscript.io.Lexer.Token;
  */
 public class ParserErrorData implements ErrorData{
 
-	private List<String> methodTrace;	//The method call stack leading to this error
+	private String filename;			//The file this error occurred in
 	private Token found;				//The token that generated this error (null if EOF)
-	private Token expected;				//The expected token (null if at a decision point)
+	private Token.Kind expected;		//The expected token type (null if at a decision point)
 	private ErrorType type;				//The type of error that occurred
+	private int start;
+	private int end;
 
-	public ParserErrorData(List<String> m, Token f, Token e, ErrorType t) {
-		methodTrace = m;
+	public ParserErrorData(String n, Token f, Token.Kind e, ErrorType t) {
+		filename = n;
 		found = f;
 		expected = e;
 		type = t;
+		start = f.start;
+		end = f.end();
 	}
 
-	public List<String> methods() {
-		return methodTrace;
+	public ParserErrorData(String n, Token f, Token.Kind e, int s,
+			int d, ErrorType t) {
+		filename = n;
+		found = f;
+		expected = e;
+		type = t;
+		start = s;
+		end = d;
+	}
+
+	public String filename() {
+		return filename;
 	}
 
 	public Token found() {
 		return found;
 	}
 
-	public Token expected() {
+	public Token.Kind expected() {
 		return expected;
+	}
+
+	public int start() {
+		return start;
+	}
+
+	public int end() {
+		return end;
 	}
 
 	public ErrorType type() {
@@ -41,13 +62,16 @@ public class ParserErrorData implements ErrorData{
 	}
 
 	/**
-	 * The three main forms of error:
+	 * The different types of error:
 	 *
 	 * - a token was expected but not found
-	 * - a token was found in place of another token (in the middle of a parse)
-	 * - at a decision point in the parser, a token was found that was invalid for the decision
+	 * - the indent was increased within a block
+	 * - An expression was found, but not of the required type
+	 * - An expression was expected but not found
+	 * - A duplicate name was used when creating a record
+	 * - The parser tried to parse a type, but couldn't
 	 */
 	public static enum ErrorType {
-		MISSING_TOKEN, UNEXPECTED_TOKEN, INVALID_TOKEN
+		MISSING_TOKEN, BAD_INDENT, BAD_EXPRESSION_TYPE, MISSING_EXPRESSION, DUPLICATE_TOKEN, INVALID_TYPE
 	}
 }

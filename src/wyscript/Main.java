@@ -81,7 +81,7 @@ public class Main {
 			WyscriptFile ast = parser.read();
 			//now generate kernels for parfor loops and append them to parfor loops
 			// Second, we'd want to perform some kind of type checking here.
-			// new TypeChecker().check(ast);
+			new TypeChecker().check(ast);
 
 			KernelGenerator.generateKernels(ast);
 

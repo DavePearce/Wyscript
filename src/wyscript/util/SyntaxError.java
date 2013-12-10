@@ -148,6 +148,7 @@ public class SyntaxError extends RuntimeException {
 					lineEnd = parseLine(text, lineEnd);
 					line = line + 1;
 				}
+				in.close();
 			} catch (IOException e) {
 				output.println("syntax error: " + message);
 				return;
@@ -183,6 +184,46 @@ public class SyntaxError extends RuntimeException {
 			}
 			output.println(str);
 		}
+	}
+
+	/**
+	 * Utility method used to find the line of code an error occurred in
+	 */
+	public static void outputSuggestion(PrintStream output, String suggestion,
+			String filename, int start, int end) {
+
+		String str = "Error making suggestion: ";
+		int line = 0;
+		int lineStart = 0;
+		int lineEnd = 0;
+		StringBuilder text = new StringBuilder();
+
+		try {
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					new FileInputStream(filename), "UTF-8"));
+
+			// first, read whole file
+			int len = 0;
+			char[] buf = new char[1024];
+			while ((len = in.read(buf)) != -1) {
+				text.append(buf, 0, len);
+			}
+
+			while (lineEnd < text.length() && lineEnd <= start) {
+				lineStart = lineEnd;
+				lineEnd = parseLine(text, lineEnd);
+				line = line + 1;
+			}
+			in.close();
+		} catch (IOException e) {
+			output.print(str + e.getMessage());
+			return;
+		}
+
+		lineEnd = Math.min(lineEnd, text.length());
+		String[] result = {text.substring(lineStart, start), text.substring(Math.min(end+1, lineEnd), lineEnd)};
+		if (result[1].equals("")) result[1] = "\n";
+		output.println("Suggestion:\n" + result[0] + suggestion + result[1]);
 	}
 
 	private static int parseLine(StringBuilder text, int index) {
