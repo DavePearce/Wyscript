@@ -162,7 +162,8 @@ public class Lexer {
 		}
 		if (input.charAt(pos) != '\'') {
 			//This simulates adding a closing quote
-			errors.add(new LexerErrorData(--pos, filename, input.charAt(--pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
+			pos--;
+			errors.add(new LexerErrorData(pos, filename, input.charAt(pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
 		}
 		pos = pos + 1;
 		return new Token(Token.Kind.CharValue, input.substring(start, pos),
@@ -180,7 +181,7 @@ public class Lexer {
 			}
 			pos = pos + 1;
 		}
-		errors.add(new LexerErrorData(start, filename, null, LexerErrorData.ErrorType.MISSING_STRING_END));
+		errors.add(new LexerErrorData(pos-1, filename, null, LexerErrorData.ErrorType.MISSING_STRING_END));
 		return new Token(Token.Kind.StringValue, input.substring(start, pos), start);
 	}
 
@@ -406,11 +407,11 @@ public class Lexer {
 			False { public String toString() { return "true"; }},
 			Null { public String toString() { return "null"; }},
 			Void { public String toString() { return "void"; }},
-			Bool { public String toString() { return "Bool"; }},
-			Int { public String toString() { return "Int"; }},
-			Real { public String toString() { return "Real"; }},
-			Char { public String toString() { return "Char"; }},
-			String { public String toString() { return "String"; }},
+			Bool { public String toString() { return "bool"; }},
+			Int { public String toString() { return "int"; }},
+			Real { public String toString() { return "real"; }},
+			Char { public String toString() { return "char"; }},
+			String { public String toString() { return "string"; }},
 			If { public String toString() { return "if"; }},
 			Switch { public String toString() { return "switch"; }},
 			While { public String toString() { return "while"; }},
@@ -423,11 +424,11 @@ public class Lexer {
 			Return { public String toString() { return "return"; }},
 			Constant { public String toString() { return "constant"; }},
 			Type { public String toString() { return "type"; }},
-			// Constants
-			RealValue,
-			IntValue,
-			CharValue,
-			StringValue,
+			// Constants (Given a toString for error handling purposes)
+			RealValue { public String toString() { return "real"; }},
+			IntValue { public String toString() { return "int"; }},
+			CharValue { public String toString() { return "char"; }},
+			StringValue { public String toString() { return "string"; }},
 			// Symbols
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
@@ -460,7 +461,13 @@ public class Lexer {
 			LogicalOr { public String toString() { return "||"; }},
 			// Other
 			NewLine,
-			Indent
+			Indent,
+
+			//Used by error handler to identify expected types
+			ExprLval { public String toString() { return "variable, list access, or record access"; }},
+			Expression { public String toString() { return "<<Expression>>"; }},
+			Statement { public String toString() { return "<<Statement>>"; }},
+			Type2 { public String toString() { return "<<Type>>"; }}
 		}
 
 		public final Kind kind;
