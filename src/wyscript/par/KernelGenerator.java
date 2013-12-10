@@ -52,7 +52,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @param environment
 	 */
-	private static void generateKernels(Map<String, FunDecl> functions, WyscriptFile file) {
+	public static void generateKernels(Map<String, FunDecl> functions, WyscriptFile file) {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
 			//pass the name of the function down so it can be used to address kernel
@@ -65,7 +65,7 @@ public class KernelGenerator {
 	 * @param funcname
 	 * @param environment
 	 */
-	private static void scanFuncBody(WyscriptFile.FunDecl function , String funcname , WyscriptFile file) {
+	public static void scanFuncBody(WyscriptFile.FunDecl function , String funcname , WyscriptFile file) {
 		int loopPosition = 0;
 		//Map<String, Type> environment = new HashMap<String,Type>();
 		//checker.check(function.statements , environment);
@@ -95,7 +95,7 @@ public class KernelGenerator {
 	 * @param id The file name under which the loop is invoked
 	 * @return
 	 */
-	private static KernelRunner generateForKernel(Stmt.ParFor loop ,
+	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
 			Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
 		writer = new KernelWriter(id, environment, loop);
@@ -116,13 +116,13 @@ public class KernelGenerator {
 		return env;
 	}
 
-	private static void getEnvironment(Stmt.VariableDeclaration stmt, Map<String, Type>
+	public static void getEnvironment(Stmt.VariableDeclaration stmt, Map<String, Type>
 	environment, WyscriptFile file) {
 		Expr expression = stmt.getExpr();
 		String name = stmt.getName();
 		environment.put(name, getType(expression,file,environment));
 	}
-	private static Type getType(Expr expression,WyscriptFile file, Map<String, Type> env) {
+	public static Type getType(Expr expression,WyscriptFile file, Map<String, Type> env) {
 		if (expression instanceof Expr.Binary) {
 			//return the greater of either types
 			return getType((Expr.Binary)expression,file,env);
@@ -158,7 +158,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.Binary expression, WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Binary expression, WyscriptFile file,Map<String,Type> env) {
 		switch (expression.getOp()) {
 		case APPEND:
 			InternalFailure.internalFailure("Cannot infer type of APPEND -- not implemented",
@@ -186,10 +186,10 @@ public class KernelGenerator {
 		}
 		return null; //unreachable
 	}
-	private static Type getType(Expr.Variable variable, WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Variable variable, WyscriptFile file,Map<String,Type> env) {
 		return env.get(variable.getName());
 	}
-	private static Type getType(Expr.Constant constant,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Constant constant,WyscriptFile file,Map<String,Type> env) {
 		Object val = constant.getValue();
 		if (val instanceof Integer) return new Type.Int();
 		else if (val instanceof Double) return new Type.Real(); //ahem is this correct
@@ -200,7 +200,7 @@ public class KernelGenerator {
 		else InternalFailure.internalFailure("Could not infer constant type", file.filename, constant);
 		return null; //unreachable
 	}
-	private static Type getType(Expr.Cast expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Cast expression,WyscriptFile file,Map<String,Type> env) {
 		return expression.getType();
 	}
 	/**
@@ -210,7 +210,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.IndexOf expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.IndexOf expression,WyscriptFile file,Map<String,Type> env) {
 		Type srcType = getType(expression.getSource(),file,env);
 		if (srcType instanceof Type.List) {
 			return ((Type.List)srcType).getElement();
@@ -226,7 +226,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type getType(Expr.Invoke expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Invoke expression,WyscriptFile file,Map<String,Type> env) {
 		String name = expression.getName();
 		List<WyscriptFile.FunDecl> decls = file.functions(name);
 		if (decls.size() == 0) {
@@ -244,7 +244,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return The type of the list constructor, which is invariably a List with a certain element type
 	 */
-	private static Type getType(Expr.ListConstructor expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.ListConstructor expression,WyscriptFile file,Map<String,Type> env) {
 		Expr expr1 = null;
 		Expr expr2 = null;
 		Type greatest = null;
@@ -269,12 +269,12 @@ public class KernelGenerator {
 			return new Type.List(greatest);
 		}
 	}
-	private static Type getType(Expr.RecordAccess expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.RecordAccess expression,WyscriptFile file,Map<String,Type> env) {
 		//TODO Implement me!
 		return null;
 
 	}
-	private static Type getType(Expr.Unary expression,WyscriptFile file,Map<String,Type> env) {
+	public static Type getType(Expr.Unary expression,WyscriptFile file,Map<String,Type> env) {
 		switch (expression.getOp()) {
 		case LENGTHOF:
 			return new Type.Int();
@@ -298,7 +298,7 @@ public class KernelGenerator {
 	 * @param file
 	 * @return
 	 */
-	private static Type greaterType(Type t1, Type t2, WyscriptFile file) {
+	public static Type greaterType(Type t1, Type t2, WyscriptFile file) {
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
 			return t1;
 		} else if (t1 instanceof Type.Char && t2 instanceof Type.Char) {

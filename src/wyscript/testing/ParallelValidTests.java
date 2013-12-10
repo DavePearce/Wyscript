@@ -80,4 +80,28 @@ public class ParallelValidTests {
 	public void parFor_valid_14() {
 		runParInterpreterTest("ParFor_Valid_14");
 	}
+	@Test
+	public void parFor_valid_15() {
+		runParInterpreterTest("ParFor_Valid_15");
+	}
+	@Test
+	public void parFor_valid_16() {
+		runParInterpreterTest("ParFor_Valid_16");
+	}
+	@Test
+	public void parFor_valid_17() {
+		runParInterpreterTest("ParFor_Valid_17");
+	}
+	@Test
+	public void parFor_valid_18() {
+		runParInterpreterTest("ParFor_Valid_18");
+	}
+	@Test
+	public void parFor_valid_19() {
+		runParInterpreterTest("ParFor_Valid_19");
+	}
+	@Test
+	public void parFor_valid_20() {
+		runParInterpreterTest("ParFor_Valid_20");
+	}
 }

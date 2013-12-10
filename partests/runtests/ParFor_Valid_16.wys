@@ -1,0 +1,12 @@
+void main():
+	[int] a = 0..400
+	[int] ag = 0..400
+	parFor i in 0..|a|:
+		[int] b = [1,2,3]
+		int c = b[0] + b[1] + b[2]
+		a[i] = a[i] + c + b[0] + b[1] + b[2]
+	for i in 0..|a|:
+		if (ag[i]+12 != a[i]):
+			print "fail"
+			print i
+	print "success"
