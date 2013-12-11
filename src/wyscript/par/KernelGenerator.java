@@ -13,6 +13,7 @@ import wyscript.lang.Stmt;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
+import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import wyscript.util.TypeChecker;
 
@@ -98,9 +99,11 @@ public class KernelGenerator {
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
 			Map<String,Type> environment , String id) {
 		KernelWriter writer = null;
-		writer = new KernelWriter(id, environment, loop);
-		KernelRunner runner = writer.getRunner();
-		return runner;
+		//writer = new KernelWriter(id, environment, loop);
+		LoopModule module = new LoopModule(id, environment, loop);
+		//KernelRunner runner = writer.getRunner();
+		KernelRunner runner2 = module.getRunner();
+		return runner2;
 	}
 	/**
 	 * Returns the entire environment of the function

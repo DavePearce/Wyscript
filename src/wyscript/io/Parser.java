@@ -360,7 +360,7 @@ public class Parser {
 		case For:
 			return parseFor(index-1,indent, errors, follow);
 		case parFor:
-			return parseParFor(index-1,indent);
+			return parseParFor(index-1,indent, errors, follow);
 		case Identifier:
 			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
 				return parseInvokeStatement(token, errors, follow);
@@ -789,18 +789,62 @@ public class Parser {
 		return (valid) ? new Stmt.For(var, source, blk, sourceAttr(start, end - 1))
 					   : new Stmt.For(null, null, new ArrayList<Stmt>());
 	}
-	private Stmt parseParFor(int start, Indent indent) {
-		Token id = match(Identifier);
-		Expr.Variable var = new Expr.Variable(id.text, sourceAttr(start,
-				index - 1));
-		match(In);
-		Expr source = parseExpression();
-		match(Colon);
+	private Stmt parseParFor(int start, Indent indent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		boolean valid = true;
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(In);
+
+		Token id = match(errors, Identifier, followSet);
+		if (id == null) {
+			valid = false;
+			if (tokens.get(index).kind != In)
+				return null;
+		}
+
+		Expr.Variable var =  (valid) ? new Expr.Variable(id.text, sourceAttr(start,
+				index - 1))
+									 : null;
+
+		if (!parentFollow.contains(In))
+			followSet.remove(In);
+		followSet.add(Colon);
+
+		Expr source = null;
+		if(match(errors, In, followSet) == null) {
+			valid = false;
+			if (tokens.get(index).kind != Colon)
+				return null;
+		}
+		else {
+			source = parseExpression(errors, followSet);
+			if (source == null) {
+				valid = false;
+				if (tokens.get(index).kind != Colon)
+					return null;
+			}
+		}
+
+		if (!parentFollow.contains(Colon))
+			followSet.remove(Colon);
+		followSet.add(NewLine);
+
+		if (match(errors, Colon, followSet) == null) {
+			if (tokens.get(index).kind != NewLine)
+				return null;
+		}
+
 		int end = index;
-		matchEndLine();
-		List<Stmt> blk = parseBlock(indent);
-		return new Stmt.ParFor(var, source, blk, sourceAttr(start, end - 1));
+		matchEndLine(errors);
+		List<Stmt> blk = parseBlock(indent, errors, parentFollow);
+		if (blk == null)
+			return null;
+
+		return (valid) ? new Stmt.ParFor(var, source, blk, sourceAttr(start, end - 1))
+					   : new Stmt.ParFor(null, null, new ArrayList<Stmt>());
 	}
+
 	/**
 	 * Parse an assignment statement of the form "lval = expression".
 	 *

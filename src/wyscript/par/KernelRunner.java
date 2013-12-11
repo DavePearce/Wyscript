@@ -10,6 +10,7 @@ import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
+import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import static jcuda.driver.CUresult.*;
 import static jcuda.runtime.JCuda.*;
@@ -25,8 +26,6 @@ import static jcuda.runtime.JCuda.*;
  */
 public class KernelRunner {
 	private CUfunction function;
-	//the writer this kernel uses to run
-	private KernelWriter writer;
 	//Three lists used to track the name, type and device pointer of elements
 	List<String> parameters;
 	List<CUdeviceptr> devicePointers;
@@ -36,11 +35,12 @@ public class KernelRunner {
 	int gridDim = 16;
 	int blockDim = 256;
 	private CUcontext context;
+	private LoopModule module;
 
-	public KernelRunner(KernelWriter writer) {
-		this.writer = writer;
-		file = writer.getPtxFile();
-		parameters = writer.getParameters();
+	public KernelRunner(LoopModule module) {
+		this.module = module;
+		file = module.getPtxFile();
+		parameters = module.getParameters();
 		devicePointers = new ArrayList<CUdeviceptr>();
 		initialise();
 	}
@@ -51,7 +51,7 @@ public class KernelRunner {
 	 * @param ptxFileName
 	 */
 	public void initialise() {
-		String funcname = writer.getFuncName();
+		String funcname = module.getFuncName();
 		String ptxFileName = file.getAbsolutePath();
 		int result;
 		// initialise driver and create context
@@ -85,7 +85,7 @@ public class KernelRunner {
 		if (result != CUDA_SUCCESS) {
 			InternalFailure.internalFailure(
 					"Failure with code"+result+". Got error: "+
-			cudaGetErrorString(result), file.getName(), writer.getLoop());
+			cudaGetErrorString(result), file.getName(), module.getLoop());
 		}
 	}
 
@@ -114,7 +114,7 @@ public class KernelRunner {
 		stopIfFailed(syncResult);
 		if (result != CUDA_SUCCESS) {
 			InternalFailure.internalFailure("Kernel did not launch successfully." +
-					cudaGetErrorString(result), file.getName(), writer.getLoop());
+					cudaGetErrorString(result), file.getName(), module.getLoop());
 		}
 		marshalParametersFromGPU(frame);
 		cuCtxDestroy(context);
@@ -153,7 +153,7 @@ public class KernelRunner {
 	private void marshalParametersFromGPU(HashMap<String, Object> frame) {
 		int listCount = 0;
 		for (int i = 0 ; i < devicePointers.size() ; i++) {
-			Map<String, Type> environment = writer.getEnvironment();
+			Map<String, Type> environment = module.getEnvironment();
 			String parameter = parameters.get(i-listCount);
 			Type type = environment.get(parameter); //compensating for offset of 1
 			//convert from int* to [int]
@@ -166,7 +166,7 @@ public class KernelRunner {
 				marshalFromGPUInt(frame,parameter,i);
 			}else {
 				InternalFailure.internalFailure("Could not unmarshall " +
-						"unrecognised type", writer.getPtxFile().getPath() , type);
+						"unrecognised type", module.getPtxFile().getPath() , type);
 			}
 		}
 	}
@@ -221,12 +221,16 @@ public class KernelRunner {
 	 */
 	private List<CUdeviceptr> marshalParametersToGPU(HashMap<String, Object> frame) {
 		for (int i = 0 ; i < parameters.size() ; i++) {
-			Type type = writer.getEnvironment().get(parameters.get(i));
+			Type type = module.getEnvironment().get(parameters.get(i));
 			if (type instanceof Type.List) {
-				if (((wyscript.lang.Type.List) type).getElement() instanceof Type.Int) {
+				if (((Type.List) type).getElement() instanceof Type.Int) {
 					String name = parameters.get(i);
-					marshalListToGPU(frame, name , (Type.List) type);
-				}else {
+					marshalFlatListToGPU(frame, name);
+				}else if (((Type.List) type).getElement() instanceof Type.List) {
+					String name = parameters.get(i);
+					marshal2DListToGPU(frame, name);
+				}
+					else {
 					InternalFailure.internalFailure("Can only allocate pointer " +
 							"for flat list of element type int", file.getPath(), type);
 				}
@@ -240,6 +244,30 @@ public class KernelRunner {
 		}
 		return devicePointers;
 	}
+	private void marshal2DListToGPU(HashMap<String, Object> frame, String name) {
+		// then the next argument has to be the list length
+		int height;
+		int width = -1;
+		ArrayList<?> listObject = (ArrayList<?>) frame.get(name);
+		height = listObject.size();
+		for (Object element : listObject) {
+			ArrayList<Integer> list = (ArrayList<Integer>) element;
+
+		}
+		int expectedLength = listObject.size();
+		int[] array = new int[width*height];
+		// unrap all values in array to int type
+		for (int j = 0; j < expectedLength; j++) array[j] = (Integer) listObject.get(j);
+		CUdeviceptr dpointer = generateH2DPointer(array);
+		devicePointers.add(dpointer);
+		//now compute the length argument and add it to the deviceptr list
+		int[] lengthValue = new int []{expectedLength};
+		CUdeviceptr lengthPtr = new CUdeviceptr();
+		cuMemAlloc(lengthPtr, Sizeof.INT);
+		cuMemcpyHtoD(lengthPtr, Pointer.to(lengthValue), Sizeof.INT);
+		devicePointers.add(lengthPtr);
+	}
+
 	/**
 	 * Marshall a single integer into the <i>index</i>th parameter
 	 * @param frame
@@ -255,7 +283,7 @@ public class KernelRunner {
 	 * @param index
 	 * @param type
 	 */
-	private void marshalListToGPU(HashMap<String, Object> frame, String name, Type.List type) {
+	private void marshalFlatListToGPU(HashMap<String, Object> frame, String name) {
 		int expectedLength;
 		// then the next argument has to be the list length
 		ArrayList<Integer> listObject = (ArrayList<Integer>) frame.get(name);

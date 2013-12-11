@@ -16,10 +16,12 @@ import com.sun.org.apache.xml.internal.utils.ObjectPool;
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.*;
 import wyscript.lang.Expr.BOp;
+import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.LVal;
 import wyscript.lang.Expr.Unary;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
+import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
@@ -57,10 +59,10 @@ public class KernelWriter {
 	private List<String> tokens = new ArrayList<String>();
 	private List<String> parameters = new ArrayList<String>();
 	private Map<String , Type> environment; //passed to kernel writer at runtime
-	private Set<String> nonParameterVars = new HashSet<String>();
 	private Map<String,String> lengthMap = new HashMap<String,String>();
 
-	private String indexName = "i";
+	private String indexName1D = "i";
+	private String indexName2D = "j";
 	private String fileName;
 	private String ptxFileName;
 	/**
@@ -74,24 +76,14 @@ public class KernelWriter {
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(String filename , Map<String , Type> environment , Stmt.ParFor loop){
-		this.environment = environment;
-		this.fileName = filename;
-		this.body = loop.getBody();
+	public KernelWriter(ParFor loop, List<String> parameters,
+			Map<String, String> lengthMap, String indexName , String fileName) {
 		this.loop = loop;
-		generateFunctionParameters(loop.getBody());
-		writeFunctionDeclaration(tokens);
-		tokens.add("{");
-		writeBody(body,tokens);
-		tokens.add("}");
-		try {
-			saveAndCompileKernel(fileName+".cu");
-		} catch (IOException e) {
-			InternalFailure.internalFailure(
-					"Could not save kernel file. Got error: "+e.getMessage(), fileName, loop);
-		}
+		this.parameters = parameters;
+		this.lengthMap = lengthMap;
+		this.indexName1D = indexName;
 	}
-	public void saveAndCompileKernel(String name) throws IOException {
+	public void saveAndCompileKernel(String name , List<String> tokens) throws IOException {
 		//save the token list to file
 		File file = new File(name);
 		FileWriter  writer = new FileWriter(file);
@@ -160,201 +152,9 @@ public class KernelWriter {
         //System.out.println("Finished creating PTX file");
         return ptxFileName;
     }
-    /**
-	 * This method generates a string of function parameters and analyses the
-	 * loop body for those assignment statements which require parameters to be
-	 * written to kernel.
-	 *
-	 * @requires loop != null and loop contains no illegal statements
-	 * @ensures that all parameters necessary for a Cuda kernel are stored.
-	 */
-	private void generateFunctionParameters(Collection<Stmt> body) {
-		//scan the loop body, determine what must be added as parameter
-		//first exclude the loop index
-		nonParameterVars.add(loop.getIndex().getName());
-		scanExpr(loop.getSource());
-		for (Stmt statement : body) {
-		//check for mutabilities in assignment
-			if (statement instanceof Stmt.Assign) {
-				Stmt.Assign assign = (Stmt.Assign) statement;
-				scanAssign(assign);
-			}
-		//ensure index variable not shadowed
-			else if (statement instanceof Stmt.VariableDeclaration) {
-				Stmt.VariableDeclaration vardec = (Stmt.VariableDeclaration)statement;
-				String name = ((Stmt.VariableDeclaration)statement).getName();
-				nonParameterVars.add(name);
-				dealiaseIndex(name);
-				scanExpr(vardec.getExpr());
-			}else if (statement instanceof Stmt.IfElse) {
-				Stmt.IfElse ifelse = (Stmt.IfElse) statement;
-				scanExpr(ifelse.getCondition());
-				generateFunctionParameters(ifelse.getTrueBranch());
-				generateFunctionParameters(ifelse.getFalseBranch());
-			}else {
-				InternalFailure.internalFailure("Encountered unexpected statement type "
-			+statement.getClass(), fileName, statement);
-			}
-		}
-	}
-	private void dealiaseIndex(String name) {
-		int dealiaser = 0;
-		if (name.equals(indexName)) {
-			do {
-				indexName = "i_" + dealiaser;
-				dealiaser++;
-			} while (environment.containsKey(indexName)||
-					parameters.contains(indexName));
-		}
-	}
-	/**
-	 * Scans the lhs and rhs of the assign statement.
-	 * @param assign
-	 */
-	private void scanAssign(Stmt.Assign assign) {
-		scanExpr(assign.getLhs());
-		scanExpr(assign.getRhs());
-	}
-	/**
-	 * If this expr represents an access to a variable or index, then it is
-	 * added to the parameter list
-	 * @param expr
-	 */
-	private void scanExpr(Expr expr) {
-		if (expr instanceof Expr.Variable) {
-			scanVariableParam((Variable) expr);
-		}else if (expr instanceof Expr.Binary) {
-			Expr.Binary binary = (Expr.Binary) expr;
-			scanExpr(binary.getLhs());
-			scanExpr(binary.getRhs());
-		}else if (expr instanceof Expr.IndexOf) {
-			scanIndexOf((Expr.IndexOf)expr);
-		}else if (expr instanceof Expr.Unary) {
-			scanExpr(((Expr.Unary) expr).getExpr());
-		}
-		else {
-			//should not have to worry, this expr won't need params
-		}
-	}
-	/**
-	 * Writes the actual kernel's function declaration including name and arguments
-	 *
-	 * @requires The list of parameters to be written is initialised
-	 * @ensures The function declaration is written with the required parameters
-	 */
-	private List<String> writeFunctionDeclaration(List<String> tokens) {
-		tokens.add("extern");
-		tokens.add("\"C\"");
-		tokens.add("__global__");
-		tokens.add("void");
-		tokens.add(getFuncName());
-		tokens.add("(");
-		for (int i = 0; i < parameters.size() ; i++) {
-			if (i>=1 && i < parameters.size()) {
-				tokens.add(",");
-			}
-			String name = parameters.get(i);
-			//now work out the type of each parameters
-			Type type = environment.get(name);
-			if (type == null) {
-				InternalFailure.internalFailure("Cannot retieve type for name "+name
-						, fileName, new Type.Void());
-			}
-			//write an array pointer, and also give a parameter for length
-			if (type instanceof Type.List) {
-				Type.List list = (Type.List) type;
-				writeListToDecl(tokens, name, type, list);
-			}else if (type instanceof Type.Int) {
-				tokens.add("int*");
-				tokens.add(name);
-			}
-			else {
-				InternalFailure.internalFailure("Unknown parameter type encountered."
-						, fileName, type);
-			}
-		}
-		tokens.add(")");
-		return tokens;
-	}
-	private void writeListToDecl(List<String> tokens, String name, Type type,
-			Type.List list) {
-		if (list.getElement() instanceof Type.Int) {
-			tokens.add("int*");
-			tokens.add(name);
-			//note that the length is added to the list parameter
-			tokens.add(",");
-			tokens.add("int*");
-			//qualify length of array with '_length'
-			String lengthName = name + "_length";
-			if (parameters.contains(lengthName)) {
-				//TODO make this fail-safe and de-alias the name
-				InternalFailure.internalFailure("Parameter with name "+
-			lengthName+" preventing addition of length parameter", fileName, type);
-			}
-			tokens.add(lengthName);
-			lengthMap.put(name, lengthName);
-		}else if (list.getElement() instanceof Type.List) {
-			Type.List listType = (Type.List) list.getElement();
-			Type elementType = listType.getElement();
-			if (elementType instanceof Type.Int) {
-				//now add int* arg, plus width and height
-				tokens.add("int*");
-				tokens.add(name);
-				tokens.add(",");
-				tokens.add("int*");
-				tokens.add(name+"_width");
-				tokens.add(",");
-				tokens.add("int*");
-				tokens.add(name+"_height");
-			} else {
-				InternalFailure.internalFailure("List of list should contain type Int only", fileName, list);
-			}
-		}
-		else {
-			InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, list);
-		}
-	}
-	public String getFuncName() {
-		return fileName;
-	}
-	/**
-	 * Add a single variable parameter to parameter list
-	 * @param lhs
-	 */
-	private void scanVariableParam(Variable lhs) {
-		if (!parameters.contains(lhs.getName()) &&
-				!nonParameterVars.contains(lhs.getName())) parameters.add
-				(lhs.getName());
-		dealiaseIndex(lhs.getName());
-	}
-	/**
-	 * Add an indexOf operation as parameter. indexOf should be a flat access
-	 * to an int value, and this will be checked.
-	 * @param indexOf
-	 *
-	 * @requires indexOf != null and its source to be of Wyscript [int] type
-	 * @ensures This parameter added to kernel parameter list
-	 */
-	private void scanIndexOf(IndexOf indexOf) {
-		Expr expression = indexOf.getSource();
-		if (expression instanceof Expr.Variable) {
-			Expr.Variable srcVar = (Expr.Variable)expression;
-			if (!srcVar.getName().equals(loop.getIndex().getName())) {
-				//parameters.add(srcVar.getName());
-				scanVariableParam(srcVar);
-			}
-		}else {
-			InternalFailure.internalFailure("Expression in index was not " +
-					"variable which cannot match loop index", fileName, indexOf);
-		}
-	}
-	/**
-	 * Maps the body of the loop onto Cuda code
-	 * @param body
-	 *
-	 * @requires body != null and every element of body is a legal statement
-	 */
-	private List<String> writeBody(ArrayList<Stmt> body , List<String> tokens) {
+	public List<String> writeBody(ArrayList<Stmt> body , List<String> tokens ,
+			Map<String,Type> environment) {
+		this.environment = environment;
 		writeThreadIndex(tokens);
 		writeGuardBegin(tokens);
 		for (Stmt statement : body) {
@@ -371,11 +171,11 @@ public class KernelWriter {
 			Expr high = srcBinary.getRhs();
 			tokens.add("if");
 			tokens.add("(");
-			tokens.add(indexName);
+			tokens.add(index1D());
 			tokens.add("<");
 			write(high,tokens);
 			tokens.add("&&");
-			tokens.add(indexName);
+			tokens.add(index1D());
 			tokens.add(">=");
 			write(low,tokens);
 			tokens.add(")");
@@ -386,10 +186,27 @@ public class KernelWriter {
 		}
 	}
 	private void writeThreadIndex(List<String> tokens) {
+		//first the 1D index
 		tokens.add("int");
-		tokens.add(indexName);
+		tokens.add(index1D());
 		tokens.add("=");
 		tokens.add("blockIdx.x");
+		tokens.add("*");
+		tokens.add("blockDim.x");
+		tokens.add("+");
+		tokens.add("threadIdx.x");
+		tokens.add(";");
+		//now the 2D index
+		tokens.add("int");
+		tokens.add(index2D());
+		tokens.add("=");
+		tokens.add("blockIdx.x");
+		tokens.add("*");
+		tokens.add("blockDim.x");
+		tokens.add("*");
+		tokens.add("blockDim.y");
+		tokens.add("+");
+		tokens.add("threadIdx.y");
 		tokens.add("*");
 		tokens.add("blockDim.x");
 		tokens.add("+");
@@ -480,11 +297,19 @@ public class KernelWriter {
 			//write a
 			Expr.Variable variable = (Expr.Variable) val;
 			//simply add the variable name
-			tokens.add(variable.getName());
+			String name = variable.getName();
+			if (name.equals(loop.getIndex().getName())) {
+				tokens.add(index1D());
+			}else {
+				tokens.add(name);
+			}
 		}else if (val instanceof Expr.IndexOf) {
 			write((Expr.IndexOf)val,tokens);
 		}
 
+	}
+	private String index1D() {
+		return indexName1D;
 	}
 	private void write(Expr.Binary binary,List<String> tokens) {
 		tokens.add("(");
@@ -576,43 +401,18 @@ public class KernelWriter {
 	 * Write a single indexOf operation to token list
 	 * @param expr
 	 */
-	private void write(Expr.IndexOf indexOf,List<String> tokens) {
+	private void write(Expr.IndexOf indexOf, List<String> tokens) {
 		if (indexOf.getSource() instanceof Expr.Variable) {
-			Expr.Variable srcVar = (Expr.Variable)indexOf.getSource();
+			Expr src = indexOf.getSource();
 			Expr indexVar = indexOf.getIndex();
 			//indexVar is an instance of [int]
 			//source expression must be of type...
-			Type typeOfVar = environment.get(srcVar.getName());
-			if (typeOfVar instanceof Type.List) {
-				Type listType = ((Type.List)typeOfVar).getElement();
-				if (listType instanceof Type.Int) {
-					//the type is correct for a kernel, write it here
-					tokens.add(srcVar.getName());
-					if (indexVar instanceof Expr.Variable) {
-						if (((Expr.Variable) indexVar).getName().equals(loop.getIndex().getName()))
-						tokens.add("["+indexName+"]");
-					}else if (indexVar instanceof Expr.Constant) {
-						tokens.add("[");
-						write((Expr.Constant)indexVar,tokens);
-						tokens.add("]");
-					}else {
-						InternalFailure.internalFailure("Index should be parFor loop index or constant", fileName, srcVar);
-					}
-				}else if (listType instanceof Type.List){
-					//this is a list type
-					Type listTypeType = ((Type.List) listType).getElement();
-					if (listTypeType instanceof Type.Int) {
-						//list of lists of int
-						//can write index of
-
-					}else{
-						InternalFailure.internalFailure("List of List type should be int for kernel conversion", fileName, srcVar);
-					}
-				}
-				else{
-					InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, srcVar);
-				}
-			}else {
+			if (src instanceof Expr.Variable) {
+				write1DIndexOf(tokens, (Expr.Variable) src, indexVar);
+			}else if (src instanceof Expr.IndexOf) {
+				write2DIndexOf(tokens, (IndexOf) src, indexVar);
+			}
+			else {
 				InternalFailure.internalFailure("Can only perform indexof on list", fileName, indexOf);
 			}
 
@@ -621,6 +421,53 @@ public class KernelWriter {
 		}
 		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO Potential issue with comparing indices
 
+		}
+	}
+	/**
+	 *
+	 * @param tokens
+	 * @param src
+	 * @param indexVar
+	 */
+	private void write2DIndexOf(List<String> tokens, Expr.IndexOf src, Expr indexVar) {
+		Expr indexSrc = src.getSource();
+		if (indexSrc instanceof Expr.Variable) {
+			write((Expr.Variable)indexSrc, tokens);
+			tokens.add("[");
+			tokens.add(index2D());
+			tokens.add("]");
+		}else {
+			//there is an issue if this happens
+		}
+	}
+	private String index2D() {
+		return indexName2D;
+	}
+	/**
+	 *
+	 * @param tokens
+	 * @param src
+	 * @param indexVar
+	 */
+	private void write1DIndexOf(List<String> tokens, Expr.Variable src, Expr indexVar) {
+		Type typeOfVar = environment.get(src.getName());
+		Type listType = ((Type.List)typeOfVar).getElement();
+		if (listType instanceof Type.Int) {
+			//the type is correct for a kernel, write it here
+			tokens.add(src.getName());
+			if (indexVar instanceof Expr.Variable) {
+				if (((Expr.Variable) indexVar).getName().equals(loop.getIndex().getName()))
+				tokens.add("["+index1D()+"]");
+			}else if (indexVar instanceof Expr.Constant) {
+				tokens.add("[");
+				write((Expr.Constant)indexVar,tokens);
+				tokens.add("]");
+			}else {
+				InternalFailure.internalFailure("Index should be parFor loop index or constant", fileName, src);
+			}
+		}
+		else{
+			InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, src);
 		}
 	}
 	/**
@@ -707,16 +554,6 @@ public class KernelWriter {
 			}
 		}
 		return builder.toString();
-	}
-	/**
-	 * Generates a Kernel Runner from the par-for loop
-	 * @return
-	 */
-	public KernelRunner getRunner() {
-		return new KernelRunner(this);
-	}
-	public List<String> getParameters() {
-		return new ArrayList<String>(parameters);
 	}
 	public SyntacticElement getLoop() {
 		return loop;
