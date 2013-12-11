@@ -421,8 +421,8 @@ public class Parser {
 	private Expr.Invoke parseInvokeStatement(Token name, List<ParserErrorData> errors,
 			Set<Token.Kind> parentFollow) {
 
-		int start = name.start;
-		boolean valid = false;
+		int start = index;
+		boolean valid = true;
 
 		// An invoke statement begins with the name of the function to be
 		// invoked, followed by zero or more comma-separated arguments enclosed
@@ -1205,7 +1205,8 @@ public class Parser {
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
-				Expr e = parseExpression(errors, parentFollow);
+				//TODO: Check with Dave, but this should fix precedence error
+				Expr e = parseTerm(errors, parentFollow);
 
 				if (e == null)
 					return null;
@@ -1634,11 +1635,12 @@ public class Parser {
 	private boolean synchronize(Token.Kind expected, Set<Token.Kind> follow,
 			List<ParserErrorData> errors) {
 
-		while(!follow.contains(tokens.get(index).kind)
+		while (    tokens.size() > index
+				&& !follow.contains(tokens.get(index).kind)
 				&& tokens.get(index).kind != expected) {
 			index++;
-			checkNotEof(errors, expected);
 		}
+		checkNotEof(errors, expected);
 		if (tokens.get(index).kind == expected)
 			return true;
 		return false;
@@ -1741,15 +1743,17 @@ public class Parser {
 	 */
 	private void checkNotEof(List<ParserErrorData> errors, Token.Kind expected) {
 		int start = (index > 0) ? tokens.get(index-1).end()+1 : tokens.get(index).end()+1;
+		int indexStart = index;
 		skipWhiteSpace();
+
+		//Work around to deal with cases where we are looking for a NewLine
+		if (expected == NewLine) {
+			index = skipLineSpace(indexStart);
+		}
+
 		if (index >= tokens.size()) {
 			errors.add(new ParserErrorData(filename, null, expected, start, start, MISSING_TOKEN));
 			handle(errors);
-		}
-		//Work around to deal with cases where we are looking for a NewLine
-		if (expected == NewLine) {
-			index = start;
-			index = skipLineSpace(index);
 		}
 	}
 

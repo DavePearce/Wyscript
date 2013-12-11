@@ -1,5 +1,8 @@
 int|null indexOf(char c1, string str):
-    return null
+	for j in 0 .. |str|:
+		if (str[j] == c1):
+			return j
+	return null
 
 void main():
     print indexOf('H', "Hello World")

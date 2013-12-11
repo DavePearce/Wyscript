@@ -123,12 +123,34 @@ public class Lexer {
 				return new Token(Token.Kind.IntValue, input.substring(start,
 						pos), start);
 			}
+			boolean exp = false;
+			int expPos = -1;
 			while (pos < input.length() && Character.isDigit(input.charAt(pos))) {
 				pos = pos + 1;
+
+				//Handle exponents
+				if (pos < input.length()-2 && (input.charAt(pos)) == 'E' && !exp) {
+
+					expPos = pos;
+					exp = true;
+					pos = pos+1;
+
+					if (input.charAt(pos) == '+' || input.charAt(pos) == '-') {
+						pos = pos+1;
+						if (Character.isDigit(input.charAt(pos)))
+							continue;
+					}
+
+					//Parsing an exponent failed, so reset position
+					pos = expPos;
+				}
 			}
+
 			return new Token(Token.Kind.RealValue, input.substring(start, pos),
 					start);
-		} else {
+		}
+
+		else {
 			return new Token(Token.Kind.IntValue, input.substring(start, pos),
 					start);
 		}
@@ -460,7 +482,7 @@ public class Lexer {
 			LogicalAnd { public String toString() { return "&&"; }},
 			LogicalOr { public String toString() { return "||"; }},
 			// Other
-			NewLine,
+			NewLine { public String toString() { return "\\n"; }},
 			Indent,
 
 			//Used by error handler to identify expected types

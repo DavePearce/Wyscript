@@ -25,12 +25,15 @@ public class TypeChecker {
 	private WyscriptFile file;
 	private WyscriptFile.FunDecl function;
 	private HashMap<String,WyscriptFile.FunDecl> functions;
+
 	private HashMap<String, Type> userTypes;
+	private HashMap<String, Type> constants;
 
 	public void check(WyscriptFile wf) {
 		this.file = wf;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
 		this.userTypes = new HashMap<String, Type>();
+		this.constants = new HashMap<String, Type>();
 
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
@@ -40,6 +43,11 @@ public class TypeChecker {
 			else if (declaration instanceof WyscriptFile.TypeDecl) {
 				WyscriptFile.TypeDecl td = (WyscriptFile.TypeDecl) declaration;
 				userTypes.put(td.name(), td.type);
+			}
+
+			else if (declaration instanceof WyscriptFile.ConstDecl) {
+				WyscriptFile.ConstDecl constant = (WyscriptFile.ConstDecl) declaration;
+				constants.put(constant.name(), check(constant.constant, constants));
 			}
 		}
 
@@ -57,6 +65,9 @@ public class TypeChecker {
 		HashMap<String,Type> environment = new HashMap<String,Type>();
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
+		}
+		for (String s : constants.keySet()) {
+			environment.put(s, constants.get(s));
 		}
 
 		// Second, check all statements in the function body
@@ -284,7 +295,7 @@ public class TypeChecker {
 
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
 
-		checkSubtype(expr.getType(), check(expr.getSource(), environment), expr.getSource());
+		checkSubtype(check(expr.getSource(), environment), expr.getType(), expr.getSource());
 		return expr.getType();
 	}
 
@@ -341,7 +352,7 @@ public class TypeChecker {
 	public Type check(Expr.ListConstructor expr, Map<String,Type> environment) {
 		List<Expr> args = expr.getArguments();
 		if (args.isEmpty())
-			return new Type.List(new Type.Null());
+			return new Type.List(new Type.Void());
 		//TODO: check with Dave
 		//we take the type of the first element and check all other elements are a subtype of that
 		else {
@@ -483,6 +494,8 @@ public class TypeChecker {
 			return true;
 		} else if (t1 instanceof Type.Real && t2 instanceof Type.Int) {
 			return true;
+		} else if (t1 instanceof Type.Int && t2 instanceof Type.Real) {
+			return true;
 		}
 
 		else if (t1 instanceof Type.List && t2 instanceof Type.List) {
@@ -516,14 +529,11 @@ public class TypeChecker {
 			}
 			return true;
 		}
-		//A union is a subtype of a union if the size of its bounds is not greater
-		//than the supertype, and all its bounds are subtypes of t1's bounds
+		//A union is a subtype of a union if all its bounds are subtypes of t1's bounds
 		else if (t1 instanceof Type.Union && t2 instanceof Type.Union) {
 
 			Type.Union u1 = (Type.Union) t1;
 			Type.Union u2 = (Type.Union) t2;
-			if (u1.getBounds().size() < u2.getBounds().size())
-				return false;
 
 			for (Type ut2 : u2.getBounds()) {
 				boolean subtype = false;
@@ -538,17 +548,17 @@ public class TypeChecker {
 			}
 			return true;
 		}
+		//A union is a subtype of a type if all of its bounds are within the type
 		else if (t2 instanceof Type.Union) {
 			Type.Union u2 = (Type.Union) t2;
-			boolean subtype = false;
 			for (Type t : u2.getBounds()) {
-				if (checkPossibleSubtype(t1, t)) {
-					subtype = true;
-					break;
+				if (!checkPossibleSubtype(t1, t)) {
+					return false;
 				}
 			}
-			return subtype;
+			return true;
 		}
+		//A type is a subtype of a union if it is a subtype of any of the union's bounds
 		else if (t1 instanceof Type.Union) {
 			Type.Union u1 = (Type.Union) t1;
 			boolean subtype = false;
@@ -580,9 +590,8 @@ public class TypeChecker {
 
 			return checkPossibleSubtype(tt1, tt2);
 		}
-		//TODO: Check with Dave if this is correct
-		//null is a subtype of every type
-		else if (t2 instanceof Type.Null) {
+		//void is a subtype of every type
+		else if (t2 instanceof Type.Void) {
 			return true;
 		} else return false;
 	}
