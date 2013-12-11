@@ -1,11 +1,9 @@
 package wyscript.par.util;
 
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -22,18 +20,17 @@ import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
 public class LoopModule {
-	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private Stmt.ParFor loop;
 
-	private List<String> tokens = new ArrayList<String>();
 	private List<String> parameters = new ArrayList<String>();
 	private Map<String , Type> environment; //passed to kernel writer at runtime
 	private Set<String> nonParameterVars = new HashSet<String>();
-	private Map<String,String> lengthMap = new HashMap<String,String>();
+	private List<Argument> arguments = new ArrayList<Argument>();
 
-	private String indexName = "i";
 	private String fileName;
 	private KernelWriter writer;
+
+	private boolean is2D;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -53,18 +50,8 @@ public class LoopModule {
 		activate();
 	}
 	private void activate() {
-		generateFunctionParameters(loop.getBody());
-		writeFunctionDeclaration(tokens);
-		this.writer = new KernelWriter(loop, parameters, lengthMap, indexName, fileName);
-		tokens.add("{");
-		writer.writeBody(loop.getBody(),tokens,environment);
-		tokens.add("}");
-		try {
-			writer.saveAndCompileKernel(fileName+".cu",tokens);
-		} catch (IOException e) {
-			InternalFailure.internalFailure(
-					"Could not save kernel file. Got error: "+e.getMessage(), fileName, loop);
-		}
+		scanForFunctionParameters(loop.getBody());
+		generateArguments();
 	}
     /**
 	 * This method generates a string of function parameters and analyses the
@@ -74,9 +61,8 @@ public class LoopModule {
 	 * @requires loop != null and loop contains no illegal statements
 	 * @ensures that all parameters necessary for a Cuda kernel are stored.
 	 */
-	private void generateFunctionParameters(Collection<Stmt> body) {
-		//scan the loop body, determine what must be added as parameter
-		//first exclude the loop index
+	private void scanForFunctionParameters(Collection<Stmt> body) {
+		//exclude loop index from parameter variables
 		nonParameterVars.add(loop.getIndex().getName());
 		scanExpr(loop.getSource());
 		for (Stmt statement : body) {
@@ -90,27 +76,16 @@ public class LoopModule {
 				Stmt.VariableDeclaration vardec = (Stmt.VariableDeclaration)statement;
 				String name = ((Stmt.VariableDeclaration)statement).getName();
 				nonParameterVars.add(name);
-				dealiaseIndex(name);
 				scanExpr(vardec.getExpr());
 			}else if (statement instanceof Stmt.IfElse) {
 				Stmt.IfElse ifelse = (Stmt.IfElse) statement;
 				scanExpr(ifelse.getCondition());
-				generateFunctionParameters(ifelse.getTrueBranch());
-				generateFunctionParameters(ifelse.getFalseBranch());
+				scanForFunctionParameters(ifelse.getTrueBranch());
+				scanForFunctionParameters(ifelse.getFalseBranch());
 			}else {
 				InternalFailure.internalFailure("Encountered unexpected statement type "
 			+statement.getClass(), fileName, statement);
 			}
-		}
-	}
-	private void dealiaseIndex(String name) {
-		int dealiaser = 0;
-		if (name.equals(indexName)) {
-			do {
-				indexName = "i_" + dealiaser;
-				dealiaser++;
-			} while (environment.containsKey(indexName)||
-					parameters.contains(indexName));
 		}
 	}
 	/**
@@ -148,77 +123,36 @@ public class LoopModule {
 	 * @requires The list of parameters to be written is initialised
 	 * @ensures The function declaration is written with the required parameters
 	 */
-	private List<String> writeFunctionDeclaration(List<String> tokens) {
-		tokens.add("extern");
-		tokens.add("\"C\"");
-		tokens.add("__global__");
-		tokens.add("void");
-		tokens.add(getFuncName());
-		tokens.add("(");
+	private void generateArguments() {
 		for (int i = 0; i < parameters.size() ; i++) {
-			if (i>=1 && i < parameters.size()) {
-				tokens.add(",");
-			}
 			String name = parameters.get(i);
-			//now work out the type of each parameters
 			Type type = environment.get(name);
-			if (type == null) {
-				InternalFailure.internalFailure("Cannot retieve type for name "+name
-						, fileName, new Type.Void());
-			}
-			//write an array pointer, and also give a parameter for length
-			if (type instanceof Type.List) {
-				Type.List list = (Type.List) type;
-				writeListToDecl(tokens, name, type, list);
-			}else if (type instanceof Type.Int) {
-				tokens.add("int*");
-				tokens.add(name);
-			}
-			else {
-				InternalFailure.internalFailure("Unknown parameter type encountered."
-						, fileName, type);
-			}
-		}
-		tokens.add(")");
-		return tokens;
-	}
-	private void writeListToDecl(List<String> tokens, String name, Type type,
-			Type.List list) {
-		if (list.getElement() instanceof Type.Int) {
-			tokens.add("int*");
-			tokens.add(name);
-			//note that the length is added to the list parameter
-			tokens.add(",");
-			tokens.add("int*");
-			//qualify length of array with '_length'
-			String lengthName = name + "_length";
-			if (parameters.contains(lengthName)) {
-				//TODO make this fail-safe and de-alias the name
-				InternalFailure.internalFailure("Parameter with name "+
-			lengthName+" preventing addition of length parameter", fileName, type);
-			}
-			tokens.add(lengthName);
-			lengthMap.put(name, lengthName);
-		}else if (list.getElement() instanceof Type.List) {
-			Type.List listType = (Type.List) list.getElement();
-			Type elementType = listType.getElement();
-			if (elementType instanceof Type.Int) {
-				//now add int* arg, plus width and height
-				tokens.add("int*");
-				tokens.add(name);
-				tokens.add(",");
-				tokens.add("int*");
-				tokens.add(name+"_width");
-				tokens.add(",");
-				tokens.add("int*");
-				tokens.add(name+"_height");
-			} else {
-				InternalFailure.internalFailure("List of list should contain type Int only", fileName, list);
+			Argument arg;
+			//Argument arg = Argument.convertToArg(name,type);
+			if (type instanceof Type.Int) {
+				//simply return a single-int argument
+				arg = new Argument.SingleInt(name);
+			}else if (type instanceof Type.List) {
+				//differentiate between 1D and 2D lists
+				Type elementType = (((Type.List) type).getElement());
+				if (elementType instanceof Type.Int) {
+					arg = new Argument.List1D(name);
+					arguments.add(arg);
+					arguments.add(new Argument.Length1D(name));
+				}else if (elementType instanceof Type.List) {
+					if (((Type.List) elementType).getElement() instanceof Type.Int) {
+						arg = new Argument.List2D(name);
+						arguments.add(arg);
+						//add height first
+						arguments.add(new Argument.Length2D(name,true));
+						arguments.add(new Argument.Length2D(name,false));
+					}
+				}else {
+					throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
+				}
 			}
 		}
-		else {
-			InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, list);
-		}
+
 	}
 	public String getFuncName() {
 		return fileName;
@@ -231,7 +165,6 @@ public class LoopModule {
 		if (!parameters.contains(lhs.getName()) &&
 				!nonParameterVars.contains(lhs.getName())) parameters.add
 				(lhs.getName());
-		dealiaseIndex(lhs.getName());
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
@@ -254,7 +187,7 @@ public class LoopModule {
 					"variable which cannot match loop index", fileName, indexOf);
 		}
 	}
-	
+
 	public KernelRunner getRunner() {
 		return new KernelRunner(this);
 	}
@@ -269,5 +202,21 @@ public class LoopModule {
 	}
 	public Map<String, Type> getEnvironment() {
 		return environment;
+	}
+	public List<Argument> getArguments() {
+		// TODO implement me (when finished configuring arguments)
+		return null;
+	}
+	public boolean is2D() {
+		return is2D;
+	}
+	public boolean isParameter(String name) {
+		return parameters.contains(name);
+	}
+	public Expr.Variable index1() {
+		return null;
+	}
+	public Expr.Variable index2() {
+		return null;
 	}
 }

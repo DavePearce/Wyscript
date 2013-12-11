@@ -10,6 +10,7 @@ import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.lang.*;
+import wyscript.par.util.Argument;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import static jcuda.driver.CUresult.*;
@@ -27,8 +28,10 @@ import static jcuda.runtime.JCuda.*;
 public class KernelRunner {
 	private CUfunction function;
 	//Three lists used to track the name, type and device pointer of elements
-	List<String> parameters;
+
 	List<CUdeviceptr> devicePointers;
+
+	List<Argument> arguments;
 
 	File file;
 
@@ -40,7 +43,7 @@ public class KernelRunner {
 	public KernelRunner(LoopModule module) {
 		this.module = module;
 		file = module.getPtxFile();
-		parameters = module.getParameters();
+		arguments = module.getArguments();
 		devicePointers = new ArrayList<CUdeviceptr>();
 		initialise();
 	}
@@ -152,22 +155,10 @@ public class KernelRunner {
 	 */
 	private void marshalParametersFromGPU(HashMap<String, Object> frame) {
 		int listCount = 0;
-		for (int i = 0 ; i < devicePointers.size() ; i++) {
-			Map<String, Type> environment = module.getEnvironment();
-			String parameter = parameters.get(i-listCount);
-			Type type = environment.get(parameter); //compensating for offset of 1
-			//convert from int* to [int]
-			if (type instanceof Type.List) {
-				marshalFromGPUList(frame,parameter,i,type);
-				//next instructions skip the length argument
-				i++;
-				listCount++;
-			}else if (type instanceof Type.Int) {
-				marshalFromGPUInt(frame,parameter,i);
-			}else {
-				InternalFailure.internalFailure("Could not unmarshall " +
-						"unrecognised type", module.getPtxFile().getPath() , type);
-			}
+		for (int i = 0 ; i < arguments.size() ; i++) {
+			CUdeviceptr ptr = devicePointers.get(i);
+			//update the frame
+			arguments.get(i).read(frame, ptr);
 		}
 	}
 	/**
@@ -220,29 +211,14 @@ public class KernelRunner {
 	 *
 	 */
 	private List<CUdeviceptr> marshalParametersToGPU(HashMap<String, Object> frame) {
-		for (int i = 0 ; i < parameters.size() ; i++) {
-			Type type = module.getEnvironment().get(parameters.get(i));
-			if (type instanceof Type.List) {
-				if (((Type.List) type).getElement() instanceof Type.Int) {
-					String name = parameters.get(i);
-					marshalFlatListToGPU(frame, name);
-				}else if (((Type.List) type).getElement() instanceof Type.List) {
-					String name = parameters.get(i);
-					marshal2DListToGPU(frame, name);
-				}
-					else {
-					InternalFailure.internalFailure("Can only allocate pointer " +
-							"for flat list of element type int", file.getPath(), type);
-				}
-			}else if (type instanceof Type.Int) {
-				int value = (Integer) frame.get(parameters.get(i));
-				marshalToGPUInt(frame, value);
-			}else {
-				InternalFailure.internalFailure("Could not marshall paramater to GPU",
-						file.getName(), type);
-			}
+		List<CUdeviceptr> devPtrs = new ArrayList<CUdeviceptr>(arguments.size());
+		for (int i = 0 ; i < arguments.size() ; i++) {
+			Argument arg = arguments.get(i);
+			CUdeviceptr ptr = new CUdeviceptr();
+			arg.write(frame, ptr);
+			devPtrs.add(ptr);
 		}
-		return devicePointers;
+		return devPtrs;
 	}
 	private void marshal2DListToGPU(HashMap<String, Object> frame, String name) {
 		// then the next argument has to be the list length

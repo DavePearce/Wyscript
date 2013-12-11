@@ -23,48 +23,28 @@ import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
+import wyscript.par.util.Argument;
+import wyscript.par.util.LoopModule;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
-
-/**
- * The first instance of the KernelWriter will take an ordinary for-loop and convert it
- * to Cuda code. There are a number of limitations on what loops can be written. The first goal
- * is simple loops with <i>int</i> and <i>[int]</i> types, with no nested loops and simple
- * conditionals. The kernel writer will compile the cuda code and throw an exception if this operation
- * is not successful.
- *
- * Only certain types of parallel for (parFor) loops can be parallelised by this component.
- * So far they include loops with statement bodies with <i>only the following</i> statement types
- * <ul>
- * <li>assignments (int and [int])</li>
- * <li>variable declarations (int and [int])</li>
- * <li>if-else statements</li>
- * <li></li>
- * </ul>
- * Furthermore, expression types are limited to
- * <ul>
- * <li>Simple unary and binary operations</li>
- * <li>Index operations</li>
- * </ul>
- * @author Mate Antunovic
- *
- */
 
 public class KernelWriter {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
 
-	private List<String> tokens = new ArrayList<String>();
-	private List<String> parameters = new ArrayList<String>();
-	private Map<String , Type> environment; //passed to kernel writer at runtime
-	private Map<String,String> lengthMap = new HashMap<String,String>();
+	private List<Argument> args;
 
 	private String indexName1D = "i";
 	private String indexName2D = "j";
 	private String fileName;
 	private String ptxFileName;
+	private Map<String, Type> environment;
+	private List<String> tokens;
+
+	private boolean is2D;
+	private LoopModule module;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -76,12 +56,10 @@ public class KernelWriter {
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(ParFor loop, List<String> parameters,
-			Map<String, String> lengthMap, String indexName , String fileName) {
-		this.loop = loop;
-		this.parameters = parameters;
-		this.lengthMap = lengthMap;
-		this.indexName1D = indexName;
+	public KernelWriter(LoopModule module) {
+		args = module.getArguments();
+		is2D = module.is2D();
+		this.module = module;
 	}
 	public void saveAndCompileKernel(String name , List<String> tokens) throws IOException {
 		//save the token list to file
@@ -186,32 +164,35 @@ public class KernelWriter {
 		}
 	}
 	private void writeThreadIndex(List<String> tokens) {
-		//first the 1D index
-		tokens.add("int");
-		tokens.add(index1D());
-		tokens.add("=");
-		tokens.add("blockIdx.x");
-		tokens.add("*");
-		tokens.add("blockDim.x");
-		tokens.add("+");
-		tokens.add("threadIdx.x");
-		tokens.add(";");
-		//now the 2D index
-		tokens.add("int");
-		tokens.add(index2D());
-		tokens.add("=");
-		tokens.add("blockIdx.x");
-		tokens.add("*");
-		tokens.add("blockDim.x");
-		tokens.add("*");
-		tokens.add("blockDim.y");
-		tokens.add("+");
-		tokens.add("threadIdx.y");
-		tokens.add("*");
-		tokens.add("blockDim.x");
-		tokens.add("+");
-		tokens.add("threadIdx.x");
-		tokens.add(";");
+		//the 1D index
+		if (!is2D) {
+			tokens.add("int");
+			tokens.add(index1D());
+			tokens.add("=");
+			tokens.add("blockIdx.x");
+			tokens.add("*");
+			tokens.add("blockDim.x");
+			tokens.add("+");
+			tokens.add("threadIdx.x");
+			tokens.add(";");
+		}else {
+			//the 2D index
+			tokens.add("int");
+			tokens.add(index2D());
+			tokens.add("=");
+			tokens.add("blockIdx.x");
+			tokens.add("*");
+			tokens.add("blockDim.x");
+			tokens.add("*");
+			tokens.add("blockDim.y");
+			tokens.add("+");
+			tokens.add("threadIdx.y");
+			tokens.add("*");
+			tokens.add("blockDim.x");
+			tokens.add("+");
+			tokens.add("threadIdx.x");
+			tokens.add(";");
+		}
 	}
 	/**
 	 * Convert a single statement to its appropriate kernel form. The statement must
@@ -225,12 +206,14 @@ public class KernelWriter {
 		// what happens here?
 		if (statement instanceof Stmt.IfElse) {
 			write((Stmt.IfElse)statement,tokens);
-		}
-		else if (statement instanceof Stmt.VariableDeclaration) {
+		}else if (statement instanceof Stmt.VariableDeclaration) {
 			write((Stmt.VariableDeclaration) statement,tokens);
 		}else if (statement instanceof Stmt.Assign) {
 			write((Stmt.Assign)statement,tokens);
-		}else {
+		}else if (statement instanceof Stmt.ParFor) {
+			write((Stmt.ParFor)statement,tokens);
+		}
+		else {
 			InternalFailure.internalFailure("Encountered syntactic element not " +
 					"supported in parFor loop", fileName, statement);
 		}
@@ -291,7 +274,7 @@ public class KernelWriter {
 	private void write(Expr.LVal val,List<String> tokens) {
 		if (val instanceof Expr.Variable) {
 			//if this is a parameter, have to dereference the pointer
-			if (parameters.contains(((Expr.Variable)val).getName())) {
+			if (module.isParameter(((Expr.Variable)val).getName())) {
 					tokens.add("*");
 			}
 			//write a
@@ -306,6 +289,14 @@ public class KernelWriter {
 		}else if (val instanceof Expr.IndexOf) {
 			write((Expr.IndexOf)val,tokens);
 		}
+
+	}
+	/**
+	 * Here a nested loop is being written
+	 * @param statement
+	 * @param tokens
+	 */
+	private void write(Stmt.ParFor statement, List<String> tokens) {
 
 	}
 	private String index1D() {
@@ -415,12 +406,8 @@ public class KernelWriter {
 			else {
 				InternalFailure.internalFailure("Can only perform indexof on list", fileName, indexOf);
 			}
-
 		}else {
 			InternalFailure.internalFailure("Expected source type to be of type list", fileName, indexOf.getSource());
-		}
-		if (indexOf.getIndex().equals(loop.getIndex())) { //TODO Potential issue with comparing indices
-
 		}
 	}
 	/**
@@ -432,10 +419,7 @@ public class KernelWriter {
 	private void write2DIndexOf(List<String> tokens, Expr.IndexOf src, Expr indexVar) {
 		Expr indexSrc = src.getSource();
 		if (indexSrc instanceof Expr.Variable) {
-			write((Expr.Variable)indexSrc, tokens);
-			tokens.add("[");
-			tokens.add(index2D());
-			tokens.add("]");
+
 		}else {
 			//there is an issue if this happens
 		}
@@ -456,8 +440,10 @@ public class KernelWriter {
 			//the type is correct for a kernel, write it here
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
-				if (((Expr.Variable) indexVar).getName().equals(loop.getIndex().getName()))
-				tokens.add("["+index1D()+"]");
+				if (((Expr.Variable) indexVar).getName().equals(loop.getIndex().getName())) {
+					if (!is1D) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
+					tokens.add("["+index1D()+"]");
+				}
 			}else if (indexVar instanceof Expr.Constant) {
 				tokens.add("[");
 				write((Expr.Constant)indexVar,tokens);
