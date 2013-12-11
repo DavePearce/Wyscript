@@ -78,7 +78,7 @@ public class Lexer {
 		ArrayList<LexerErrorData> errors = new ArrayList<LexerErrorData>();
 		pos = 0;
 
-		while (pos < input.length()) {
+		outer: while (pos < input.length()) {
 			char c = input.charAt(pos);
 
 			if (Character.isDigit(c)) {
@@ -87,7 +87,43 @@ public class Lexer {
 				tokens.add(scanStringConstant(errors));
 			} else if (c == '\'') {
 				tokens.add(scanCharacterConstant(errors));
-			} else if (isOperatorStart(c)) {
+			}
+
+			//Attempt to scan a comment
+			else if(c == '/' && pos < input.length()-1) {
+
+				//Single line comment
+				if (input.charAt(pos+1) == '/') {
+					pos = pos+2;
+					while (pos < input.length()) {
+						if (input.charAt(pos) == '\n') {
+							pos++;
+							continue outer;
+						}
+						pos++;
+					}
+				}
+				//Multi-line comment
+				else if(input.charAt(pos+1) == '*') {
+					pos = pos+2;
+					while (pos < input.length()-1) {
+						if (input.charAt(pos) == '*' &&
+								input.charAt(pos+1) == '/') {
+							pos += 2;
+							continue outer;
+						}
+						pos++;
+					}
+					errors.add(new LexerErrorData(pos+1, filename, input.charAt(pos),
+							LexerErrorData.ErrorType.MISSING_COMMENT_END));
+				}
+				else {
+					//Attempt to parse a divide operator
+					tokens.add(scanOperator(errors));
+				}
+			}
+
+			else if (isOperatorStart(c)) {
 				tokens.add(scanOperator(errors));
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());

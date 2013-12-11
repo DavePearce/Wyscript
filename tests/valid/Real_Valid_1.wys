@@ -1,6 +1,6 @@
 void main():
-    real x = 1.2
-    real y = 2.4
+    real x = 1.0
+    real y = 2.5
     print x + y
     print y - x
     print x / y
