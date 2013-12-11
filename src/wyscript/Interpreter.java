@@ -38,6 +38,7 @@ public class Interpreter {
 	private HashMap<String, WyscriptFile.Decl> declarations;
 	private WyscriptFile file;
 	private HashMap<String, Object> constants;
+	private HashMap<String, Type> userTypes;
 
 
 	public void run(WyscriptFile wf) {
@@ -45,6 +46,7 @@ public class Interpreter {
 		//Also, initialise any constant values declared in the file
 		declarations = new HashMap<String,WyscriptFile.Decl>();
 		constants = new HashMap<String, Object>();
+		userTypes = new HashMap<String, Type>();
 
 		for(WyscriptFile.Decl decl : wf.declarations) {
 			declarations.put(decl.name(), decl);
@@ -52,6 +54,11 @@ public class Interpreter {
 			if (decl instanceof WyscriptFile.ConstDecl) {
 				WyscriptFile.ConstDecl constant = (WyscriptFile.ConstDecl) decl;
 				constants.put(constant.name, execute(constant.constant, constants));
+			}
+
+			else if (decl instanceof WyscriptFile.TypeDecl) {
+				WyscriptFile.TypeDecl type = (WyscriptFile.TypeDecl) decl;
+				userTypes.put(type.name(), type.type);
 			}
 		}
 		this.file = wf;
@@ -450,6 +457,9 @@ public class Interpreter {
 			//We trust the type checker has done its job
 			return o;
 		}
+		else if(t instanceof Type.Named) {
+			return doCast(userTypes.get(t.toString()), o, elem);
+		}
 
 		else return doPrimitiveCast(t, o, elem);
 
@@ -749,6 +759,8 @@ public class Interpreter {
 				return true;
 			}
 			return false;
+		} else if(type instanceof Type.Named) {
+			return instanceOf(value, userTypes.get(type.toString()));
 		} else {
 			Type.Union ut = (Type.Union) type;
 			for (Type bt : ut.getBounds()) {

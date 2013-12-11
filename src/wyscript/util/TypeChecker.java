@@ -1,8 +1,11 @@
 package wyscript.util;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import wyscript.lang.*;
 import static wyscript.util.SyntaxError.*;
@@ -107,7 +110,7 @@ public class TypeChecker {
 	public void check(Stmt.Assign stmt, Map<String,Type> environment) {
 		Type lhs = check(stmt.getLhs(), environment);
 		Type rhs = check(stmt.getRhs(), environment);
-		checkSubtype(lhs,rhs,stmt);
+		checkSubtype(lhs,rhs, false, stmt);
 	}
 
 	public void check(Stmt.Print stmt, Map<String,Type> environment) {
@@ -116,7 +119,7 @@ public class TypeChecker {
 
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
 		Type actual = check(stmt.getExpr(), environment);
-		checkSubtype(function.ret, actual, stmt.getExpr());
+		checkSubtype(function.ret, actual, false, stmt.getExpr());
 	}
 
 	public void check(Stmt.VariableDeclaration stmt, Map<String,Type> environment) {
@@ -125,7 +128,7 @@ public class TypeChecker {
 					file.filename, stmt);
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
-			checkSubtype(stmt.getType(),type,stmt);
+			checkSubtype(stmt.getType(),type, false, stmt);
 		}
 		environment.put(stmt.getName(), stmt.getType());
 	}
@@ -219,14 +222,14 @@ public class TypeChecker {
 			Type left = check(expr.getLhs(), environment);
 			Type right = check(expr.getRhs(), environment);
 
-			isString = checkPossibleSubtype(new Type.Strung(), left);
+			isString = checkPossibleSubtype(new Type.Strung(), left, false);
 
 			if (!isString) {
 				checkSubtype(Type.List.class, left, expr.getLhs());
 				checkSubtype(Type.List.class, right, expr.getRhs());
 
 				//Check that the RHS is a subtype of the LHS
-				checkSubtype(left, right, expr.getRhs());
+				checkSubtype(left, right, false, expr.getRhs());
 			}
 
 			return left;
@@ -248,10 +251,10 @@ public class TypeChecker {
 			Type lhs = check(expr.getLhs(), environment);
 			Type rhs = check(expr.getRhs(), environment);
 
-			if (!checkPossibleSubtype(new Type.Int(), lhs)) {
+			if (!checkPossibleSubtype(new Type.Int(), lhs, false)) {
 				checkSubtype(Type.Real.class, lhs, expr.getLhs());
 			}
-			if (!checkPossibleSubtype(new Type.Int(), rhs)) {
+			if (!checkPossibleSubtype(new Type.Int(), rhs, false)) {
 				checkSubtype(Type.Real.class, rhs, expr.getRhs());
 			}
 
@@ -271,11 +274,11 @@ public class TypeChecker {
 			Type rhs2 = check(expr.getRhs(), environment);
 			boolean promote = false;
 
-			if (!checkPossibleSubtype(new Type.Int(), lhs2)) {
+			if (!checkPossibleSubtype(new Type.Int(), lhs2, false)) {
 				checkSubtype(Type.Real.class, lhs2, expr.getLhs());
 				promote = true;
 			}
-			if (!checkPossibleSubtype(new Type.Int(), rhs2)) {
+			if (!checkPossibleSubtype(new Type.Int(), rhs2, false)) {
 				checkSubtype(Type.Real.class, rhs2, expr.getRhs());
 			}
 
@@ -295,7 +298,7 @@ public class TypeChecker {
 
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
 
-		checkSubtype(check(expr.getSource(), environment), expr.getType(), expr.getSource());
+		checkSubtype(check(expr.getSource(), environment), expr.getType(), true, expr.getSource());
 		return expr.getType();
 	}
 
@@ -326,7 +329,7 @@ public class TypeChecker {
 		checkSubtype(Type.Int.class, indexType, expr.getIndex());
 
 		//Check not indexing a String
-		if (checkPossibleSubtype(new Type.Strung(), srcType))
+		if (checkPossibleSubtype(new Type.Strung(), srcType, false))
 			return new Type.Char();
 
 		return checkSubtype(Type.List.class, srcType, expr.getSource())
@@ -344,7 +347,7 @@ public class TypeChecker {
 		for(int i=0;i!=parameters.size();++i) {
 			Type argument = check(arguments.get(i),environment);
 			Type parameter = parameters.get(i).type;
-			checkSubtype(parameter,argument,parameters.get(i));
+			checkSubtype(parameter,argument, false, parameters.get(i));
 		}
 		return fn.ret;
 	}
@@ -359,7 +362,7 @@ public class TypeChecker {
 			Type t = check(args.get(0), environment);
 			for (Expr e : args) {
 				Type t2 = check(e, environment);
-				checkSubtype(t, t2, e);
+				checkSubtype(t, t2, false, e);
 			}
 			return new Type.List(t);
 		}
@@ -394,7 +397,7 @@ public class TypeChecker {
 		switch(expr.getOp()) {
 
 		case LENGTHOF:
-			if (!checkPossibleSubtype(new Type.Strung(), check(expr.getExpr(), environment))) {
+			if (!checkPossibleSubtype(new Type.Strung(), check(expr.getExpr(), environment), false)) {
 				checkSubtype(Type.List.class, check(expr.getExpr(), environment), expr.getExpr());
 			}
 			return new Type.Int();
@@ -402,7 +405,7 @@ public class TypeChecker {
 		case NEG:
 			Type t = check(expr.getExpr(), environment);
 
-			if (!checkPossibleSubtype(new Type.Int(), t)) {
+			if (!checkPossibleSubtype(new Type.Int(), t, false)) {
 				checkSubtype(Type.Real.class, t, expr.getExpr());
 				return new Type.Real();
 			}
@@ -459,9 +462,9 @@ public class TypeChecker {
 	 * @param element
 	 *            Used for determining where to report syntax errors.
 	 */
-	public void checkSubtype(Type t1, Type t2, SyntacticElement element) {
+	public void checkSubtype(Type t1, Type t2, boolean cast, SyntacticElement element) {
 
-		if (checkPossibleSubtype(t1, t2)) {
+		if (checkPossibleSubtype(t1, t2, cast)) {
 			//OK!
 		}
 		else {
@@ -477,7 +480,22 @@ public class TypeChecker {
 	 * @param t1 - The supertype
 	 * @param t2 - The (possible) subtype being checked
 	 */
-	private boolean checkPossibleSubtype(Type t1, Type t2) {
+	private boolean checkPossibleSubtype(Type t1, Type t2, boolean cast) {
+
+		//Attempt to normalize record types
+		if (t1 instanceof Type.Record || t2 instanceof Type.Record) {
+
+			if (t1 instanceof Type.Record) {
+				Attribute type = normalize((Type.Record) t1);
+				t1.attributes().add(type);
+			}
+			if (t2 instanceof Type.Record) {
+				Attribute type = normalize((Type.Record) t2);
+				t2.attributes().add(type);
+			}
+		}
+
+
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
 			return true;
 		} else if (t1 instanceof Type.Char && t2 instanceof Type.Char) {
@@ -494,7 +512,7 @@ public class TypeChecker {
 			return true;
 		} else if (t1 instanceof Type.Real && t2 instanceof Type.Int) {
 			return true;
-		} else if (t1 instanceof Type.Int && t2 instanceof Type.Real) {
+		} else if (cast && t1 instanceof Type.Int && t2 instanceof Type.Real) {
 			return true;
 		}
 
@@ -504,7 +522,7 @@ public class TypeChecker {
 			// The following is safe because While has value semantics. In a
 			// conventional language, like Java, this is not safe because of
 			// references.
-			return checkPossibleSubtype(l1.getElement(),l2.getElement());
+			return checkPossibleSubtype(l1.getElement(),l2.getElement(), cast);
 		}
 		//Records implement depth subtyping, but not width subtyping. Thus a record is
 		//a subtype of another record if it has the same number of fields, those
@@ -524,7 +542,7 @@ public class TypeChecker {
 				if (f2.get(s) == null)
 					return false;
 
-				if (checkPossibleSubtype(f1.get(s), f2.get(s)) == false)
+				if (checkPossibleSubtype(f1.get(s), f2.get(s), cast) == false)
 					return false;
 			}
 			return true;
@@ -538,7 +556,7 @@ public class TypeChecker {
 			for (Type ut2 : u2.getBounds()) {
 				boolean subtype = false;
 				for (Type ut1 : u1.getBounds()) {
-					if (checkPossibleSubtype(ut1, ut2)) {
+					if (checkPossibleSubtype(ut1, ut2, cast)) {
 						subtype = true;
 						break;
 					}
@@ -552,7 +570,7 @@ public class TypeChecker {
 		else if (t2 instanceof Type.Union) {
 			Type.Union u2 = (Type.Union) t2;
 			for (Type t : u2.getBounds()) {
-				if (!checkPossibleSubtype(t1, t)) {
+				if (!checkPossibleSubtype(t1, t, cast)) {
 					return false;
 				}
 			}
@@ -562,8 +580,13 @@ public class TypeChecker {
 		else if (t1 instanceof Type.Union) {
 			Type.Union u1 = (Type.Union) t1;
 			boolean subtype = false;
+			Type actual = t2;
+			//Handle normalized types
+			if (t2 instanceof Type.Record) {
+				actual = t2.attribute(Attribute.Type.class).type;
+			}
 			for (Type t : u1.getBounds()) {
-				if (checkPossibleSubtype(t, t2)) {
+				if (checkPossibleSubtype(t, actual, cast)) {
 					subtype = true;
 					break;
 				}
@@ -577,7 +600,7 @@ public class TypeChecker {
 			if (t1 instanceof Type.Named) {
 				tt1 = userTypes.get(((Type.Named)t1).getName());
 				if (tt1 == null)
-					internalFailure("Error, couldn't find type associated with " + t1, file.filename, t2);
+					internalFailure("Error, couldn't find type associated with " + t1, file.filename, tt1);
 			}
 			else tt1 = t1;
 
@@ -588,11 +611,115 @@ public class TypeChecker {
 			}
 			else tt2 = t2;
 
-			return checkPossibleSubtype(tt1, tt2);
+			return checkPossibleSubtype(tt1, tt2, cast);
 		}
 		//void is a subtype of every type
 		else if (t2 instanceof Type.Void) {
 			return true;
 		} else return false;
+	}
+
+	/**
+	 * Attempts to normalize the type of a Record - if the record contains
+	 * any fields of union type (eg int|null x), those types are extracted
+	 * to create a union type of records ( {int x} | {null x} )
+	 */
+	private Attribute normalize(Type.Record r) {
+
+		//The set of all possible types each field can have
+		Map<String, Set<Type>> types = new HashMap<String, Set<Type>>();
+
+		for (String s : r.getFields().keySet()) {
+
+			Set<Type> fieldTypes = new HashSet<Type>();
+
+			Type fieldType = r.getFields().get(s);
+			if (fieldType instanceof Type.Union) {
+				for (Type t : ((Type.Union)fieldType).getBounds())
+					fieldTypes.add(t);
+			}
+			else fieldTypes.add(fieldType);
+			types.put(s, fieldTypes);
+		}
+
+		boolean isUnion = false;
+		for (String s : r.getFields().keySet()) {
+			Set<Type> typeSet = types.get(s);
+			if (typeSet.size() > 0)
+				isUnion = true;
+			break;
+		}
+		return (isUnion) ? new Attribute.Type(getRecordUnion(types)) : new Attribute.Type(r);
+	}
+
+	/**
+	 * Wrapper method - calls getRecordPerms to get the set of all possible records,
+	 * then converts that set into a union type and returns it.
+	 */
+	private Type.Union getRecordUnion(Map<String, Set<Type>> types) {
+		//Need to convert the map to a set of pairs of <String, Set<Type>>
+
+		Set<Pair<String, Set<Type>>> typeSet = new HashSet<Pair<String,Set<Type>>>();
+
+		for (String s : types.keySet()) {
+			typeSet.add(new Pair<String, Set<Type>>(s, types.get(s)));
+		}
+		//Now pass that set along to the recursive method and get the set of all possible records back
+		Set<Map<String, Type>> records = getRecordPerms(typeSet);
+
+		List<Type> bounds = new ArrayList<Type>();
+
+		for (Map<String, Type> field : records) {
+			bounds.add(new Type.Record(field));
+		}
+		return new Type.Union(bounds);
+	}
+
+	/**
+	 * Recursive method that builds up the set of all possible fields a record could have.
+	 * Takes a set containing all field names and the set of types of each field, and splits
+	 * that into two - the first element and the remainder. It then passed the remainder on
+	 * to getRecordPerms() (if the remainder exists) to get a set of half-built field maps.
+	 * Then it iterates through all the types attached to the first element, creating a (potentially)
+	 * larger set of field-maps, with one more entry in each map.
+	 */
+	private Set<Map<String, Type>> getRecordPerms(Set<Pair<String, Set<Type>>> typeSet) {
+
+		Set<Pair<String, Set<Type>>> remainder = new HashSet<Pair<String, Set<Type>>>();
+
+		boolean first = true;
+		Pair<String, Set<Type>> current = null;
+
+		for (Pair<String, Set<Type>> pair : typeSet) {
+			if (first) {
+				current = pair;
+				first = false;
+			}
+			else remainder.add(pair);
+		}
+
+		Set<Map<String, Type>> tmp = null;
+		if (!remainder.isEmpty()) {
+			tmp = getRecordPerms(remainder);
+		}
+
+		Set<Map<String, Type>> result = new HashSet<Map<String, Type>>();
+
+		for (Type t : current.second()) {
+			if (tmp == null) {
+				Map<String, Type> m = new HashMap<String, Type>();
+				m.put(current.first(), t);
+				result.add(m);
+			}
+			else {
+				for (Map<String, Type> fields : tmp) {
+					Map<String, Type> m = new HashMap<String, Type>(fields);
+					m.put(current.first(), t);
+					result.add(m);
+				}
+			}
+		}
+
+		return result;
 	}
 }
