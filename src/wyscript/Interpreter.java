@@ -725,7 +725,9 @@ public class Interpreter {
 	private boolean instanceOf(Object value, Type type) {
 		if(type instanceof Type.Void) {
 			return false;
-		} else if(type instanceof Type.Bool) {
+		}else if (type instanceof Type.Null) {
+			return value == null;
+		}else if(type instanceof Type.Bool) {
 			return value instanceof Boolean;
 		} else if(type instanceof Type.Char) {
 			return value instanceof Character;

@@ -369,6 +369,11 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Normalize_Valid_3() {
+		runInterpreterTest("Normalize_Valid_3");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runInterpreterTest("RealDiv_Valid_1");
 	}

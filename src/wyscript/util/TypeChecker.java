@@ -356,13 +356,21 @@ public class TypeChecker {
 		List<Expr> args = expr.getArguments();
 		if (args.isEmpty())
 			return new Type.List(new Type.Void());
-		//TODO: check with Dave
-		//we take the type of the first element and check all other elements are a subtype of that
+		//Take the highest possible supertype, or the union of the types, of all the elements
 		else {
+			List<Type> bounds = new ArrayList<Type>();
 			Type t = check(args.get(0), environment);
 			for (Expr e : args) {
 				Type t2 = check(e, environment);
-				checkSubtype(t, t2, false, e);
+				if (!checkPossibleSubtype(t, t2, false)) {
+					if (checkPossibleSubtype(t2, t, false))
+						t = t2;
+					else {
+						bounds.add(t);
+						bounds.add(t2);
+						t = new Type.Union(bounds);
+					}
+				}
 			}
 			return new Type.List(t);
 		}
