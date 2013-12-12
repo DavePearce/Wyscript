@@ -111,6 +111,11 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Cast_Valid_5() {
+		runInterpreterTest("Cast_Valid_5");
+	}
+
+	@Test
 	public void Char_Valid_1() {
 		runInterpreterTest("Char_Valid_1");
 	}
@@ -356,6 +361,21 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Normalize_Valid_1() {
+		runInterpreterTest("Normalize_Valid_1");
+	}
+
+	@Test
+	public void Normalize_Valid_2() {
+		runInterpreterTest("Normalize_Valid_2");
+	}
+
+	@Test
+	public void Normalize_Valid_3() {
+		runInterpreterTest("Normalize_Valid_3");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runInterpreterTest("RealDiv_Valid_1");
 	}
@@ -466,11 +486,6 @@ public class InterpreterValidTests {
 	}
 
 	@Test
-	public void Switch_Valid_2() {
-		runInterpreterTest("Switch_Valid_2");
-	}
-
-	@Test
 	public void Switch_Valid_3() {
 		runInterpreterTest("Switch_Valid_3");
 	}
@@ -493,6 +508,11 @@ public class InterpreterValidTests {
 	@Test
 	public void Switch_Valid_8() {
 		runInterpreterTest("Switch_Valid_8");
+	}
+
+	@Test
+	public void Switch_Valid_9() {
+		runInterpreterTest("Switch_Valid_9");
 	}
 
 	@Test

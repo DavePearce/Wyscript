@@ -1,3 +1,8 @@
-tests/valid/MultiLineComment_Valid_2.while:2: identifier expected
-/*  Single Line Comment Test
-^
+/*  Multi-Line Comment Test
+ *  WyScript should accept this without complaint
+ *  etc etc.
+ */
+
+ void main():
+	print "OK"
+

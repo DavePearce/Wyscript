@@ -23,6 +23,7 @@ import java.util.*;
 import wyscript.lang.*;
 import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
+import wyscript.util.SyntacticElement;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -37,12 +38,29 @@ import static wyscript.util.SyntaxError.*;
 public class Interpreter {
 	private HashMap<String, WyscriptFile.Decl> declarations;
 	private WyscriptFile file;
+	private HashMap<String, Object> constants;
+	private HashMap<String, Type> userTypes;
+
 
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
+		//Also, initialise any constant values declared in the file
 		declarations = new HashMap<String,WyscriptFile.Decl>();
+		constants = new HashMap<String, Object>();
+		userTypes = new HashMap<String, Type>();
+
 		for(WyscriptFile.Decl decl : wf.declarations) {
 			declarations.put(decl.name(), decl);
+
+			if (decl instanceof WyscriptFile.ConstDecl) {
+				WyscriptFile.ConstDecl constant = (WyscriptFile.ConstDecl) decl;
+				constants.put(constant.name, execute(constant.constant, constants));
+			}
+
+			else if (decl instanceof WyscriptFile.TypeDecl) {
+				WyscriptFile.TypeDecl type = (WyscriptFile.TypeDecl) decl;
+				userTypes.put(type.name(), type.type);
+			}
 		}
 		this.file = wf;
 
@@ -80,6 +98,10 @@ public class Interpreter {
 		for(int i=0;i!=arguments.length;++i) {
 			WyscriptFile.Parameter parameter = function.parameters.get(i);
 			frame.put(parameter.name,arguments[i]);
+		}
+
+		for (String s : constants.keySet()) {
+			frame.put(s, constants.get(s));
 		}
 
 		// Third, execute the function body!
@@ -127,10 +149,65 @@ public class Interpreter {
 			return execute((Stmt.Print) stmt,frame);
 		} else if(stmt instanceof Expr.Invoke) {
 			return execute((Expr.Invoke) stmt,frame);
+		} else if(stmt instanceof Stmt.Switch) {
+			return execute((Stmt.Switch) stmt, frame);
+		} else if(stmt instanceof Stmt.Next) {
+			return execute((Stmt.Next)stmt, frame);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
 		}
+	}
+
+	private Object execute(Stmt.Switch stmt, HashMap<String, Object> frame) {
+		Object expr = execute(stmt.getExpr(), frame);
+
+		boolean hasEvaluated = false;
+		boolean evaluateNext = false;
+
+		Stmt.Default def = null;
+
+		for (Stmt.SwitchStmt s: stmt.cases()) {
+			if (s instanceof Stmt.Default)  {
+				def = (Stmt.Default) s;
+				if (evaluateNext) {
+					evaluateNext = false;
+					Object tmp = execute(def.getStmts(), frame);
+
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+						else return tmp;
+				}
+			}
+			else {
+				Stmt.Case c = (Stmt.Case) s;
+				Object o = execute(c.getConstant(), frame);
+
+				//We've found a match amongst the cases, or fall-through has occurred
+				if (o.equals(expr) || evaluateNext) {
+					hasEvaluated = true;
+					evaluateNext = false;
+					Object tmp = execute(c.getStmts(), frame);
+
+					//Fall-through
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+
+					else return tmp;
+				}
+			}
+		}
+		if (def != null && !hasEvaluated) {
+			Object tmp = execute(def.getStmts(), frame);
+			if (!(tmp instanceof Type.Null))
+				return tmp;
+		}
+		return null;
+	}
+
+	private Object execute(Stmt.Next stmt, HashMap<String, Object> frame) {
+		//Tombstone value to signal to the switch to progress to the next case
+		return new Type.Null();
 	}
 
 	private Object execute(Stmt.Assign stmt, HashMap<String,Object> frame) {
@@ -316,8 +393,31 @@ public class Interpreter {
 
 		// Second, deal the rest.
 		Object rhs = execute(expr.getRhs(), frame);
+		Expr.BOp op = expr.getOp();
 
-		switch (expr.getOp()) {
+		//Need to handle the nasty left recursive case for maths operators
+		if (expr.getRhs() instanceof Expr.Binary) {
+			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+			Expr.BOp otherOp = bin.getOp();
+
+			switch(otherOp) {
+
+			case ADD:
+			case DIV:
+			case MUL:
+			case REM:
+			case SUB:
+				Expr.Binary newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+				lhs = execute(newExpr, frame);
+				rhs = execute(bin.getRhs(), frame);
+				op = otherOp;
+
+			default:
+				break;
+			}
+		}
+
+		switch (op) {
 		case ADD:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);
@@ -325,11 +425,13 @@ public class Interpreter {
 				return ((Double)lhs) + ((Double)rhs);
 			}
 		case SUB:
+
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) - ((Integer)rhs);
 			} else {
 				return ((Double)lhs) - ((Double)rhs);
 			}
+
 		case MUL:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) * ((Integer)rhs);
@@ -415,8 +517,119 @@ public class Interpreter {
 
 	private Object execute(Expr.Cast expr, HashMap<String, Object> frame) {
 		Object rhs = execute(expr.getSource(), frame);
-		// TODO: we need to actually implement casting here!
-		return rhs;
+
+		return doCast(expr.getType(), rhs, expr.getSource());
+	}
+
+	/**
+	 * Method that passes cast execution to the appropriate method
+	 * for the type of the cast
+	 */
+	private Object doCast(Type t, Object o, SyntacticElement elem) {
+
+		if (t instanceof Type.List)
+			return doListCast((Type.List)t, (ArrayList)o, elem);
+
+		else if(t instanceof Type.Record) {
+			return doRecordCast((Type.Record)t, (HashMap)o, elem);
+		}
+		else if(t instanceof Type.Union) {
+			//We trust the type checker has done its job
+			return o;
+		}
+		else if(t instanceof Type.Named) {
+			return doCast(userTypes.get(t.toString()), o, elem);
+		}
+
+		else return doPrimitiveCast(t, o, elem);
+
+	}
+
+	private Object doRecordCast(Type.Record t, HashMap o, SyntacticElement elem) {
+		HashMap result = new HashMap();
+
+		for(Object name : o.keySet()) {
+			Object casted = null;
+			casted = doCast(t.getFields().get(name), o.get(name), elem);
+
+			result.put(name, casted);
+		}
+
+		return result;
+	}
+
+	/**
+	 * Casts a non-list object to the java equivalent of the given type,
+	 * and returns the resulting object.
+	 */
+	private Object doPrimitiveCast(Type t, Object o, SyntacticElement elem) {
+		Class c = getJavaClass(t);
+
+		//Need to have explicit conversions for the number types
+		//As Double cannot be cast to Integer, and vice versa
+
+		if (c.equals(Double.class)) {
+			Double d = 0.0;
+
+			if (o instanceof Integer) {
+				d = ((Integer)o).doubleValue();
+				return d;
+			}
+
+			else if (o instanceof Double) {
+				d = (Double)o;
+				return d;
+			}
+
+			else {
+				//Shouldn't happen, indicates a type failure
+				internalFailure("Casting error - cannot cast between types", file.filename, elem);
+				return null;
+			}
+		}
+
+		else if(c.equals(Integer.class)) {
+
+				Integer i = 0;
+
+				if (o instanceof Integer) {
+					i = (Integer)o;
+					return i;
+				}
+
+				else if (o instanceof Double) {
+					i = ((Double)o).intValue();
+					return i;
+				}
+
+				else {
+					//Shouldn't happen, indicates a type checking failure
+					internalFailure("Casting error - cannot cast between types", file.filename, elem);
+					return null;
+				}
+		}
+
+		//In all other cases, type checker should have paved the way for us
+		return c.cast(o);
+	}
+
+	/**
+	 * Casts all elements in a list to the given type of the list class.
+	 * Recursively deals with nested lists.
+	 *
+	 * @param t 	- The type of the cast
+	 * @param list	- The list being casted
+	 * @return
+	 */
+	private ArrayList doListCast(Type.List t, ArrayList list, SyntacticElement elem) {
+
+		Class listType = getJavaClass(t.getElement());
+		ArrayList newList = new ArrayList();
+
+		for (Object o : list)
+			newList.add(doCast(t.getElement(), o, elem));
+
+		return newList;
 	}
 
 	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {
@@ -540,7 +753,7 @@ public class Interpreter {
 	 * Convert the given object value to a string. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
 	 * <code>Character</code>, <code>String</code>, <code>ArrayList</code> (for
-	 * lists) or <code>HaspMap</code> (for records). The latter two must be
+	 * lists) or <code>HashMap</code> (for records). The latter two must be
 	 * treated recursively.
 	 *
 	 * @param o
@@ -592,7 +805,9 @@ public class Interpreter {
 	private boolean instanceOf(Object value, Type type) {
 		if(type instanceof Type.Void) {
 			return false;
-		} else if(type instanceof Type.Bool) {
+		}else if (type instanceof Type.Null) {
+			return value == null;
+		}else if(type instanceof Type.Bool) {
 			return value instanceof Boolean;
 		} else if(type instanceof Type.Char) {
 			return value instanceof Character;
@@ -626,6 +841,8 @@ public class Interpreter {
 				return true;
 			}
 			return false;
+		} else if(type instanceof Type.Named) {
+			return instanceOf(value, userTypes.get(type.toString()));
 		} else {
 			Type.Union ut = (Type.Union) type;
 			for (Type bt : ut.getBounds()) {
@@ -635,5 +852,40 @@ public class Interpreter {
 			}
 			return false;
 		}
+	}
+
+	/**
+	 * The inverse of the above method - given a WyScript type, return
+	 * the corresponding java class. Used for type casting.
+	 * Returns null if the type is a union - in this case, no
+	 * Java cast is required
+	 */
+	private Class getJavaClass(Type t) {
+
+		if (t instanceof Type.Bool)
+			return Boolean.class;
+
+		else if (t instanceof Type.Int)
+			return Integer.class;
+
+		else if (t instanceof Type.Real)
+			return Double.class;
+
+		else if (t instanceof Type.Strung)
+			return StringBuffer.class;
+
+		else if (t instanceof Type.Char)
+			return Character.class;
+
+		else if (t instanceof Type.List) {
+			//Is there a better way to do this?
+			return ArrayList.class;
+		}
+
+		else if (t instanceof Type.Record) {
+			return HashMap.class;
+		}
+		else return null;
+
 	}
 }

@@ -808,4 +808,111 @@ public interface Stmt extends SyntacticElement {
 			return expr;
 		}
 	}
+
+	/**
+	 * Represents a switch statement of the form:
+	 *
+	 * switch (expr):
+	 * 		case <literal>:
+	 * 			stmt
+	 * 			next  <- Denotes explicit fallthrough
+	 *
+	 * 		default:
+	 * 			stmt
+	 *
+	 */
+	public static final class Switch extends SyntacticElement.Impl implements
+		Stmt {
+
+		private Expr expr;
+		private List<Stmt.SwitchStmt> cases;
+
+
+
+		/**
+		 * Constructs a switch statement out of a given expression and list of switch statements
+		 */
+		public Switch(Expr e, List<Stmt.SwitchStmt> c, Attribute...attributes) {
+			super(attributes);
+			expr = e;
+			cases = new ArrayList<Stmt.SwitchStmt>(c);
+		}
+
+		public Expr getExpr() {
+			return expr;
+		}
+
+		public List<Stmt.SwitchStmt> cases() {
+			return new ArrayList<Stmt.SwitchStmt>(cases);
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder("switch " + expr.toString() + ":\n");
+			for (Stmt.SwitchStmt c : cases) {
+				sb.append(c.toString() + "\n");
+			}
+			return sb.toString();
+		}
+	}
+
+	public static interface SwitchStmt extends Stmt {}
+
+	public static final class Case extends SyntacticElement.Impl implements
+	SwitchStmt {
+		private Expr constant;  //Must be either Expr.Constant or Expr.ListConstructor
+		private List<Stmt> stmts;
+
+		public Case(Expr c, List<Stmt> s, Attribute...attributes) {
+			super(attributes);
+			constant = c;
+			stmts = new ArrayList<Stmt>(s);
+		}
+
+		public Expr getConstant() {
+			return constant;
+		}
+
+		public List<Stmt> getStmts() {
+			return new ArrayList<Stmt>(stmts);
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder("case " + constant.toString() + ":\n");
+			for (Stmt s : stmts)
+				sb.append("\t" + s.toString() + "\n");
+			return sb.toString();
+		}
+	}
+
+	public static final class Default extends SyntacticElement.Impl implements
+	SwitchStmt {
+		private List<Stmt> stmts;
+
+		public Default(List<Stmt> s, Attribute...attributes) {
+			super(attributes);
+			stmts = s ;
+		}
+
+		public List<Stmt> getStmts() {
+			return new ArrayList<Stmt>(stmts);
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder("default:\n");
+			for (Stmt s : stmts)
+				sb.append("\t" + s.toString() + "\n");
+			return sb.toString();
+		}
+	}
+	public static final class Next extends SyntacticElement.Impl implements
+	Atom {
+
+		public Next(Attribute...attributes) {
+			super(attributes);
+		}
+
+		public String toString() {
+			return "next";
+		}
+	}
 }

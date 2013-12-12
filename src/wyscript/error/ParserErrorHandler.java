@@ -54,6 +54,26 @@ public class ParserErrorHandler {
 				msg = handleExpr(data);
 				suggestion = "int example";
 				break;
+
+			case BAD_SWITCH_CASE:
+				msg = "Error:  only 'case' or 'default' statements allowed";
+				suggestion = "case:\n";
+				break;
+
+			case BAD_SWITCH_CONST:
+				msg = handleExpr(data);
+				suggestion = "null";
+				break;
+
+			case DUPLICATE_SWITCH_CONST:
+				msg = handleExpr(data);
+				suggestion = ((ParserExprErrorData)data).expr().toString() +"1";
+				break;
+
+			case SWITCH_MULTIPLE_DEFAULT:
+				msg = "Error: only one default case allowed in switch body";
+				suggestion = "case";
+				break;
 			}
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());
 			outputSuggestion(Main.errout, suggestion, data.filename(), data.start(), data.end());
@@ -72,6 +92,12 @@ public class ParserErrorHandler {
 
 		case BAD_EXPRESSION_TYPE:
 			return String.format("Error: expression %s cannot be assigned to.\nExpression must be a %s", data.expr(), data.expected());
+
+		case DUPLICATE_SWITCH_CONST:
+			return String.format("Error: a case already exists for constant %s", data.expr());
+
+		case BAD_SWITCH_CONST:
+			return String.format("Error: expression '%s' is not a constant.\nCase expressions must be a constant value", data.expr());
 
 		default:
 			throw new SyntaxError("Unknown parser error occurred on token " + d.found(), d.filename(), d.start(), d.end());
