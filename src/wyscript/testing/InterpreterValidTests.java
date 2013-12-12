@@ -484,65 +484,76 @@ public class InterpreterValidTests {
 	}
 
 	@Test
-	public void Switch_Valid_2() {
-		runInterpreterTest("Switch_Valid_2");
-	}
-
-	@Test
 	public void Switch_Valid_3() {
 		runInterpreterTest("Switch_Valid_3");
 	}
 
 	@Test
-	@Ignore("Broken Test")
+	public void Switch_Valid_4() {
+		runInterpreterTest("Switch_Valid_4");
+	}
+
+	@Test
+	public void Switch_Valid_6() {
+		runInterpreterTest("Switch_Valid_6");
+	}
+
+	@Test
+	public void Switch_Valid_7() {
+		runInterpreterTest("Switch_Valid_7");
+	}
+
+	@Test
+	public void Switch_Valid_8() {
+		runInterpreterTest("Switch_Valid_8");
+	}
+
+	@Test
+	public void Switch_Valid_9() {
+		runInterpreterTest("Switch_Valid_9");
+	}
+
+	@Test
 	public void TypeEquals_Valid_1_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_1");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_2_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_2");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_5_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_5");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_8_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_8");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_9_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_9");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_11_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_11");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_14_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_14");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_16_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_16");
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void TypeEquals_Valid_20_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_20");
 	}
@@ -563,7 +574,6 @@ public class InterpreterValidTests {
 	}
 
 	@Test
-	@Ignore("Broken Test")
 	public void UnionType_Valid_5() {
 		runInterpreterTest("UnionType_Valid_5");
 	}

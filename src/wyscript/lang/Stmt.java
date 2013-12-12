@@ -781,16 +781,16 @@ public interface Stmt extends SyntacticElement {
 
 	public static final class Case extends SyntacticElement.Impl implements
 	SwitchStmt {
-		private Expr.Constant constant;
+		private Expr constant;  //Must be either Expr.Constant or Expr.ListConstructor
 		private List<Stmt> stmts;
 
-		public Case(Expr.Constant c, List<Stmt> s, Attribute...attributes) {
+		public Case(Expr c, List<Stmt> s, Attribute...attributes) {
 			super(attributes);
 			constant = c;
 			stmts = new ArrayList<Stmt>(s);
 		}
 
-		public Expr.Constant getConstant() {
+		public Expr getConstant() {
 			return constant;
 		}
 

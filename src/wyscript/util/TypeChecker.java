@@ -184,8 +184,8 @@ public class TypeChecker {
 	public void check(Stmt.Switch stmt, Map<String, Type> environment) {
 		Type expr = check(stmt.getExpr(), environment);
 
-		if (!(expr instanceof Type.Int || expr instanceof Type.Strung)) {
-			syntaxError("Switch expression must have integer or string type", file.filename, expr);
+		if (expr instanceof Type.Record) {
+			syntaxError("Switch expression may not have Record type", file.filename, expr);
 		}
 
 		for (Stmt.SwitchStmt s : stmt.cases()) {

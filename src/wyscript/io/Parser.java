@@ -48,12 +48,15 @@ public class Parser {
 	private String filename;
 	private ArrayList<Token> tokens;
 	private HashSet<String> userDefinedTypes;
+	private HashMap<String, Expr> constants;
+
 	private int index;
 
 	public Parser(String filename, List<Token> tokens) {
 		this.filename = filename;
 		this.tokens = new ArrayList<Token>(tokens);
 		this.userDefinedTypes = new HashSet<String>();
+		constants = new HashMap<String, Expr>();
 	}
 
 	/**
@@ -81,8 +84,10 @@ public class Parser {
 
 			case Constant:
 				d = parseConstantDeclaration(errors);
-				if (d != null)
+				if (d != null) {
 					decls.add(d);
+					constants.put(d.name(), ((ConstDecl)d).constant);
+				}
 				break;
 
 			default:
@@ -318,17 +323,19 @@ public class Parser {
 
 	/**
 	 * Determine the indentation as given by the Indent token at this point (if
-	 * any). If none, then <code>null</code> is returned.
+	 * any). If none, then <code>null</code> is returned. If a newline is encountered, skip
+	 * over until an indent or a non-whitespace token is found
 	 *
 	 * @return
 	 */
 	private Indent getIndent() {
-		if(index < tokens.size()) {
-			Token token = tokens.get(index);
+		int pos = index;
+		while (pos < tokens.size() && isWhiteSpace(tokens.get(index))) {
+			Token token = tokens.get(pos);
 			if(token.kind == Indent) {
 				return new Indent(token.text,token.start);
 			}
-			return null;
+			pos ++;
 		}
 		return null;
 	}
@@ -877,10 +884,16 @@ public class Parser {
 				return null;
 		}
 
-		if (valid && !(e instanceof Expr.Constant)) {
-			valid = false;
-			Attribute.Source loc = e.attribute(Attribute.Source.class);
-			errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, BAD_SWITCH_CONST));
+		if (valid && !(e instanceof Expr.Constant || e instanceof Expr.ListConstructor)) {
+
+			//Constant is ok
+			if (e instanceof Expr.Variable &&
+					constants.get(((Expr.Variable) e).getName()) != null);
+			else {
+				valid = false;
+				Attribute.Source loc = e.attribute(Attribute.Source.class);
+				errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, BAD_SWITCH_CONST));
+			}
 		}
 
 		if (valid && usedLiterals.contains(e.toString())) {
@@ -901,7 +914,7 @@ public class Parser {
 			return null;
 		int end = index;
 
-		return (valid) ? new Stmt.Case((Expr.Constant) e, stmts, sourceAttr(start, end-1))
+		return (valid) ? new Stmt.Case(e, stmts, sourceAttr(start, end-1))
 					   : new Stmt.Case(null, new ArrayList<Stmt>());
 	}
 
