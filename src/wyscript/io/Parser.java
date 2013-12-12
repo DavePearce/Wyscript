@@ -174,6 +174,10 @@ public class Parser {
 
 		List<Stmt> stmts = parseBlock(ROOT_INDENT, errors, new HashSet<Token.Kind>());
 
+		if (stmts == null) {
+			valid = false;
+		}
+
 		return (valid) ? new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
 				index - 1))
 					   : new FunDecl("", new Type.Void(), new ArrayList<Parameter>(), new ArrayList<Stmt>());
@@ -796,7 +800,8 @@ public class Parser {
 			Set<Token.Kind> parentFollow) {
 
 		Indent indent = getIndent();
-
+		int start = index;
+		index = skipLineSpace(index);
 		//Check for the trivial case where the switch body is empty
 		if (indent == null || indent.lessThanEq(parentIndent) || index >= tokens.size() ||
 				(tokens.get(index).kind != Case && tokens.get(index).kind != Default)) {
@@ -804,6 +809,7 @@ public class Parser {
 		}
 
 		else {
+			index = start;
 			ArrayList<Stmt.SwitchStmt> stmts = new ArrayList<Stmt.SwitchStmt>();
 			Indent nextIndent;
 			Set<String> usedLiterals = new HashSet<String>();
@@ -895,7 +901,7 @@ public class Parser {
 			return null;
 		int end = index;
 
-		return (valid) ? new Stmt.Case((Expr.Constant) e, stmts, sourceAttr(start, end))
+		return (valid) ? new Stmt.Case((Expr.Constant) e, stmts, sourceAttr(start, end-1))
 					   : new Stmt.Case(null, new ArrayList<Stmt>());
 	}
 
@@ -913,7 +919,7 @@ public class Parser {
 			return null;
 		int end = index;
 
-		return new Stmt.Default(stmts, sourceAttr(start, end));
+		return new Stmt.Default(stmts, sourceAttr(start, end-1));
 	}
 
 

@@ -1,3 +1,9 @@
-tests/valid/Switch_Valid_2.while:3: identifier expected
-    switch(x) {
-    ^^^^^^
+void main():
+	int x = 4
+	switch(x):
+		case 1:
+			print "ONE"
+		case 2:
+			print "TWO"
+		default:
+			print "DEFAULT"

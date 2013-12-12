@@ -494,26 +494,6 @@ public class InterpreterValidTests {
 	}
 
 	@Test
-	public void Switch_Valid_4() {
-		runInterpreterTest("Switch_Valid_4");
-	}
-
-	@Test
-	public void Switch_Valid_6() {
-		runInterpreterTest("Switch_Valid_6");
-	}
-
-	@Test
-	public void Switch_Valid_7() {
-		runInterpreterTest("Switch_Valid_7");
-	}
-
-	@Test
-	public void Switch_Valid_8() {
-		runInterpreterTest("Switch_Valid_8");
-	}
-
-	@Test
 	@Ignore("Broken Test")
 	public void TypeEquals_Valid_1_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_1");

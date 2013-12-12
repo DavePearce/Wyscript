@@ -439,6 +439,9 @@ public class Lexer {
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);
+			put("case", Token.Kind.Case);
+			put("next", Token.Kind.Next);
+			put("default", Token.Kind.Default);
 			put("while", Token.Kind.While);
 			put("for", Token.Kind.For);
 			put("print", Token.Kind.Print);

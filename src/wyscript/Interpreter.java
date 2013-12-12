@@ -145,10 +145,65 @@ public class Interpreter {
 			return execute((Stmt.Print) stmt,frame);
 		} else if(stmt instanceof Expr.Invoke) {
 			return execute((Expr.Invoke) stmt,frame);
+		} else if(stmt instanceof Stmt.Switch) {
+			return execute((Stmt.Switch) stmt, frame);
+		} else if(stmt instanceof Stmt.Next) {
+			return execute((Stmt.Next)stmt, frame);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
 		}
+	}
+
+	private Object execute(Stmt.Switch stmt, HashMap<String, Object> frame) {
+		Object expr = execute(stmt.getExpr(), frame);
+
+		boolean hasEvaluated = false;
+		boolean evaluateNext = false;
+
+		Stmt.Default def = null;
+
+		for (Stmt.SwitchStmt s: stmt.cases()) {
+			if (s instanceof Stmt.Default)  {
+				def = (Stmt.Default) s;
+				if (evaluateNext) {
+					evaluateNext = false;
+					Object tmp = execute(def.getStmts(), frame);
+
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+						else return tmp;
+				}
+			}
+			else {
+				Stmt.Case c = (Stmt.Case) s;
+				Object o = execute(c.getConstant(), frame);
+
+				//We've found a match amongst the cases, or fall-through has occurred
+				if (o.equals(expr) || evaluateNext) {
+					hasEvaluated = true;
+					evaluateNext = false;
+					Object tmp = execute(c.getStmts(), frame);
+
+					//Fall-through
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+
+					else return tmp;
+				}
+			}
+		}
+		if (def != null && !hasEvaluated) {
+			Object tmp = execute(def.getStmts(), frame);
+			if (!(tmp instanceof Type.Null))
+				return tmp;
+		}
+		return null;
+	}
+
+	private Object execute(Stmt.Next stmt, HashMap<String, Object> frame) {
+		//Tombstone value to signal to the switch to progress to the next case
+		return new Type.Null();
 	}
 
 	private Object execute(Stmt.Assign stmt, HashMap<String,Object> frame) {
