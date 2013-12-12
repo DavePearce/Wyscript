@@ -472,6 +472,9 @@ public class Lexer {
 			String { public String toString() { return "string"; }},
 			If { public String toString() { return "if"; }},
 			Switch { public String toString() { return "switch"; }},
+			Case { public String toString() { return "case"; }},
+			Next { public String toString() { return "next"; }},
+			Default { public String toString() { return "default"; }},
 			While { public String toString() { return "while"; }},
 			Else { public String toString() { return "else"; }},
 			Is { public String toString() { return "is"; }},
@@ -487,6 +490,7 @@ public class Lexer {
 			IntValue { public String toString() { return "int"; }},
 			CharValue { public String toString() { return "char"; }},
 			StringValue { public String toString() { return "string"; }},
+			ConstantType {public String toString() { return "int or string constant"; }},
 			// Symbols
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},

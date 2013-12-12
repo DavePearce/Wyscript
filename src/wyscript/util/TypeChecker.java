@@ -100,8 +100,12 @@ public class TypeChecker {
 			check((Stmt.OldFor) stmt, environment);
 		} else if(stmt instanceof Stmt.For) {
 			check((Stmt.For) stmt, environment);
-		}	else if(stmt instanceof Stmt.While) {
+		} else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
+		} else if(stmt instanceof Stmt.Switch) {
+			check((Stmt.Switch) stmt, environment);
+		} else if(stmt instanceof Stmt.Next) {
+			check((Stmt.Next) stmt, environment);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
@@ -175,6 +179,49 @@ public class TypeChecker {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getBody(), new HashMap<String,Type>(environment));
+	}
+
+	public void check(Stmt.Switch stmt, Map<String, Type> environment) {
+		Type expr = check(stmt.getExpr(), environment);
+
+		if (!(expr instanceof Type.Int || expr instanceof Type.Strung)) {
+			syntaxError("Switch expression must have integer or string type", file.filename, expr);
+		}
+
+		for (Stmt.SwitchStmt s : stmt.cases()) {
+			if (s instanceof Stmt.Case)
+				check((Stmt.Case)s, expr, environment);
+			else
+				check((Stmt.Default)s, environment);
+		}
+	}
+
+	public void check(Stmt.Case stmt, Type type, Map<String, Type> environment) {
+
+		checkSubtype(type, check(stmt.getConstant(), environment), false, stmt.getConstant());
+
+		//Workaround to ensure next statements only work within an enclosing case body
+		environment.put("case", new Type.Void());
+		for (Stmt s : stmt.getStmts()) {
+			check(s, environment);
+		}
+		environment.remove("case");
+	}
+
+	public void check(Stmt.Default stmt, Map<String, Type> environment) {
+
+		//Workaround to ensure next statements only work within an enclosing case body
+		environment.put("case", new Type.Void());
+		for (Stmt s : stmt.getStmts()) {
+			check(s, environment);
+		}
+		environment.remove("case");
+	}
+
+	public void check(Stmt.Next stmt, Map<String, Type> environment) {
+		//Check statement is within a case body
+		if (environment.get("case") == null)
+			syntaxError("Can't have next statement outside of case or default body", file.filename, stmt);
 	}
 
 	public Type check(Expr expr, Map<String,Type> environment) {

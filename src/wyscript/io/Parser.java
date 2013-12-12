@@ -359,6 +359,12 @@ public class Parser {
 			return parseWhile(index-1,indent, errors, follow);
 		case For:
 			return parseFor(index-1,indent, errors, follow);
+
+		case Next:
+			return parseNext(index-1, errors, follow);
+
+		case Switch:
+			return parseSwitch(index-1, indent, errors, follow);
 		case Identifier:
 			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
 				return parseInvokeStatement(token, errors, follow);
@@ -405,6 +411,18 @@ public class Parser {
 		}
 
 		return false;
+	}
+
+	/**
+	 * A simple statement only of use within a switch case body, where it signals
+	 * a fall-through to the next case body.
+	 *
+	 */
+	private Stmt.Next parseNext(int start, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		matchEndLine(errors);
+		return new Stmt.Next(sourceAttr(start, start));
 	}
 
 	/**
@@ -731,6 +749,173 @@ public class Parser {
 		return (valid) ? new Stmt.While(condition, blk, sourceAttr(start, end - 1))
 					   : new Stmt.While(null, new ArrayList<Stmt>());
 	}
+
+	private Stmt parseSwitch(int start, Indent indent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		boolean valid = true;
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(Colon);
+
+		Expr expr = parseExpression(errors, followSet);
+		if (expr == null) {
+			valid = false;
+			if (tokens.get(index).kind != Colon)
+				return null;
+		}
+
+		if (!parentFollow.contains(Colon))
+			followSet.remove(Colon);
+		followSet.add(NewLine);
+
+		if (match(errors, Colon, followSet) == null) {
+			if (tokens.get(index).kind != NewLine)
+				return null;
+		}
+
+		int end = index;
+		matchEndLine(errors);
+		if (!parentFollow.contains(NewLine))
+			followSet.remove(NewLine);
+
+		List<Stmt.SwitchStmt> cases = parseCases(indent, errors, parentFollow);
+		if (cases == null) {
+			return null;
+		}
+
+		return (valid) ? new Stmt.Switch(expr, cases, sourceAttr(start, end - 1))
+					   : new Stmt.Switch(null, new ArrayList<Stmt.SwitchStmt>());
+	}
+
+	/**
+	 * Parses a set of cases for a switch statement - similar in structure to parsing
+	 * a block, with the additional caveat that only case statements are allowed, and
+	 * no two case statements may have the same label
+	 */
+	private List<Stmt.SwitchStmt> parseCases(Indent parentIndent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		Indent indent = getIndent();
+
+		//Check for the trivial case where the switch body is empty
+		if (indent == null || indent.lessThanEq(parentIndent) || index >= tokens.size() ||
+				(tokens.get(index).kind != Case && tokens.get(index).kind != Default)) {
+			return Collections.EMPTY_LIST;
+		}
+
+		else {
+			ArrayList<Stmt.SwitchStmt> stmts = new ArrayList<Stmt.SwitchStmt>();
+			Indent nextIndent;
+			Set<String> usedLiterals = new HashSet<String>();
+			boolean def = true;
+
+			while ((nextIndent = getIndent()) != null
+					&& indent.lessThanEq(nextIndent)) {
+
+				//Check the indent
+				if (!indent.equivalent(nextIndent)) {
+					errors.add(new ParserErrorData(filename, nextIndent, Indent, BAD_INDENT));
+				}
+
+				//Matching a case statement
+				if (tryAndMatch(Case) != null) {
+
+					Stmt.Case tmp = (parseCase(indent, usedLiterals, errors, parentFollow));
+					if (tmp != null) {
+						stmts.add(tmp);
+						if (tmp.getConstant() != null)
+							usedLiterals.add(tmp.getConstant().toString());
+					}
+					else {
+						//Was a member of the follow set, so we need to return null to indicate
+						return null;
+					}
+				}
+				//Matching a default statement
+				else if (tryAndMatch(Default) != null) {
+					if (def) {
+						def = false;
+					}
+					else {
+						errors.add(new ParserErrorData(filename, tokens.get(index-1), Token.Kind.Case, SWITCH_MULTIPLE_DEFAULT));
+					}
+					Stmt.Default d = (parseDefault(indent, errors, parentFollow));
+					if (d == null)
+						return null;
+					else stmts.add(d);
+				}
+				else {
+					index = skipLineSpace(index);
+					errors.add(new ParserErrorData(filename, tokens.get(index), Token.Kind.Case, BAD_SWITCH_CASE));
+					synchronize(NewLine, new HashSet<Token.Kind>(), errors);
+				}
+			}
+			return stmts;
+		}
+	}
+
+	private Stmt.Case parseCase(Indent indent, Set<String> usedLiterals, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		int start = index -1;
+
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(Colon);
+		boolean valid = true;
+
+		Expr e = parseExpression(errors, followSet);
+
+		if (e == null) {
+			valid = false;
+			if (tokens.get(index).kind != Colon)
+				return null;
+		}
+
+		if (valid && !(e instanceof Expr.Constant)) {
+			valid = false;
+			Attribute.Source loc = e.attribute(Attribute.Source.class);
+			errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, BAD_SWITCH_CONST));
+		}
+
+		if (valid && usedLiterals.contains(e.toString())) {
+			valid = false;
+			Attribute.Source loc = e.attribute(Attribute.Source.class);
+			errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, DUPLICATE_SWITCH_CONST));
+		}
+
+		if (!parentFollow.contains(Colon))
+			followSet.remove(Colon);
+		followSet.add(NewLine);
+
+		match(errors, Colon, followSet);
+		matchEndLine(errors);
+
+		List<Stmt> stmts = parseBlock(indent, errors, parentFollow);
+		if (stmts == null)
+			return null;
+		int end = index;
+
+		return (valid) ? new Stmt.Case((Expr.Constant) e, stmts, sourceAttr(start, end))
+					   : new Stmt.Case(null, new ArrayList<Stmt>());
+	}
+
+	private Stmt.Default parseDefault(Indent indent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		int start = index-1;
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(NewLine);
+		match(errors, Colon, followSet);
+		matchEndLine(errors);
+
+		List<Stmt> stmts = parseBlock(indent, errors, parentFollow);
+		if (stmts == null)
+			return null;
+		int end = index;
+
+		return new Stmt.Default(stmts, sourceAttr(start, end));
+	}
+
 
 	private Stmt parseFor(int start, Indent indent, List<ParserErrorData> errors,
 			Set<Token.Kind> parentFollow) {
