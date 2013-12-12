@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,16 +12,18 @@ import java.util.Set;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
+import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
 import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.par.KernelRunner;
 import wyscript.par.KernelWriter;
+import wyscript.par.util.LoopFilter.Cat;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
 public class LoopModule {
-	private Stmt.ParFor loop;
+	private Stmt.ParFor outerLoop;
 
 	private List<String> parameters = new ArrayList<String>();
 	private Map<String , Type> environment; //passed to kernel writer at runtime
@@ -31,6 +34,13 @@ public class LoopModule {
 	private KernelWriter writer;
 
 	private boolean is2D;
+	private Expr.Variable innerIndex;
+	private Expr.Variable outerIndex;
+
+	public final LoopFilter.Cat category;
+
+	private ParFor innerLoop;
+
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -45,13 +55,26 @@ public class LoopModule {
 	public LoopModule(String filename , Map<String , Type> environment , Stmt.ParFor loop){
 		this.environment = environment;
 		this.fileName = filename;
-		loop.getBody();
-		this.loop = loop;
+		this.outerLoop = loop;
+		this.outerIndex = loop.getIndex();
+		category = LoopFilter.classify(loop);
+		outerIndex = loop.getIndex();
+		if (category == LoopFilter.Cat.IMPINNER) {
+			try {
+				innerLoop = ((Stmt.ParFor) loop.getBody().get(0));
+				innerIndex = ((Stmt.ParFor) loop.getBody().get(0)).getIndex();
+			}catch (ClassCastException e) {
+				InternalFailure.internalFailure("Expected first statement of loop to be parfor", filename, loop);
+			}catch (IndexOutOfBoundsException e) {
+				InternalFailure.internalFailure("Explicit-inner loop cannot have empty body", filename, loop);
+			}
+		}
 		activate();
 	}
 	private void activate() {
-		scanForFunctionParameters(loop.getBody());
+		scanForFunctionParameters(outerLoop.getBody());
 		generateArguments();
+		this.writer = new KernelWriter(this);
 	}
     /**
 	 * This method generates a string of function parameters and analyses the
@@ -63,8 +86,8 @@ public class LoopModule {
 	 */
 	private void scanForFunctionParameters(Collection<Stmt> body) {
 		//exclude loop index from parameter variables
-		nonParameterVars.add(loop.getIndex().getName());
-		scanExpr(loop.getSource());
+		nonParameterVars.add(outerLoop.getIndex().getName());
+		scanExpr(outerLoop.getSource());
 		for (Stmt statement : body) {
 		//check for mutabilities in assignment
 			if (statement instanceof Stmt.Assign) {
@@ -82,7 +105,13 @@ public class LoopModule {
 				scanExpr(ifelse.getCondition());
 				scanForFunctionParameters(ifelse.getTrueBranch());
 				scanForFunctionParameters(ifelse.getFalseBranch());
-			}else {
+			}else if (statement instanceof Stmt.ParFor) {
+				Stmt.ParFor loop = (Stmt.ParFor) statement;
+				this.innerIndex = loop.getIndex();
+				scanExpr(loop.getSource());
+				scanForFunctionParameters(loop.getBody());
+			}
+			else {
 				InternalFailure.internalFailure("Encountered unexpected statement type "
 			+statement.getClass(), fileName, statement);
 			}
@@ -132,6 +161,7 @@ public class LoopModule {
 			if (type instanceof Type.Int) {
 				//simply return a single-int argument
 				arg = new Argument.SingleInt(name);
+				arguments.add(arg);
 			}else if (type instanceof Type.List) {
 				//differentiate between 1D and 2D lists
 				Type elementType = (((Type.List) type).getElement());
@@ -159,12 +189,17 @@ public class LoopModule {
 	}
 	/**
 	 * Add a single variable parameter to parameter list
-	 * @param lhs
+	 * @param var
 	 */
-	private void scanVariableParam(Variable lhs) {
-		if (!parameters.contains(lhs.getName()) &&
-				!nonParameterVars.contains(lhs.getName())) parameters.add
-				(lhs.getName());
+	private void scanVariableParam(Variable var) {
+		if (!parameters.contains(var.getName()) &&
+				!nonParameterVars.contains(var.getName())
+				&& !var.getName().equals(outerIndex) && !var.getName().equals(innerIndex)
+				) parameters.add
+				(var.getName());
+//		Argument arg = new Argument.SingleInt(var.getName());
+//		if (!arguments.contains(arg)) arguments.add(arg);
+
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
@@ -176,13 +211,22 @@ public class LoopModule {
 	 */
 	private void scanIndexOf(IndexOf indexOf) {
 		Expr expression = indexOf.getSource();
+		scanExpr(indexOf.getIndex());
 		if (expression instanceof Expr.Variable) {
 			Expr.Variable srcVar = (Expr.Variable)expression;
-			if (!srcVar.getName().equals(loop.getIndex().getName())) {
-				//parameters.add(srcVar.getName());
-				scanVariableParam(srcVar);
+			scanVariableParam(srcVar);
+		}else if (expression instanceof Expr.IndexOf){
+			//scan the next index
+			Expr.IndexOf inner = (Expr.IndexOf) expression;
+			scanExpr(inner.getIndex());
+			if (inner.getSource() instanceof Expr.Variable) {
+				scanVariableParam((Variable) inner.getSource());
+			}else {
+				InternalFailure.internalFailure("Expected variable expression in nested index-of " +
+						"variable which cannot match loop index", fileName, indexOf);
 			}
-		}else {
+		}
+		 else {
 			InternalFailure.internalFailure("Expression in index was not " +
 					"variable which cannot match loop index", fileName, indexOf);
 		}
@@ -191,32 +235,34 @@ public class LoopModule {
 	public KernelRunner getRunner() {
 		return new KernelRunner(this);
 	}
-	public List<String> getParameters() {
-		return new ArrayList<String>(parameters);
-	}
 	public File getPtxFile() {
 		return writer.getPtxFile();
 	}
-	public SyntacticElement getLoop() {
-		return loop;
+	public String getName() {
+		return this.fileName;
 	}
-	public Map<String, Type> getEnvironment() {
-		return environment;
+	public Stmt.ParFor getOuterLoop() {
+		return outerLoop;
+	}
+	public ParFor getInnerLoop() {
+		return innerLoop;
 	}
 	public List<Argument> getArguments() {
-		// TODO implement me (when finished configuring arguments)
-		return null;
+		return new ArrayList<Argument>(arguments);
 	}
-	public boolean is2D() {
-		return is2D;
+	public Map<String,Type> getEnvironment() {
+		return new HashMap<String,Type>(environment);
 	}
-	public boolean isParameter(String name) {
-		return parameters.contains(name);
+	public boolean isArgument(String name) {
+		for (Argument arg : arguments) {
+			if (arg.name.equals(name)) return true;
+		}
+		return false;
 	}
-	public Expr.Variable index1() {
-		return null;
+	public Expr.Variable getInnerIndex() {
+		return innerIndex;
 	}
-	public Expr.Variable index2() {
-		return null;
+	public Expr.Variable getOuterIndex() {
+		return outerIndex;
 	}
 }

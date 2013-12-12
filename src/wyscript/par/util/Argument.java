@@ -2,6 +2,7 @@ package wyscript.par.util;
 
 import static jcuda.driver.JCudaDriver.cuMemAlloc;
 import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
+import static jcuda.driver.JCudaDriver.cuMemcpyDtoH;
 
 import java.util.ArrayList;
 import java.util.Map;
@@ -13,9 +14,37 @@ import jcuda.driver.CUdeviceptr;
 import wyscript.lang.Type;
 
 public abstract class Argument {
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((name == null) ? 0 : name.hashCode());
+		return result;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Argument other = (Argument) obj;
+		if (name == null) {
+			if (other.name != null)
+				return false;
+		} else if (!name.equals(other.name))
+			return false;
+		return true;
+	}
 	public abstract void write(Map<String,Object> frame , CUdeviceptr ptr);
 	public abstract void read(Map<String,Object> frame , CUdeviceptr ptr);
+	public abstract String getCType();
 	public final String name;
+	@Override
+	public String toString() {
+		return "Argument [name=" + name + "]";
+	}
 
 	public Argument(String name) {
 		this.name = name;
@@ -33,28 +62,54 @@ public abstract class Argument {
 		}
 		@Override
 		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
-			// TODO Auto-generated method stub
-
+			//does nothing
+		}
+		@Override
+		public String getCType() {
+			return "int*";
 		}
 	}
 	public static class Length2D extends Argument {
-		private boolean isHeight;
+		public final boolean isHeight;
 		public Length2D(String name , boolean isHeight) {
 			super(name);
 			this.isHeight = isHeight;
 		}
 		@Override
+		public String toString() {
+			return "Length2D [name = "+name+", isHeight=" + isHeight + "]";
+		}
+		@Override
 		public void write(Map<String, Object> env, CUdeviceptr ptr) {
 			ArrayList<?> list = (ArrayList<?>) env.get(name);
 			int rows = list.size();
-			for (int y = 0 ; y < rows ; y++) {
-				//TODO find out the type of the element in ArrayList (is it also arraylist or Expr.List
+			if (isHeight) {
+				int[] value = new int[] { rows };
+				cuMemAlloc(ptr, Sizeof.INT);
+				cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
+			}else {
+				//scan every row and get the greatest height
+				int width = -1;
+				for (int i = 0;i<rows;i++) {
+					int w = ((ArrayList<?>)list.get(i)).size();
+					if (w>width) {
+						width = w;
+					}
+				}
+				int[] value = new int[] { width };
+				cuMemAlloc(ptr, Sizeof.INT);
+				cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
 			}
 		}
 		@Override
 		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
-			// TODO Auto-generated method stub
+			// this method will only read in those data values for which
+			//there is space available
 
+		}
+		@Override
+		public String getCType() {
+			return "int*";
 		}
 	}
 	public static class SingleInt extends Argument {
@@ -69,8 +124,13 @@ public abstract class Argument {
 		}
 		@Override
 		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
-			// TODO Auto-generated method stub
-
+			int[] value = new int []{0};
+			cuMemcpyDtoH(Pointer.to(value),ptr, Sizeof.INT);
+			frame.put(name, value[0]);
+		}
+		@Override
+		public String getCType() {
+			return "int*";
 		}
 
 	}
@@ -87,54 +147,90 @@ public abstract class Argument {
 				values[i] = list.get(i);
 			}
 			cuMemAlloc(ptr, length*Sizeof.INT);
-			cuMemcpyHtoD(ptr, Pointer.to(values), Sizeof.INT);
+			cuMemcpyHtoD(ptr, Pointer.to(values), length*Sizeof.INT);
 		}
 		@Override
 		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
-			// TODO Auto-generated method stub
-
+			ArrayList<Integer> list = (ArrayList<Integer>) frame.get(name);
+			ArrayList<Integer> newlist = new ArrayList<Integer>();
+			int[] value = new int [list.size()];
+			cuMemcpyDtoH(Pointer.to(value),ptr, Sizeof.INT*list.size());
+			for (int v : value) {
+				newlist.add(v);
+			}
+			frame.put(name, newlist);
+		}
+		@Override
+		public String getCType() {
+			return "int*";
 		}
 
 	}
 	public static class List2D extends Argument {
+		int height;
+		int width;
 		public List2D(String name) {
-
 			super(name);
 		}
 		@Override
 		public void write(Map<String, Object> env, CUdeviceptr ptr) {
-			ArrayList<?> list = (ArrayList<?>) env.get(name);
-			int rows = list.size();
-			for (int y = 0 ; y < rows ; y++) {
-				//TODO find out the type of the element in ArrayList (is it also arraylist or Expr.List
+			ArrayList<?> listOfLists = (ArrayList<?>) env.get(name);
+			height = listOfLists.size();
+			width = -1;
+			for (int y = 0 ; y < height ; y++) {
+				ArrayList list = (ArrayList) listOfLists.get(0);
+				if (list.size()>width) {
+					width = list.size();
+				}
 			}
+			int[] array = new int[width*height];
+			for (int y = 0 ; y < height ; y++) {
+				ArrayList list = (ArrayList) listOfLists.get(y);
+				for (int x = 0 ; x < list.size() ; x++) {
+					array[y*width + x] = (Integer) list.get(x);
+				}
+			}
+			//data copied!
+			cuMemAlloc(ptr, width*height*Sizeof.INT);
+			cuMemcpyHtoD(ptr, Pointer.to(array), width*height*Sizeof.INT);
 		}
 		@Override
 		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
-			// TODO Auto-generated method stub
-
-		}
-	}
-	public static Argument convertToArg(String name , Type type) {
-		if (type instanceof Type.Int) {
-			//simply return a single-int argument
-			Argument arg = new SingleInt(name);
-			return arg;
-		}else if (type instanceof Type.List) {
-			//differentiate between 1D and 2D lists
-			Type elementType = (((Type.List) type).getElement());
-			if (elementType instanceof Type.Int) {
-				return new Argument.List1D(name);
-			}else if (elementType instanceof Type.List) {
-				if (((Type.List) elementType).getElement() instanceof Type.Int) {
-					return new Argument.List2D(name);
+			int[] array = new int[width*height];
+			cuMemcpyDtoH(Pointer.to(array),ptr, width*height*Sizeof.INT);
+			ArrayList<?> listOfLists = (ArrayList<?>) frame.get(name);
+			for (int y = 0 ; y < height ; y++) {
+				ArrayList list = (ArrayList) listOfLists.get(y);
+				for (int x = 0 ; x < list.size() ; x++) {
+					list.set(x, array[y*width + x]);
 				}
-			}else {
-				throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
 			}
 		}
-		//TODO implement the rest of me
-		else throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
-		return null; //unreachable code
+		@Override
+		public String getCType() {
+			return "int*";
+		}
 	}
+//	public static Argument convertToArg(String name , Type type) {
+//		if (type instanceof Type.Int) {
+//			//simply return a single-int argument
+//			Argument arg = new SingleInt(name);
+//			return arg;
+//		}else if (type instanceof Type.List) {
+//			//differentiate between 1D and 2D lists
+//			Type elementType = (((Type.List) type).getElement());
+//			if (elementType instanceof Type.Int) {
+//				return new Argument.List1D(name);
+//			}else if (elementType instanceof Type.List) {
+//				if (((Type.List) elementType).getElement() instanceof Type.Int) {
+//					return new Argument.List2D(name);
+//				}
+//			}else {
+//				throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
+//			}
+//		}
+//		//TODO implement the rest of me
+//		else throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
+//		return null; //unreachable code
+//	}
 }

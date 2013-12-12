@@ -274,7 +274,7 @@ public class Interpreter {
 	 *            Stack frame mapping variables to their current value.
 	 * @return
 	 */
-	private Object execute(Expr expr, HashMap<String,Object> frame) {
+	public Object execute(Expr expr, HashMap<String,Object> frame) {
 		if(expr instanceof Expr.Binary) {
 			return execute((Expr.Binary) expr,frame);
 		} else if(expr instanceof Expr.Is) {

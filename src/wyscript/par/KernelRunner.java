@@ -4,12 +4,13 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-
 import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
+import wyscript.Interpreter;
 import wyscript.lang.*;
+import wyscript.lang.Expr.BOp;
+import wyscript.lang.Expr.Binary;
 import wyscript.par.util.Argument;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
@@ -27,21 +28,21 @@ import static jcuda.runtime.JCuda.*;
  */
 public class KernelRunner {
 	private CUfunction function;
+	private Interpreter interpreter;
 	//Three lists used to track the name, type and device pointer of elements
 
-	List<CUdeviceptr> devicePointers;
+	private List<CUdeviceptr> devicePointers;
 
-	List<Argument> arguments;
+	private List<Argument> arguments;
 
-	File file;
+	private File file;
 
-	int gridDim = 16;
-	int blockDim = 256;
+	private int blockSizeX = 16;
 	private CUcontext context;
 	private LoopModule module;
-
 	public KernelRunner(LoopModule module) {
 		this.module = module;
+		this.interpreter = new Interpreter();
 		file = module.getPtxFile();
 		arguments = module.getArguments();
 		devicePointers = new ArrayList<CUdeviceptr>();
@@ -78,7 +79,6 @@ public class KernelRunner {
 		stopIfFailed(result);
 		this.function = function;
 		// host input data ready to be filled
-		//now initialise the entire thing
 	}
 	/**
 	 * Helper method to stop program if there is a cuda-related error
@@ -86,9 +86,10 @@ public class KernelRunner {
 	 */
 	private void stopIfFailed(int result) {
 		if (result != CUDA_SUCCESS) {
+			Thread.dumpStack();
 			InternalFailure.internalFailure(
 					"Failure with code"+result+". Got error: "+
-			cudaGetErrorString(result), file.getName(), module.getLoop());
+			cudaGetErrorString(result), file.getName(), module.getOuterLoop());
 		}
 	}
 
@@ -108,22 +109,59 @@ public class KernelRunner {
 	public Object run(HashMap<String, Object> frame) {
 		List<CUdeviceptr> pointers = marshalParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
+		int gridDimX = getLoopRange(module.getOuterLoop(), frame);
+		Stmt.ParFor innerLoop = module.getInnerLoop();
+		int gridDimY;
+		if (innerLoop != null) {
+			gridDimY = getLoopRange(innerLoop, frame);
+		}else {
+			gridDimY = 1;
+		}
 		int result = cuLaunchKernel(function,
-				gridDim, 1, 1,
-				blockDim, 1, 1,
+				gridDimX, gridDimY, 1,
+				blockSizeX, 1, 1,
 				0, null,
 				Pointer.to(parametersPointer), null);
 		int syncResult = cuCtxSynchronize();
 		stopIfFailed(syncResult);
 		if (result != CUDA_SUCCESS) {
 			InternalFailure.internalFailure("Kernel did not launch successfully." +
-					cudaGetErrorString(result), file.getName(), module.getLoop());
+					cudaGetErrorString(result), file.getName(), module.getOuterLoop());
 		}
-		marshalParametersFromGPU(frame);
-		cuCtxDestroy(context);
+		marshalParametersFromGPU(frame,pointers);
+		//cuCtxDestroy(context); //major error avoided by commenting this line
 		cleanUp(pointers);
 		return null; //no need to return any particular object
 	}
+	private int getLoopRange(Stmt.ParFor loop , HashMap<String,Object> frame) {
+		Expr src = loop.getSource();
+		if (src instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) src;
+			Expr.BOp op = binary.getOp();
+			if (op.equals(BOp.RANGE)) {
+				try {
+					Integer low = (Integer)evaluate(binary.getLhs(), frame);
+					Integer high = (Integer)evaluate(binary.getRhs(), frame);
+					return high - low;
+				}catch (ClassCastException e) {
+					InternalFailure.internalFailure("Attempted to read range of binary expression." +
+							"Could not cast to integer", file.getPath(), src);
+				}
+			}
+		}
+		return 0; //unreachable code
+	}
+	/**
+	 * Fill me in with some code that was used elsewhere to access expression
+	 * values
+	 * @param expression
+	 * @param frame
+	 * @return
+	 */
+	private Object evaluate(Expr expression , HashMap<String,Object> frame) {
+		return interpreter.execute(expression,frame);
+	}
+
 	/**
 	 * Frees the list of device pointers
 	 * @param pointers
@@ -153,55 +191,13 @@ public class KernelRunner {
 	 * expected on the frame
 	 * @param frame
 	 */
-	private void marshalParametersFromGPU(HashMap<String, Object> frame) {
-		int listCount = 0;
+	private void marshalParametersFromGPU(HashMap<String, Object> frame,List<CUdeviceptr> devicePointers) {
 		for (int i = 0 ; i < arguments.size() ; i++) {
 			CUdeviceptr ptr = devicePointers.get(i);
 			//update the frame
 			arguments.get(i).read(frame, ptr);
 		}
 	}
-	/**
-	 * Marshalls a list from the GPU and places it on the frame.
-	 * @param frame
-	 * @param index
-	 * @param type
-	 */
-	private void marshalFromGPUList(HashMap<String, Object> frame, String name , int index,Type type) {
-		ArrayList<Integer> listObject;
-		try {
-			listObject = (ArrayList<Integer>) frame.get(name);
-		}catch (ClassCastException e) {
-			InternalFailure.internalFailure("Runtime type error. Expected '"
-		+name+"' to be type java.util.ArrayList. Was type "+e.getClass(), file.getPath(), type);
-			return;
-		}
-		//prepare variables for copying
-		int length = listObject.size();
-		int data[] = new int[length];
-		cuMemcpyDtoH(Pointer.to(data), devicePointers.get(index), length*Sizeof.INT);
-		ArrayList<Integer> newlist = new ArrayList<Integer>();
-		//copy data to new list
-		for (int i = 0 ; i < data.length ; i++) {
-			newlist.add(data[i]);
-		}
-		//change frame to new value
-		frame.put(name, newlist);
-	}
-	/**
-	 * Marshalls a single int from the GPU and places it on the frame.
-	 * @param frame
-	 * @param name
-	 * @param paramIndex
-	 */
-	private void marshalFromGPUInt(HashMap<String, Object> frame, String name, int paramIndex) {
-		int[] data = new int[1];
-		//copy only one integer (maybe 4 bytes)
-		cuMemcpyDtoH(Pointer.to(data), devicePointers.get(paramIndex), Sizeof.INT);
-		//change frame
-		frame.put(name, data[0]);
-	}
-
 	/**
 	 * Marshalls the data from the parameters into an appropriate format and
 	 * allocates memory appropriately, filling in pointers for kernel parameters.
@@ -220,63 +216,6 @@ public class KernelRunner {
 		}
 		return devPtrs;
 	}
-	private void marshal2DListToGPU(HashMap<String, Object> frame, String name) {
-		// then the next argument has to be the list length
-		int height;
-		int width = -1;
-		ArrayList<?> listObject = (ArrayList<?>) frame.get(name);
-		height = listObject.size();
-		for (Object element : listObject) {
-			ArrayList<Integer> list = (ArrayList<Integer>) element;
-
-		}
-		int expectedLength = listObject.size();
-		int[] array = new int[width*height];
-		// unrap all values in array to int type
-		for (int j = 0; j < expectedLength; j++) array[j] = (Integer) listObject.get(j);
-		CUdeviceptr dpointer = generateH2DPointer(array);
-		devicePointers.add(dpointer);
-		//now compute the length argument and add it to the deviceptr list
-		int[] lengthValue = new int []{expectedLength};
-		CUdeviceptr lengthPtr = new CUdeviceptr();
-		cuMemAlloc(lengthPtr, Sizeof.INT);
-		cuMemcpyHtoD(lengthPtr, Pointer.to(lengthValue), Sizeof.INT);
-		devicePointers.add(lengthPtr);
-	}
-
-	/**
-	 * Marshall a single integer into the <i>index</i>th parameter
-	 * @param frame
-	 * @param index
-	 */
-	private void marshalToGPUInt(HashMap<String, Object> frame, int value) {
-		CUdeviceptr dpointer = generateH2DPointer(new int[] {value});
-		devicePointers.add(dpointer);
-	}
-	/**
-	 *
-	 * @param frame
-	 * @param index
-	 * @param type
-	 */
-	private void marshalFlatListToGPU(HashMap<String, Object> frame, String name) {
-		int expectedLength;
-		// then the next argument has to be the list length
-		ArrayList<Integer> listObject = (ArrayList<Integer>) frame.get(name);
-		expectedLength = listObject.size();
-		int[] array = new int[expectedLength];
-		// unrap all values in array to int type
-		for (int j = 0; j < expectedLength; j++) array[j] = listObject.get(j);
-		CUdeviceptr dpointer = generateH2DPointer(array);
-		devicePointers.add(dpointer);
-		//now compute the length argument and add it to the deviceptr list
-		int[] lengthValue = new int []{expectedLength};
-		CUdeviceptr lengthPtr = new CUdeviceptr();
-		cuMemAlloc(lengthPtr, Sizeof.INT);
-		cuMemcpyHtoD(lengthPtr, Pointer.to(lengthValue), Sizeof.INT);
-		devicePointers.add(lengthPtr);
-	}
-
 	/**
 	 * Allocates device memory for the integer array and returns a pointer to
 	 * it.

@@ -118,6 +118,8 @@ public class Main {
 			errout.println("Error: " + e.getMessage());
 			if (verbose) {
 				e.printStackTrace(errout);
+			}else {
+				e.printStackTrace();
 			}
 			return false;
 		}

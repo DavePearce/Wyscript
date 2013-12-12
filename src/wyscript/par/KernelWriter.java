@@ -4,26 +4,17 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import com.sun.org.apache.xml.internal.utils.ObjectPool;
-
 import wyscript.lang.Expr;
-import wyscript.lang.Expr.*;
 import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.IndexOf;
-import wyscript.lang.Expr.LVal;
-import wyscript.lang.Expr.Unary;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
-import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
 import wyscript.par.util.Argument;
+import wyscript.par.util.LoopFilter;
+import wyscript.par.util.LoopFilter.Cat;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
@@ -31,19 +22,15 @@ import wyscript.util.SyntaxError.InternalFailure;
 
 public class KernelWriter {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
-	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
-
-	private List<Argument> args;
 
 	private String indexName1D = "i";
 	private String indexName2D = "j";
 	private String fileName;
 	private String ptxFileName;
 	private Map<String, Type> environment;
-	private List<String> tokens;
+	private List<String> tokens = new ArrayList<String>();
 
-	private boolean is2D;
 	private LoopModule module;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
@@ -57,17 +44,37 @@ public class KernelWriter {
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
 	public KernelWriter(LoopModule module) {
-		args = module.getArguments();
-		is2D = module.is2D();
+		module.getArguments();
 		this.module = module;
+		module.getOuterLoop().getIndex();
+		this.environment = module.getEnvironment();
+		this.loop = module.getOuterLoop();
+		this.fileName = module.getName();
+		writeAll();
+		try {
+			saveAndCompileKernel(fileName, tokens);
+		} catch (IOException e) {
+			InternalFailure.internalFailure("Could not write kernel. Got error: "+e.getMessage()
+					, fileName, module.getOuterLoop());
+		}
+	}
+	private void writeAll() {
+		tokens.add("extern");
+		tokens.add("\"C\"");
+		writeFunctionDeclaration(tokens, module.getArguments());
+		tokens.add("{");
+		ArrayList<Stmt> body = module.getOuterLoop().getBody();
+		writeBody(body, tokens, environment);
+		tokens.add("}");
 	}
 	public void saveAndCompileKernel(String name , List<String> tokens) throws IOException {
 		//save the token list to file
-		File file = new File(name);
+		String cuName = name+".cu";
+		File file = new File(cuName);
 		FileWriter  writer = new FileWriter(file);
 		for (String token : tokens) {
 			if (token == null) {
-				InternalFailure.internalFailure("Encountered null token", name, new Type.Void());
+				InternalFailure.internalFailure("Encountered null token", cuName, new Type.Void());
 				writer.close();
 				return;
 			}
@@ -79,93 +86,61 @@ public class KernelWriter {
 		}
 		writer.close();
 		//now compile it into a ptx file
-		preparePtxFile(name);
+		preparePtxFile(cuName);
 	}
-	/**
-	 *
-	 * @param cuFileName
-	 * @return
-	 * @throws IOException
-	 *
-	 * @requires A well-formed Cuda file with a file extension.
-	 * @ensures The Cuda file is compiled with the same name (without extension) as a .ptx file
-	 */
-    private String preparePtxFile(String cuFileName) throws IOException {
-        int endIndex = cuFileName.lastIndexOf('.');
-        if (endIndex == -1) {
-            endIndex = cuFileName.length()-1;
-        }
-        String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
-        this.ptxFileName = ptxFileName;
-
-        File cuFile = new File(cuFileName);
-        if (!cuFile.exists())
-        {
-            throw new IOException("Input file not found: "+cuFileName);
-        }
-        String modelString = "-m"+System.getProperty("sun.arch.data.model");
-        String command =
-            NVCC_COMMAND + " " + modelString + " -ptx "+
-            cuFile.getPath()+" -o "+ptxFileName;
-
-        //System.out.println("Executing\n"+command);
-        Process process = Runtime.getRuntime().exec(command);
-
-        int exitValue = 0;
-        try {
-            exitValue = process.waitFor();
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException(
-                "Interrupted while waiting for nvcc output", e);
-        }
-
-        if (exitValue != 0) {
-        	///System.out.println(convertStreamToString(process.getErrorStream()));
-        	InternalFailure.internalFailure("Failed to compile .ptx file for " +
-        			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
-        }
-
-        //System.out.println("Finished creating PTX file");
-        return ptxFileName;
+	public List<String> writeFunctionDeclaration(List<String> tokens , List<Argument> arguments) {
+    	tokens.add("__global__");
+    	tokens.add("void");
+    	tokens.add(getFunctionName());
+    	tokens.add("(");
+    	for (int i = 0 ; i < arguments.size() ; i++) {
+    		Argument arg = arguments.get(i);
+            if (i>=1 && i < arguments.size()) {
+                tokens.add(",");
+            }
+            tokens.add(arg.getCType());
+            tokens.add(convertName(arg));
+    	}
+    	tokens.add(")");
+		return tokens;
     }
+	private String convertName(Argument arg) {
+		if (arg instanceof Argument.Length1D) {
+			return arg.name + "_length";
+		}else if(arg instanceof Argument.Length2D){
+			if (((Argument.Length2D) arg).isHeight){
+				return arg.name + "_height";
+			}else {
+				return arg.name + "_width";
+			}
+		}
+		 else {
+			return arg.name;
+		}
+	}
+	private String getFunctionName() {
+		return fileName;
+	}
 	public List<String> writeBody(ArrayList<Stmt> body , List<String> tokens ,
 			Map<String,Type> environment) {
 		this.environment = environment;
 		writeThreadIndex(tokens);
-		writeGuardBegin(tokens);
 		for (Stmt statement : body) {
 			write(statement,tokens);
 		}
-		tokens.add("}"); //add end of guard
 		return tokens;
-	}
-	private void writeGuardBegin(List<String> tokens) {
-		Expr src = loop.getSource();
-		Expr.Binary srcBinary = (Expr.Binary) src;
-		if (srcBinary.getOp().equals(Expr.BOp.RANGE)) {
-			Expr low = srcBinary.getLhs();
-			Expr high = srcBinary.getRhs();
-			tokens.add("if");
-			tokens.add("(");
-			tokens.add(index1D());
-			tokens.add("<");
-			write(high,tokens);
-			tokens.add("&&");
-			tokens.add(index1D());
-			tokens.add(">=");
-			write(low,tokens);
-			tokens.add(")");
-			tokens.add("{");
-		}else {
-			InternalFailure.internalFailure("Expected loop source to be range " +
-					"operator", fileName, src);
-		}
 	}
 	private void writeThreadIndex(List<String> tokens) {
 		//the 1D index
-		if (!is2D) {
+		int alias = 0;
+		while (module.isArgument(indexName1D)) {
+			indexName1D = "i"+Integer.toString(alias);
+		}
+		alias = 0;
+		while (module.isArgument(indexName2D)) {
+			indexName2D = "j"+Integer.toString(alias);
+		}
+		if (module.category != Cat.IMPINNER) { //simply write this since it works
 			tokens.add("int");
 			tokens.add(index1D());
 			tokens.add("=");
@@ -177,16 +152,18 @@ public class KernelWriter {
 			tokens.add(";");
 		}else {
 			//the 2D index
+//			String formula = "threadIdx.x + ( blockDim.x * ( ( gridDim.x * blockIdx.y ) + blockIdx.x) ) ;";
+//			String[] parts = formula.split("\\s+");
+//			tokens.add("int");
+//			tokens.add(index2D());
+//			tokens.add("=");
+//			for (String part : parts) {
+//				tokens.add(part);
+//			}
 			tokens.add("int");
 			tokens.add(index2D());
 			tokens.add("=");
 			tokens.add("blockIdx.x");
-			tokens.add("*");
-			tokens.add("blockDim.x");
-			tokens.add("*");
-			tokens.add("blockDim.y");
-			tokens.add("+");
-			tokens.add("threadIdx.y");
 			tokens.add("*");
 			tokens.add("blockDim.x");
 			tokens.add("+");
@@ -274,7 +251,7 @@ public class KernelWriter {
 	private void write(Expr.LVal val,List<String> tokens) {
 		if (val instanceof Expr.Variable) {
 			//if this is a parameter, have to dereference the pointer
-			if (module.isParameter(((Expr.Variable)val).getName())) {
+			if (module.isArgument(((Expr.Variable)val).getName())) {
 					tokens.add("*");
 			}
 			//write a
@@ -297,10 +274,64 @@ public class KernelWriter {
 	 * @param tokens
 	 */
 	private void write(Stmt.ParFor statement, List<String> tokens) {
+		//consider the expressions of the loop...
+		//the kernel runner should take care of the thread running...
+		for (Stmt stmt : statement.getBody()) {
+			write(stmt,tokens);
+		}
 
 	}
 	private String index1D() {
 		return indexName1D;
+	}
+	/**
+	 *
+	 * @param cuFileName
+	 * @return
+	 * @throws IOException
+	 *
+	 * @requires A well-formed Cuda file with a file extension.
+	 * @ensures The Cuda file is compiled with the same name (without extension) as a .ptx file
+	 */
+	private String preparePtxFile(String cuFileName) throws IOException {
+	    int endIndex = cuFileName.lastIndexOf('.');
+	    if (endIndex == -1) {
+	        endIndex = cuFileName.length()-1;
+	    }
+	    String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
+	    this.ptxFileName = ptxFileName;
+
+	    File cuFile = new File(cuFileName);
+	    if (!cuFile.exists())
+	    {
+	        throw new IOException("Input file not found: "+cuFileName);
+	    }
+	    String modelString = "-m"+System.getProperty("sun.arch.data.model");
+	    String command =
+	        NVCC_COMMAND + " " + modelString + " -ptx "+
+	        cuFile.getPath()+" -o "+ptxFileName;
+
+	    //System.out.println("Executing\n"+command);
+	    Process process = Runtime.getRuntime().exec(command);
+
+	    int exitValue = 0;
+	    try {
+	        exitValue = process.waitFor();
+	    }
+	    catch (InterruptedException e) {
+	        Thread.currentThread().interrupt();
+	        throw new IOException(
+	            "Interrupted while waiting for nvcc output", e);
+	    }
+
+	    if (exitValue != 0) {
+	    	///System.out.println(convertStreamToString(process.getErrorStream()));
+	    	InternalFailure.internalFailure("Failed to compile .ptx file for " +
+	    			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
+	    }
+
+	    //System.out.println("Finished creating PTX file");
+	    return ptxFileName;
 	}
 	private void write(Expr.Binary binary,List<String> tokens) {
 		tokens.add("(");
@@ -339,7 +370,7 @@ public class KernelWriter {
 			String name = ((Expr.Variable)expr).getName();
 			tokens.add("(");
 			tokens.add("*");
-			String lengthName = lengthMap.get(name);
+			String lengthName = name+"_length"; //TODO fix me
 			tokens.add(lengthName);
 			tokens.add(")");
 		}
@@ -393,19 +424,19 @@ public class KernelWriter {
 	 * @param expr
 	 */
 	private void write(Expr.IndexOf indexOf, List<String> tokens) {
+		Expr src = indexOf.getSource();
 		if (indexOf.getSource() instanceof Expr.Variable) {
-			Expr src = indexOf.getSource();
 			Expr indexVar = indexOf.getIndex();
 			//indexVar is an instance of [int]
 			//source expression must be of type...
 			if (src instanceof Expr.Variable) {
 				write1DIndexOf(tokens, (Expr.Variable) src, indexVar);
-			}else if (src instanceof Expr.IndexOf) {
-				write2DIndexOf(tokens, (IndexOf) src, indexVar);
 			}
 			else {
 				InternalFailure.internalFailure("Can only perform indexof on list", fileName, indexOf);
 			}
+		}else if (src instanceof Expr.IndexOf) {
+			write2DIndexOf(tokens, indexOf);
 		}else {
 			InternalFailure.internalFailure("Expected source type to be of type list", fileName, indexOf.getSource());
 		}
@@ -413,16 +444,63 @@ public class KernelWriter {
 	/**
 	 *
 	 * @param tokens
-	 * @param src
-	 * @param indexVar
+	 * @param indexOf
+	 * @param outer
 	 */
-	private void write2DIndexOf(List<String> tokens, Expr.IndexOf src, Expr indexVar) {
-		Expr indexSrc = src.getSource();
-		if (indexSrc instanceof Expr.Variable) {
-
+	private void write2DIndexOf(List<String> tokens, Expr.IndexOf indexOf) {
+		Expr indexSrc = indexOf.getSource();
+		Expr outerIndex = indexOf.getIndex();
+		if (indexSrc instanceof Expr.IndexOf) {
+			//the source is an index!
+			Expr innerSrc = ((Expr.IndexOf) indexOf).getSource();
+			//check if this indeed a nested indexof operation
+			if (innerSrc instanceof Expr.IndexOf) {
+				Expr innerInnerSrc = ((IndexOf) innerSrc).getSource();
+				Expr innerIndex = ((Expr.IndexOf) innerSrc).getIndex();
+				//the finally-indexed value must be a variable
+				if (innerInnerSrc instanceof Expr.Variable) {
+					Expr.Variable variable = (Variable) innerInnerSrc;
+					//now have the inner src which is a variable
+					//time to check out the indices
+					if (outerIndex instanceof Expr.Variable && innerIndex
+							instanceof Expr.Variable) {
+						String innerName = ((Expr.Variable) outerIndex).getName();
+						String outerName = ((Expr.Variable) innerIndex).getName();
+						if (outerName.equals(module.getOuterIndex().getName())&&
+								innerName.equals(module.getInnerIndex().getName())){
+							//cleared for writing a 2d array access
+							//first write the variable
+							tokens.add(variable.getName());
+							tokens.add("[");
+							tokens.add(index2D());
+							tokens.add("]");
+						}
+						else {
+							InternalFailure.internalFailure("Writing non-loop index not implemented", fileName, indexOf);
+						}
+					}else {
+						InternalFailure.internalFailure("IndexOf indices must both be nested loop indices", fileName, indexOf);
+					}
+				}else {
+					InternalFailure.internalFailure("For 2D IndexOf, inner src must be variable", fileName, indexOf);
+				}
+			}
 		}else {
-			//there is an issue if this happens
+			//fail here
+			InternalFailure.internalFailure("For 2D IndexOf, outer src must be variable", fileName, indexOf);
 		}
+//			if ((innerIndex.getName().equals(module.getInnerIndex().getName())) {
+//				write(indexSrc,tokens); //write the index source
+//				//TODO compare indices here
+//				tokens.add("[");
+//				tokens.add(indexName2D);
+//				tokens.add("]");
+//			}else {
+//				//TODO different behaviour here
+//			}
+//		}else {
+//			//TODO there is an issue if this happens
+//		}
 	}
 	private String index2D() {
 		return indexName2D;
@@ -440,8 +518,8 @@ public class KernelWriter {
 			//the type is correct for a kernel, write it here
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
-				if (((Expr.Variable) indexVar).getName().equals(loop.getIndex().getName())) {
-					if (!is1D) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
+				if (((Expr.Variable) indexVar).getName().equals(module.getOuterIndex().getName())) {
+					if (module.category==LoopFilter.Cat.EXP) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
 					tokens.add("["+index1D()+"]");
 				}
 			}else if (indexVar instanceof Expr.Constant) {

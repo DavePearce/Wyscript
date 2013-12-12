@@ -80,9 +80,9 @@ public class KernelGenerator {
 				String indexName = loop.getIndex().getName();
 				HashMap<String,Type> newEnv = new HashMap<String,Type>(env);
 //				newEnv.put(indexName, new Type.Int());
-				String id = funcname + Integer.toString(loopPosition);
+				String filename = funcname + Integer.toString(loopPosition);
 				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
-						, newEnv , id);
+						, newEnv , filename);
 				//now plug the kernel runner into the loop
 				loop.setKernelRunner(runner);
 				loopPosition++;
@@ -93,14 +93,14 @@ public class KernelGenerator {
 	 * Returns a KernelRunner for this loop.
 	 * @param loop The loop to be converted for running on GPU
 	 * @param environment The type environment so far
-	 * @param id The file name under which the loop is invoked
+	 * @param filename The file name under which the loop is invoked
 	 * @return
 	 */
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
-			Map<String,Type> environment , String id) {
+			Map<String,Type> environment , String filename) {
 		KernelWriter writer = null;
 		//writer = new KernelWriter(id, environment, loop);
-		LoopModule module = new LoopModule(id, environment, loop);
+		LoopModule module = new LoopModule(filename, environment, loop);
 		//KernelRunner runner = writer.getRunner();
 		KernelRunner runner2 = module.getRunner();
 		return runner2;
@@ -255,13 +255,18 @@ public class KernelGenerator {
 			if (expr1 == null) expr1 = expr;
 			else if (expr2 == null) {
 				expr2 = expr;
+				Type t1 = getType(expr1, file,env);
+				Type t2 = getType(expr2, file,env);
+				greatest = greaterType(t1, t2, file);
+				expr2 = expr1;
+				expr1 = expr;
 			}else {
 				//both expr1 and expr2 are non-null
 				Type t1 = getType(expr1, file,env);
 				Type t2 = getType(expr2, file,env);
 				greatest = greaterType(t1, t2, file);
 				expr2 = expr1;
-				expr2 = expr;
+				expr1 = expr;
 			}
 		}
 		if (expr1==null && expr2==null) {
