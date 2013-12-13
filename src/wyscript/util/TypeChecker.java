@@ -122,6 +122,13 @@ public class TypeChecker {
 	}
 
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
+		Expr temp = stmt.getExpr();
+		//Check if not returning anything
+		if (temp == null && !(function.ret instanceof Type.Void))
+			syntaxError("Method has non-void return type, must return expression of type " + function.ret, file.filename, stmt);
+		else if (temp == null)
+			return;
+
 		Type actual = check(stmt.getExpr(), environment);
 		checkSubtype(function.ret, actual, false, stmt.getExpr());
 	}
@@ -141,6 +148,13 @@ public class TypeChecker {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
+
+		//Check else-if branches
+		for (Expr e : stmt.getAltExpressions()) {
+			checkSubtype(Type.Bool.class, check(e, environment), e);
+			check(stmt.getAltBranch(e), new HashMap<String, Type>(environment));
+		}
+
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
 
@@ -338,7 +352,6 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Is expr, Map<String,Type> environment) {
-		//TODO: check with Dave
 		//Like == or !=, there's no way to have a 'bad' is expression
 		return new Type.Bool();
 	}

@@ -481,12 +481,15 @@ public interface Stmt extends SyntacticElement {
 
 	/**
 	 * Represents a classical if-else statement, made up from a
-	 * <i>condition</i>, <i>true branch</i> and <i>false branch</i>.
+	 * <i>condition</i>, <i>true branch</i>, optional additional <i> else-if branches </i>
+	 * and <i>false branch</i>.
 	 * The following illustrates:
 	 * <pre>
 	 * int max(int x, int y):
 	 *   if(x > y):
 	 *     return x
+	 *   else if(x == y):
+	 *   	return 0
 	 *   else:
 	 *     return y
 	 * </pre>
@@ -499,6 +502,7 @@ public interface Stmt extends SyntacticElement {
 		private final Expr condition;
 		private final ArrayList<Stmt> trueBranch;
 		private final ArrayList<Stmt> falseBranch;
+		private final Map<Expr, List<Stmt>> alts;
 
 		/**
 		 * Construct an if-else statement from a condition, true branch and
@@ -509,16 +513,23 @@ public interface Stmt extends SyntacticElement {
 		 * @param trueBranch
 		 *            A list of zero or more statements to be executed when the
 		 *            condition holds; may not be null.
+		 *
+		 * @param alts
+		 * 			A mapping from expression to the list of statements to execute
+		 * 			if the expression holds. May be empty, may not be null.
+		 *
 		 * @param falseBranch
 		 *            A list of zero of more statements to be executed when the
 		 *            condition does not hold; may not be null.
 		 * @param attributes
 		 */
 		public IfElse(Expr condition, List<Stmt> trueBranch,
+				Map<Expr, List<Stmt>> alts,
 				List<Stmt> falseBranch, Attribute... attributes) {
 			super(attributes);
 			this.condition = condition;
 			this.trueBranch = new ArrayList<Stmt>(trueBranch);
+			this.alts = alts;
 			this.falseBranch = new ArrayList<Stmt>(falseBranch);
 		}
 
@@ -531,16 +542,23 @@ public interface Stmt extends SyntacticElement {
 		 * @param trueBranch
 		 *            A list of zero or more statements to be executed when the
 		 *            condition holds; may not be null.
+		 *
+		 * @param alts
+		 * 			A mapping from expression to the list of statements to execute
+		 * 			if the expression holds. May be empty, may not be null.
+		 *
 		 * @param falseBranch
 		 *            A list of zero of more statements to be executed when the
 		 *            condition does not hold; may not be null.
 		 * @param attributes
 		 */
 		public IfElse(Expr condition, List<Stmt> trueBranch,
+				Map<Expr, List<Stmt>>alts,
 				List<Stmt> falseBranch, Collection<Attribute> attributes) {
 			super(attributes);
 			this.condition = condition;
 			this.trueBranch = new ArrayList<Stmt>(trueBranch);
+			this.alts = alts;
 			this.falseBranch = new ArrayList<Stmt>(falseBranch);
 		}
 
@@ -562,6 +580,27 @@ public interface Stmt extends SyntacticElement {
 			return trueBranch;
 		}
 
+		/**
+		 * Get the set of else-if expressions to check
+		 *
+		 * @return May not be null
+		 */
+		public Set<Expr> getAltExpressions() {
+			return new HashSet<Expr>(alts.keySet());
+		}
+
+		/**
+		 * Get the list of statements associated with a given else-if
+		 * expression, or null if not an expression associated with this else
+		 */
+		public List<Stmt> getAltBranch(Expr e) {
+			List<Stmt> tmp = alts.get(e);
+
+			if (e == null)
+				return null;
+
+			return new ArrayList<Stmt>(tmp);
+		}
 		/**
 		 * Get the false branch, which consists of zero or more statements.
 		 *

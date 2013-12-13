@@ -282,6 +282,13 @@ public class Interpreter {
 		if(condition) {
 			return execute(stmt.getTrueBranch(),frame);
 		} else {
+			//Check else-if branches
+			for (Expr e : stmt.getAltExpressions()) {
+				boolean altCondition = (Boolean) execute(e, frame);
+				if (altCondition) {
+					return execute(stmt.getAltBranch(e), frame);
+				}
+			}
 			return execute(stmt.getFalseBranch(),frame);
 		}
 	}
