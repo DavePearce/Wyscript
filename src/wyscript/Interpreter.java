@@ -378,7 +378,11 @@ public class Interpreter {
 		Expr.BOp op = expr.getOp();
 
 		//Need to handle the nasty left recursive case for maths operators
-		if (expr.getRhs() instanceof Expr.Binary) {
+		if (expr.getRhs() instanceof Expr.Binary && (
+				op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
 			Expr.BOp otherOp = bin.getOp();
 
