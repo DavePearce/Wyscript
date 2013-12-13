@@ -1,0 +1,16 @@
+void main():
+	int n = 100
+	[int] x = []
+	[int] y = []
+	[int] z = []
+	[int] u = []
+	while (n < 640000):
+		x = 0..n
+		y = 0..n
+		z = 0..n
+		u = 0..n
+		parFor i in 0..limit:
+			z[i] = x[i] + y[i]
+		for i in 0..limit:
+			u[i] = x[i] + y[i]
+		n = n + 1000

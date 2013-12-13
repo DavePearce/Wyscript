@@ -57,22 +57,24 @@ public class KernelGenerator {
 		for (String fname : functions.keySet()) {
 			WyscriptFile.FunDecl func = functions.get(fname);
 			//pass the name of the function down so it can be used to address kernel
-			scanFuncBody(func , fname , file);
+			scanFuncBody(func, func.statements , fname , file);
 		}
 	}
 	/**
-	 * Scans the function body and identifies parallel for loops
+	 * Scans the function body and identifies parallel for loops. Recursively scans
+	 * blocked statements
 	 * @param function
 	 * @param funcname
 	 * @param environment
 	 */
-	public static void scanFuncBody(WyscriptFile.FunDecl function , String funcname , WyscriptFile file) {
+	public static void scanFuncBody(WyscriptFile.FunDecl function ,
+			List<Stmt> statements , String funcname , WyscriptFile file) {
 		int loopPosition = 0;
 		//Map<String, Type> environment = new HashMap<String,Type>();
 		//checker.check(function.statements , environment);
 		Map<String,Type> env = new HashMap<String,Type>();
-		for (int i= 0; i < function.statements.size() ; i++) {
-			Stmt statement = function.statements.get(i);
+		for (int i= 0; i < statements.size() ; i++) {
+			Stmt statement = statements.get(i);
 			//update the environment
 			env = getEnvironment(statement, file , env);
 			if (statement instanceof Stmt.ParFor) {
@@ -86,6 +88,29 @@ public class KernelGenerator {
 				//now plug the kernel runner into the loop
 				loop.setKernelRunner(runner);
 				loopPosition++;
+			}else if (statement instanceof Stmt.While) {
+				Map<String,Type> newEnv = new HashMap<String,Type>(env);
+				scanBody(function, newEnv, ((Stmt.While) statement).getBody(), funcname, file, loopPosition);
+			}
+		}
+	}
+	public static void scanBody(WyscriptFile.FunDecl function , Map<String,Type> env ,
+			List<Stmt> statements , String funcname , WyscriptFile file, int loopPosition) {
+		for (int i= 0; i < statements.size() ; i++) {
+			Stmt statement = statements.get(i);
+			//update the environment
+			env = getEnvironment(statement, file , env);
+			if (statement instanceof Stmt.ParFor) {
+				Stmt.ParFor loop = (Stmt.ParFor) statement;
+				HashMap<String,Type> newEnv = new HashMap<String,Type>(env);
+				String filename = funcname + Integer.toString(loopPosition); //TODO make loop positions unique.
+				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
+						, newEnv , filename);
+				//now plug the kernel runner into the loop
+				loop.setKernelRunner(runner);
+				loopPosition++;
+			}else if (statement instanceof Stmt.While) {
+				scanBody(function, env, ((Stmt.While) statement).getBody(), funcname, file, loopPosition);
 			}
 		}
 	}

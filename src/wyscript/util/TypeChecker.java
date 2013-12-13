@@ -98,10 +98,10 @@ public class TypeChecker {
 			check((Stmt.IfElse) stmt, environment);
 		} else if(stmt instanceof Stmt.OldFor) {
 			check((Stmt.OldFor) stmt, environment);
-		} else if (stmt instanceof Stmt.ParFor) {
-			check((Stmt.ParFor) stmt, environment);
 		} else if(stmt instanceof Stmt.For) {
 			check((Stmt.For) stmt, environment);
+		} else if  (stmt instanceof Stmt.ParFor) {
+			check((Stmt.ParFor) stmt, environment);
 		} else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
 		} else if(stmt instanceof Stmt.Switch) {
@@ -124,10 +124,12 @@ public class TypeChecker {
 	}
 
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
-		if (stmt.getExpr() == null) {
-			checkSubtype(function.ret, new Type.Void(), stmt.getExpr());
+		Expr temp = stmt.getExpr();
+		if (temp == null && !(function.ret instanceof Type.Void))
+			syntaxError("Non-Void function must have non-null return", file.filename, stmt);
+		else if (temp == null)
 			return;
-		}
+
 		Type actual = check(stmt.getExpr(), environment);
 		checkSubtype(function.ret, actual, false, stmt.getExpr());
 	}
@@ -180,19 +182,18 @@ public class TypeChecker {
 		newEnv.put(v.getName(), ((Type.List)t).getElement());
 		check(stmt.getBody(), newEnv);
 	}
-	public void check(Stmt.ParFor stmt, Map<String, Type> environment) {
-		Expr e = stmt.getSource();
-		Expr.Variable v = stmt.getIndex();
+    public void check(Stmt.ParFor stmt, Map<String, Type> environment) {
+        Expr e = stmt.getSource();
+        Expr.Variable v = stmt.getIndex();
 
-		Type t = check(e, environment);
-		if (!(t instanceof Type.List))
-			syntaxError("For loop source expression must evaluate to a list type", file.filename, e);
+        Type t = check(e, environment);
+        if (!(t instanceof Type.List))
+                syntaxError("ParFor loop source expression must evaluate to a list type", file.filename, e);
 
-		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
-		newEnv.put(v.getName(), ((Type.List)t).getElement());
-		check(stmt.getBody(), newEnv);
-	}
-
+        HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
+        newEnv.put(v.getName(), ((Type.List)t).getElement());
+        check(stmt.getBody(), newEnv);
+    }
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());

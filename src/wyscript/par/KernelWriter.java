@@ -152,23 +152,23 @@ public class KernelWriter {
 			tokens.add(";");
 		}else {
 			//the 2D index
-//			String formula = "threadIdx.x + ( blockDim.x * ( ( gridDim.x * blockIdx.y ) + blockIdx.x) ) ;";
-//			String[] parts = formula.split("\\s+");
-//			tokens.add("int");
-//			tokens.add(index2D());
-//			tokens.add("=");
-//			for (String part : parts) {
-//				tokens.add(part);
-//			}
+			String formula = "threadIdx.x + ( blockDim.x * ( ( gridDim.x * blockIdx.y ) + blockIdx.x) ) ;";
+			String[] parts = formula.split("\\s+");
 			tokens.add("int");
 			tokens.add(index2D());
 			tokens.add("=");
-			tokens.add("blockIdx.x");
-			tokens.add("*");
-			tokens.add("blockDim.x");
-			tokens.add("+");
-			tokens.add("threadIdx.x");
-			tokens.add(";");
+			for (String part : parts) {
+				tokens.add(part);
+			}
+//			tokens.add("int");
+//			tokens.add(index2D());
+//			tokens.add("=");
+//			tokens.add("blockIdx.x");
+//			tokens.add("*");
+//			tokens.add("blockDim.x");
+//			tokens.add("+");
+//			tokens.add("threadIdx.x");
+//			tokens.add(";");
 		}
 	}
 	/**

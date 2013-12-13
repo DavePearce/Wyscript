@@ -40,7 +40,9 @@ public class Interpreter {
 	private WyscriptFile file;
 	private HashMap<String, Object> constants;
 	private HashMap<String, Type> userTypes;
-
+	public boolean benchmarked = false;
+	private int depth = 0;
+	private long time;
 
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
@@ -259,7 +261,11 @@ public class Interpreter {
 	}
 
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
-		//long time = System.currentTimeMillis();
+		long time = 0;
+		depth++;
+		if (benchmarked && depth<=1) {
+			time = System.nanoTime();
+		}
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
@@ -269,10 +275,14 @@ public class Interpreter {
 				return ret;
 			}
 		}
-		//System.out.println("For loop took: "+(System.currentTimeMillis()-time));
+		if (benchmarked && depth<=1) {
+			System.out.println("For "+((System.nanoTime()-time)/1000));
+		}
+		depth--;
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
+		long time = 0;
 		if (stmt.getRunner() == null) { //the runner is not available, default
 			List src = (List) execute(stmt.getSource(), frame);
 			String index = stmt.getIndex().getName();
@@ -284,9 +294,11 @@ public class Interpreter {
 				}
 			}
 		}else {
-			//long time = System.currentTimeMillis();
+			if (benchmarked) {
+				time = System.nanoTime();
+			}
 			Object out = stmt.getRunner().run(frame);
-			//System.out.println("ParFor loop took: "+(System.currentTimeMillis()-time));
+			if (benchmarked) System.out.println("ParFor "+((System.nanoTime()-time)/1000));
 			return out;
 		}
 		return null;
@@ -396,7 +408,7 @@ public class Interpreter {
 		Expr.BOp op = expr.getOp();
 
 		//Need to handle the nasty left recursive case for maths operators
-		if (expr.getRhs() instanceof Expr.Binary) {
+		if (expr.getRhs() instanceof Expr.Binary && isMathsOperator(expr.getOp())) {
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
 			Expr.BOp otherOp = bin.getOp();
 
@@ -508,6 +520,21 @@ public class Interpreter {
 		internalFailure("unknown binary expression encountered (" + expr + ")",
 				file.filename, expr);
 		return null;
+	}
+
+	private boolean isMathsOperator(Expr.BOp op) {
+		switch (op) {
+
+		case ADD:
+		case DIV:
+		case MUL:
+		case REM:
+		case SUB:
+			return true;
+
+		default:
+			return false;
+		}
 	}
 
 	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {

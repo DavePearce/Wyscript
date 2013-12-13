@@ -41,6 +41,7 @@ public abstract class Argument {
 	public abstract void read(Map<String,Object> frame , CUdeviceptr ptr);
 	public abstract String getCType();
 	public final String name;
+	protected boolean hasAllocated = false;
 	@Override
 	public String toString() {
 		return "Argument [name=" + name + "]";
@@ -57,7 +58,10 @@ public abstract class Argument {
 		public void write(Map<String, Object> env, CUdeviceptr ptr) {
 			ArrayList<?> list = (ArrayList<?>) env.get(name);
 			int[] size = new int []{list.size()};
-			cuMemAlloc(ptr, Sizeof.INT);
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, Sizeof.INT);
+				hasAllocated = true;
+			}
 			cuMemcpyHtoD(ptr, Pointer.to(size), Sizeof.INT);
 		}
 		@Override
@@ -85,7 +89,10 @@ public abstract class Argument {
 			int rows = list.size();
 			if (isHeight) {
 				int[] value = new int[] { rows };
-				cuMemAlloc(ptr, Sizeof.INT);
+				if (!hasAllocated) {
+					cuMemAlloc(ptr, Sizeof.INT);
+					hasAllocated = true;
+				}
 				cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
 			}else {
 				//scan every row and get the greatest height
@@ -97,7 +104,10 @@ public abstract class Argument {
 					}
 				}
 				int[] value = new int[] { width };
-				cuMemAlloc(ptr, Sizeof.INT);
+				if (!hasAllocated) {
+					cuMemAlloc(ptr, Sizeof.INT);
+					hasAllocated = true;
+				}
 				cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
 			}
 		}
@@ -119,7 +129,10 @@ public abstract class Argument {
 		@Override
 		public void write(Map<String, Object> env, CUdeviceptr ptr) {
 			int[] value = new int[] { (Integer) env.get(name) };
-			cuMemAlloc(ptr, Sizeof.INT);
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, Sizeof.INT);
+				hasAllocated = true;
+			}
 			cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
 		}
 		@Override
@@ -146,7 +159,10 @@ public abstract class Argument {
 			for (int i = 0; i < length ; i++) {
 				values[i] = list.get(i);
 			}
-			cuMemAlloc(ptr, length*Sizeof.INT);
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, length*Sizeof.INT);
+				hasAllocated = true;
+			}
 			cuMemcpyHtoD(ptr, Pointer.to(values), length*Sizeof.INT);
 		}
 		@Override
@@ -191,7 +207,10 @@ public abstract class Argument {
 				}
 			}
 			//data copied!
-			cuMemAlloc(ptr, width*height*Sizeof.INT);
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, width*height*Sizeof.INT);
+				hasAllocated = true;
+			}
 			cuMemcpyHtoD(ptr, Pointer.to(array), width*height*Sizeof.INT);
 		}
 		@Override
@@ -211,26 +230,4 @@ public abstract class Argument {
 			return "int*";
 		}
 	}
-//	public static Argument convertToArg(String name , Type type) {
-//		if (type instanceof Type.Int) {
-//			//simply return a single-int argument
-//			Argument arg = new SingleInt(name);
-//			return arg;
-//		}else if (type instanceof Type.List) {
-//			//differentiate between 1D and 2D lists
-//			Type elementType = (((Type.List) type).getElement());
-//			if (elementType instanceof Type.Int) {
-//				return new Argument.List1D(name);
-//			}else if (elementType instanceof Type.List) {
-//				if (((Type.List) elementType).getElement() instanceof Type.Int) {
-//					return new Argument.List2D(name);
-//				}
-//			}else {
-//				throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
-//			}
-//		}
-//		//TODO implement the rest of me
-//		else throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
-//		return null; //unreachable code
-//	}
 }

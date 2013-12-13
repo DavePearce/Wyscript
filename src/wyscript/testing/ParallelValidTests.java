@@ -108,4 +108,12 @@ public class ParallelValidTests {
 	public void parFor_valid_21() {
 		runParInterpreterTest("ParFor_Valid_21");
 	}
+	@Test
+	public void parFor_valid_22() {
+		runParInterpreterTest("ParFor_Valid_22");
+	}
+	@Test
+	public void parFor_valid_23() {
+		runParInterpreterTest("ParFor_Valid_23");
+	}
 }

@@ -1,0 +1,8 @@
+void main():
+	[[int]] mat = [[1,2,3],[4,5,6],[7,8,9]]
+	parFor i in 0..3:
+		parFor j in 0..3:
+			mat[i][j] = mat[i][j] + 1
+	for i in 0..|mat|:
+		for j in 0..|mat|:
+			print mat[i][j]

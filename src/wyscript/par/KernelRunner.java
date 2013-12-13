@@ -31,13 +31,12 @@ public class KernelRunner {
 	private Interpreter interpreter;
 	//Three lists used to track the name, type and device pointer of elements
 
-	private List<CUdeviceptr> devicePointers;
+	private List<CUdeviceptr> devicePointers = new ArrayList<CUdeviceptr>();
 
 	private List<Argument> arguments;
 
 	private File file;
 
-	private int blockSizeX = 16;
 	private CUcontext context;
 	private LoopModule module;
 	public KernelRunner(LoopModule module) {
@@ -118,8 +117,8 @@ public class KernelRunner {
 			gridDimY = 1;
 		}
 		int result = cuLaunchKernel(function,
-				gridDimX, gridDimY, 1,
-				blockSizeX, 1, 1,
+				gridDimX, 1, 1,
+				gridDimY, 1, 1,
 				0, null,
 				Pointer.to(parametersPointer), null);
 		int syncResult = cuCtxSynchronize();
@@ -207,14 +206,20 @@ public class KernelRunner {
 	 *
 	 */
 	private List<CUdeviceptr> marshalParametersToGPU(HashMap<String, Object> frame) {
-		List<CUdeviceptr> devPtrs = new ArrayList<CUdeviceptr>(arguments.size());
+		//List<CUdeviceptr> devPtrs = new ArrayList<CUdeviceptr>(arguments.size());
+		//this.devicePointers = devPtrs;
 		for (int i = 0 ; i < arguments.size() ; i++) {
 			Argument arg = arguments.get(i);
-			CUdeviceptr ptr = new CUdeviceptr();
+			CUdeviceptr ptr = null;
+			if (i >= devicePointers.size()) {
+				ptr = new CUdeviceptr();
+				devicePointers.add(ptr);
+			}else {
+				ptr = devicePointers.get(i);
+			}
 			arg.write(frame, ptr);
-			devPtrs.add(ptr);
 		}
-		return devPtrs;
+		return devicePointers;
 	}
 	/**
 	 * Allocates device memory for the integer array and returns a pointer to
