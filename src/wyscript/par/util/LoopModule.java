@@ -18,7 +18,6 @@ import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.par.KernelRunner;
 import wyscript.par.KernelWriter;
-import wyscript.par.util.LoopFilter.Cat;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
@@ -37,7 +36,7 @@ public class LoopModule {
 	private Expr.Variable innerIndex;
 	private Expr.Variable outerIndex;
 
-	public final LoopFilter.Cat category;
+	public final Category category;
 
 	private ParFor innerLoop;
 
@@ -59,7 +58,7 @@ public class LoopModule {
 		this.outerIndex = loop.getIndex();
 		category = LoopFilter.classify(loop);
 		outerIndex = loop.getIndex();
-		if (category == LoopFilter.Cat.IMPINNER) {
+		if (category == Category.IMPINNER) {
 			try {
 				innerLoop = ((Stmt.ParFor) loop.getBody().get(0));
 				innerIndex = ((Stmt.ParFor) loop.getBody().get(0)).getIndex();

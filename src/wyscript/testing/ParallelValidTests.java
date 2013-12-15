@@ -9,7 +9,7 @@ import org.junit.Test;
 import static wyscript.testing.TestUtils.*;
 public class ParallelValidTests {
 	private static final String testdir = "partests/runtests/";
-	private static final String JCUDA_HOME = "";
+	private static final String JCUDA_HOME = "../../bin/cuda/jcuda-0.5.0b.jar";
 
 	protected void runParInterpreterTest(String name) {
 		// The name of the file which contains the output for this test

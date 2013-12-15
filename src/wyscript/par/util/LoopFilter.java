@@ -16,34 +16,28 @@ public class LoopFilter {
 	List<Stmt> result = new ArrayList<Stmt>();
 	List<LoopModule> modules;
 
-	public enum Cat {
-		IMP,
-		IMPINNER,
-		EXP,
-		CPU
-	}
 	/**
 	 * Classifies loops into one of three categories.
 	 * This is computed in a very simple fashion, without complicated analysis.
 	 * @param loop
 	 * @return
 	 */
-	public static Cat classify(Stmt.ParFor loop) {
-		Cat category = null;
+	public static Category classify(Stmt.ParFor loop) {
+		Category category = null;
 		if (loop.getBody().size() == 1) {
 			Stmt stmt = loop.getBody().get(0);
 			//this loop may be implicit
 			if (stmt instanceof Stmt.ParFor) {
 				category = classify((ParFor) stmt);
-				if (category == Cat.IMP) {
+				if (category == Category.IMP) {
 					//then this loop is GPU-implicit
-					return Cat.IMPINNER;
+					return Category.IMPINNER;
 				}
 			}else {
 				if (stmt instanceof Stmt.For) {
-					return Cat.EXP;
+					return Category.EXP;
 				}else {
-					return Cat.IMP;
+					return Category.IMP;
 				}
 			}
 			return category;
@@ -51,7 +45,7 @@ public class LoopFilter {
 		else {
 			for (Stmt stmt : loop.getBody()) {
 				if (stmt instanceof Stmt.For) {
-					category = Cat.EXP;
+					category = Category.EXP;
 				}
 			}
 			return category;

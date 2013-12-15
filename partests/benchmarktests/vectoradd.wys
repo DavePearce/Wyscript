@@ -4,7 +4,7 @@ void main():
 	[int] y = [0]
 	[int] z = [0]
 	[int] u = [0]
-	while (n < 64000):
+	while (n < 60000):
 		x = 0..n
 		y = 0..n
 		z = 0..n

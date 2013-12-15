@@ -276,7 +276,7 @@ public class Interpreter {
 			}
 		}
 		if (benchmarked && depth<=1) {
-			System.out.println("For "+((System.nanoTime()-time)/1000));
+			System.out.print(""+((System.nanoTime()-time)/1000));
 		}
 		depth--;
 		return null;
@@ -298,7 +298,7 @@ public class Interpreter {
 				time = System.nanoTime();
 			}
 			Object out = stmt.getRunner().run(frame);
-			if (benchmarked) System.out.println("ParFor "+((System.nanoTime()-time)/1000));
+			if (benchmarked) System.out.print("\t"+((System.nanoTime()-time)/1000)+"\n");
 			return out;
 		}
 		return null;

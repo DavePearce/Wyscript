@@ -13,8 +13,7 @@ import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
 import wyscript.par.util.Argument;
-import wyscript.par.util.LoopFilter;
-import wyscript.par.util.LoopFilter.Cat;
+import wyscript.par.util.Category;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
@@ -125,10 +124,15 @@ public class KernelWriter {
 			Map<String,Type> environment) {
 		this.environment = environment;
 		writeThreadIndex(tokens);
+		writeThreadGuard();
 		for (Stmt statement : body) {
 			write(statement,tokens);
 		}
 		return tokens;
+	}
+	private void writeThreadGuard() {
+		// TODO Auto-generated method stub
+
 	}
 	private void writeThreadIndex(List<String> tokens) {
 		//the 1D index
@@ -140,7 +144,7 @@ public class KernelWriter {
 		while (module.isArgument(indexName2D)) {
 			indexName2D = "j"+Integer.toString(alias);
 		}
-		if (module.category != Cat.IMPINNER) { //simply write this since it works
+		if (module.category != Category.IMPINNER) { //simply write this since it works
 			tokens.add("int");
 			tokens.add(index1D());
 			tokens.add("=");
@@ -519,7 +523,7 @@ public class KernelWriter {
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
 				if (((Expr.Variable) indexVar).getName().equals(module.getOuterIndex().getName())) {
-					if (module.category==LoopFilter.Cat.EXP) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
+					if (module.category==Category.EXP) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
 					tokens.add("["+index1D()+"]");
 				}
 			}else if (indexVar instanceof Expr.Constant) {

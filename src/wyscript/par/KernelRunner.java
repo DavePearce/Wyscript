@@ -37,8 +37,15 @@ public class KernelRunner {
 
 	private File file;
 
-	private CUcontext context;
 	private LoopModule module;
+	private int blockDimX = 1; //garanteed to be set later
+	private int blockDimY = 1;
+	private int blockDimZ = 1;
+
+	private int gridDimX = 1;
+	private int gridDimY = 1;
+	private int gridDimZ = 1;
+
 	public KernelRunner(LoopModule module) {
 		this.module = module;
 		this.interpreter = new Interpreter();
@@ -66,7 +73,6 @@ public class KernelRunner {
 		CUcontext context = new CUcontext();
 		//create device context
 		result = cuCtxCreate(context, 0, device);
-		this.context = context;
 		stopIfFailed(result);
 		// Load the ptx file.
 		CUmodule module = new CUmodule();
@@ -108,17 +114,11 @@ public class KernelRunner {
 	public Object run(HashMap<String, Object> frame) {
 		List<CUdeviceptr> pointers = marshalParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
-		int gridDimX = getLoopRange(module.getOuterLoop(), frame);
 		Stmt.ParFor innerLoop = module.getInnerLoop();
-		int gridDimY;
-		if (innerLoop != null) {
-			gridDimY = getLoopRange(innerLoop, frame);
-		}else {
-			gridDimY = 1;
-		}
+		computeDimensions(frame, innerLoop);
 		int result = cuLaunchKernel(function,
-				gridDimX, 1, 1,
-				gridDimY, 1, 1,
+				gridDimX, gridDimY, gridDimZ,
+				blockDimX, blockDimY, blockDimZ,
 				0, null,
 				Pointer.to(parametersPointer), null);
 		int syncResult = cuCtxSynchronize();
@@ -131,6 +131,20 @@ public class KernelRunner {
 		//cuCtxDestroy(context); //major error avoided by commenting this line
 		cleanUp(pointers);
 		return null; //no need to return any particular object
+	}
+
+	private void computeDimensions(HashMap<String, Object> frame,
+			Stmt.ParFor innerLoop) {
+		gridDimX = getLoopRange(module.getOuterLoop(), frame);
+		if (innerLoop != null) {
+			blockDimX = getLoopRange(innerLoop, frame);
+		}else {
+			blockDimX = 1;
+		}
+//		while (gridDimX > 60000) {
+//			gridDimX *= 0.9;
+//			blockDimX *= 1.11;
+//		}
 	}
 	private int getLoopRange(Stmt.ParFor loop , HashMap<String,Object> frame) {
 		Expr src = loop.getSource();
@@ -167,7 +181,7 @@ public class KernelRunner {
 	 */
 	private void cleanUp(List<CUdeviceptr> pointers) {
 		for (CUdeviceptr ptr : pointers) {
-			cuMemFree(ptr);
+			//cuMemFree(ptr);
 		}
 	}
 

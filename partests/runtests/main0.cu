@@ -1,6 +1,4 @@
-extern "C" __global__ void main0 ( int* a , int* a_length ) {
+extern "C" __global__ void main0 ( int* n , int* z , int* z_length , int* x , int* x_length , int* y , int* y_length ) {
  int i = blockIdx.x * blockDim.x + threadIdx.x ;
- int b [3] = {
- 1 , 2 , 3 } ;
- a [i] = b [ 0 ] ;
+ z [i] = ( x [i] ) + ( y [i] ) ;
  } 

@@ -4,7 +4,7 @@
 	// nvopencc 4.1 built on 2012-09-21
 
 	//-----------------------------------------------------------
-	// Compiling /tmp/tmpxft_00001da7_00000000-9_main0.cpp3.i (/tmp/ccBI#.5sHZf8)
+	// Compiling /tmp/tmpxft_00007276_00000000-9_main0.cpp3.i (/tmp/ccBI#.LcDTvz)
 	//-----------------------------------------------------------
 
 	//-----------------------------------------------------------
@@ -17,7 +17,7 @@
 	//-----------------------------------------------------------
 
 	.file	1	"<command-line>"
-	.file	2	"/tmp/tmpxft_00001da7_00000000-8_main0.cudafe2.gpu"
+	.file	2	"/tmp/tmpxft_00007276_00000000-8_main0.cudafe2.gpu"
 	.file	3	"/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.2/include/stddef.h"
 	.file	4	"/opt/cuda/bin/../include/crt/device_runtime.h"
 	.file	5	"/opt/cuda/bin/../include/host_defines.h"
@@ -50,37 +50,32 @@
 
 
 	.entry main0 (
-		.param .u64 __cudaparm_main0_n,
-		.param .u64 __cudaparm_main0_z,
-		.param .u64 __cudaparm_main0_z_length,
-		.param .u64 __cudaparm_main0_x,
-		.param .u64 __cudaparm_main0_x_length,
-		.param .u64 __cudaparm_main0_y,
-		.param .u64 __cudaparm_main0_y_length)
+		.param .u64 __cudaparm_main0_a,
+		.param .u64 __cudaparm_main0_a_height,
+		.param .u64 __cudaparm_main0_a_width)
 	{
 	.reg .u16 %rh<4>;
-	.reg .u32 %r<8>;
-	.reg .u64 %rd<10>;
+	.reg .u32 %r<11>;
+	.reg .u64 %rd<6>;
 	.loc	14	1	0
 $LDWbegin_main0:
 	.loc	14	3	0
-	cvt.u32.u16 	%r1, %tid.x;
-	mov.u16 	%rh1, %ctaid.x;
-	mov.u16 	%rh2, %ntid.x;
-	mul.wide.u16 	%r2, %rh1, %rh2;
-	add.u32 	%r3, %r1, %r2;
-	cvt.s64.s32 	%rd1, %r3;
-	mul.wide.s32 	%rd2, %r3, 4;
-	ld.param.u64 	%rd3, [__cudaparm_main0_x];
-	add.u64 	%rd4, %rd3, %rd2;
-	ld.global.s32 	%r4, [%rd4+0];
-	ld.param.u64 	%rd5, [__cudaparm_main0_y];
-	add.u64 	%rd6, %rd5, %rd2;
-	ld.global.s32 	%r5, [%rd6+0];
-	add.s32 	%r6, %r4, %r5;
-	ld.param.u64 	%rd7, [__cudaparm_main0_z];
-	add.u64 	%rd8, %rd7, %rd2;
-	st.global.s32 	[%rd8+0], %r6;
+	mov.u16 	%rh1, %nctaid.x;
+	mov.u16 	%rh2, %ctaid.y;
+	mul.wide.u16 	%r1, %rh1, %rh2;
+	cvt.u32.u16 	%r2, %ctaid.x;
+	add.u32 	%r3, %r2, %r1;
+	ld.param.u64 	%rd1, [__cudaparm_main0_a];
+	cvt.u32.u16 	%r4, %tid.x;
+	cvt.u32.u16 	%r5, %ntid.x;
+	mul.lo.u32 	%r6, %r5, %r3;
+	add.u32 	%r7, %r4, %r6;
+	cvt.s64.s32 	%rd2, %r7;
+	mul.wide.s32 	%rd3, %r7, 4;
+	add.u64 	%rd4, %rd1, %rd3;
+	ld.global.s32 	%r8, [%rd4+0];
+	add.s32 	%r9, %r8, 1;
+	st.global.s32 	[%rd4+0], %r9;
 	.loc	14	4	0
 	exit;
 $LDWend_main0:

@@ -123,12 +123,11 @@ public class KernelGenerator {
 	 */
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
 			Map<String,Type> environment , String filename) {
-		KernelWriter writer = null;
 		//writer = new KernelWriter(id, environment, loop);
 		LoopModule module = new LoopModule(filename, environment, loop);
 		//KernelRunner runner = writer.getRunner();
-		KernelRunner runner2 = module.getRunner();
-		return runner2;
+		KernelRunner runner = module.getRunner();
+		return runner;
 	}
 	/**
 	 * Returns the entire environment of the function
@@ -148,7 +147,7 @@ public class KernelGenerator {
 	environment, WyscriptFile file) {
 		Expr expression = stmt.getExpr();
 		String name = stmt.getName();
-		environment.put(name, getType(expression,file,environment));
+		environment.put(name, stmt.getType());
 	}
 	public static Type getType(Expr expression,WyscriptFile file, Map<String, Type> env) {
 		if (expression instanceof Expr.Binary) {

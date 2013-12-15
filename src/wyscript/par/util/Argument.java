@@ -148,6 +148,7 @@ public abstract class Argument {
 
 	}
 	public static class List1D extends Argument {
+		int cachedSize;
 		public List1D(String name) {
 			super(name);
 		}
@@ -155,12 +156,16 @@ public abstract class Argument {
 		public void write(Map<String, Object> env, CUdeviceptr ptr) {
 			ArrayList<Integer> list = (ArrayList<Integer>) env.get(name);
 			int length = list.size();
+			if (length != cachedSize) {
+				cachedSize = length;
+				hasAllocated = false;
+			}
 			int[] values = new int[length];
 			for (int i = 0; i < length ; i++) {
 				values[i] = list.get(i);
 			}
 			if (!hasAllocated) {
-				cuMemAlloc(ptr, length*Sizeof.INT);
+				cuMemAlloc(ptr, cachedSize*Sizeof.INT);
 				hasAllocated = true;
 			}
 			cuMemcpyHtoD(ptr, Pointer.to(values), length*Sizeof.INT);
