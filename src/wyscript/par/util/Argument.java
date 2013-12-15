@@ -50,6 +50,11 @@ public abstract class Argument {
 	public Argument(String name) {
 		this.name = name;
 	}
+	/**
+	 * Wraps the length of a flat list.
+	 * @author antunomate
+	 *
+	 */
 	public static class Length1D extends Argument {
 		public Length1D(String name) {
 			super(name);
@@ -73,6 +78,13 @@ public abstract class Argument {
 			return "int*";
 		}
 	}
+	/**
+	 * Wraps the height or width of a flat list.
+	 * A flag in the constructor is used to set whether this argument
+	 * is for either width or height.
+	 * @author antunomate
+	 *
+	 */
 	public static class Length2D extends Argument {
 		public final boolean isHeight;
 		public Length2D(String name , boolean isHeight) {
@@ -230,6 +242,35 @@ public abstract class Argument {
 				}
 			}
 		}
+		@Override
+		public String getCType() {
+			return "int*";
+		}
+	}
+	public static class IndexOffset extends Argument {
+		int length;
+		public IndexOffset(String name , int length) {
+			super(name);
+			this.length  = length;
+		}
+		public void setOffset(int length) {
+			this.length = length;
+		}
+		@Override
+		public void write(Map<String, Object> frame, CUdeviceptr ptr) {
+			int[] value = new int[] { length };
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, Sizeof.INT);
+				hasAllocated = true;
+			}
+			cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.INT);
+		}
+
+		@Override
+		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
+			return;
+		}
+
 		@Override
 		public String getCType() {
 			return "int*";

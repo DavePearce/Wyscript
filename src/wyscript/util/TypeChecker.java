@@ -286,16 +286,16 @@ public class TypeChecker {
 			//Check if lhs is a string, or both types are lists
 			boolean isString = false;
 			Type left = check(expr.getLhs(), environment);
-			Type right = check(expr.getRhs(), environment);
+			Type right = check(expr.getLhs(), environment);
 
 			isString = checkPossibleSubtype(new Type.Strung(), left, false);
 
 			if (!isString) {
 				checkSubtype(Type.List.class, left, expr.getLhs());
-				checkSubtype(Type.List.class, right, expr.getRhs());
+				checkSubtype(Type.List.class, right, expr.getLhs());
 
 				//Check that the RHS is a subtype of the LHS
-				checkSubtype(left, right, false, expr.getRhs());
+				checkSubtype(left, right, false, expr.getLhs());
 			}
 
 			return left;
@@ -303,7 +303,7 @@ public class TypeChecker {
 		case AND:
 		case OR:
 			checkSubtype(Type.Bool.class, check(expr.getLhs(), environment), expr.getLhs());
-			checkSubtype(Type.Bool.class, check(expr.getRhs(), environment), expr.getRhs());
+			checkSubtype(Type.Bool.class, check(expr.getLhs(), environment), expr.getLhs());
 			return new Type.Bool();
 
 		case EQ:
@@ -315,20 +315,20 @@ public class TypeChecker {
 		case LT:
 		case LTEQ:
 			Type lhs = check(expr.getLhs(), environment);
-			Type rhs = check(expr.getRhs(), environment);
+			Type rhs = check(expr.getLhs(), environment);
 
 			if (!checkPossibleSubtype(new Type.Int(), lhs, false)) {
 				checkSubtype(Type.Real.class, lhs, expr.getLhs());
 			}
 			if (!checkPossibleSubtype(new Type.Int(), rhs, false)) {
-				checkSubtype(Type.Real.class, rhs, expr.getRhs());
+				checkSubtype(Type.Real.class, rhs, expr.getLhs());
 			}
 
 			return new Type.Bool();
 
 		case RANGE:
 			checkSubtype(Type.Int.class, check(expr.getLhs(), environment), expr.getLhs());
-			checkSubtype(Type.Int.class, check(expr.getRhs(), environment), expr.getRhs());
+			checkSubtype(Type.Int.class, check(expr.getLhs(), environment), expr.getLhs());
 			return new Type.List(new Type.Int());
 
 		case REM:
@@ -337,7 +337,7 @@ public class TypeChecker {
 		case DIV:
 		case MUL:
 			Type lhs2  = check(expr.getLhs(), environment);
-			Type rhs2 = check(expr.getRhs(), environment);
+			Type rhs2 = check(expr.getLhs(), environment);
 			boolean promote = false;
 
 			if (!checkPossibleSubtype(new Type.Int(), lhs2, false)) {
@@ -345,7 +345,7 @@ public class TypeChecker {
 				promote = true;
 			}
 			if (!checkPossibleSubtype(new Type.Int(), rhs2, false)) {
-				checkSubtype(Type.Real.class, rhs2, expr.getRhs());
+				checkSubtype(Type.Real.class, rhs2, expr.getLhs());
 			}
 
 			return (promote) ? new Type.Real() : new Type.Int();

@@ -201,12 +201,12 @@ public class KernelGenerator {
 			break;
 		case RANGE:
 			Type t1 = getType(expression.getLhs(), file, env);
-			Type t2 = getType(expression.getRhs(), file, env);
+			Type t2 = getType(expression.getLhs(), file, env);
 			Type greater = greaterType(t1,t2,file);
 			return new Type.List(greater);
 		default:
 			Expr lhs = expression.getLhs();
-			Expr rhs = expression.getRhs();
+			Expr rhs = expression.getLhs();
 			t1 = getType(lhs, file ,env);
 			t2 = getType(rhs, file,env);
 			return greaterType(t1,t2,file);

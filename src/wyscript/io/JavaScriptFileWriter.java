@@ -187,7 +187,7 @@ public class JavaScriptFileWriter {
 		out.print("(");
 		write(expr.getLhs());
 		out.print(" " + expr.getOp() + " ");
-		write(expr.getRhs());
+		write(expr.getLhs());
 		out.print(")");
 	}
 	

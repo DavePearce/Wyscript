@@ -135,7 +135,7 @@ public class LoopModule {
 		}else if (expr instanceof Expr.Binary) {
 			Expr.Binary binary = (Expr.Binary) expr;
 			scanExpr(binary.getLhs());
-			scanExpr(binary.getRhs());
+			scanExpr(binary.getLhs());
 		}else if (expr instanceof Expr.IndexOf) {
 			scanIndexOf((Expr.IndexOf)expr);
 		}else if (expr instanceof Expr.Unary) {

@@ -352,7 +352,7 @@ public class Convert {
 			Expr.Binary b = (Expr.Binary) e;
 			print(b.getLhs());
 			System.out.print(" " + b.getOp() + " ");
-			print(b.getRhs());
+			print(b.getLhs());
 		} else if(e instanceof Expr.Cast) {
 			Expr.Cast c = (Expr.Cast) e;
 			System.out.print("(");

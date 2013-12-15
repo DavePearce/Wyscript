@@ -4,7 +4,7 @@
 	// nvopencc 4.1 built on 2012-09-21
 
 	//-----------------------------------------------------------
-	// Compiling /tmp/tmpxft_00007276_00000000-9_main0.cpp3.i (/tmp/ccBI#.LcDTvz)
+	// Compiling /tmp/tmpxft_00001e02_00000000-9_main0.cpp3.i (/tmp/ccBI#.I8c6tn)
 	//-----------------------------------------------------------
 
 	//-----------------------------------------------------------
@@ -17,7 +17,7 @@
 	//-----------------------------------------------------------
 
 	.file	1	"<command-line>"
-	.file	2	"/tmp/tmpxft_00007276_00000000-8_main0.cudafe2.gpu"
+	.file	2	"/tmp/tmpxft_00001e02_00000000-8_main0.cudafe2.gpu"
 	.file	3	"/usr/lib/gcc/x86_64-unknown-linux-gnu/4.7.2/include/stddef.h"
 	.file	4	"/opt/cuda/bin/../include/crt/device_runtime.h"
 	.file	5	"/opt/cuda/bin/../include/host_defines.h"
@@ -74,7 +74,7 @@ $LDWbegin_main0:
 	mul.wide.s32 	%rd3, %r7, 4;
 	add.u64 	%rd4, %rd1, %rd3;
 	ld.global.s32 	%r8, [%rd4+0];
-	add.s32 	%r9, %r8, 1;
+	add.s32 	%r9, %r8, %r8;
 	st.global.s32 	[%rd4+0], %r9;
 	.loc	14	4	0
 	exit;

@@ -154,7 +154,7 @@ public class KernelRunner {
 			if (op.equals(BOp.RANGE)) {
 				try {
 					Integer low = (Integer)evaluate(binary.getLhs(), frame);
-					Integer high = (Integer)evaluate(binary.getRhs(), frame);
+					Integer high = (Integer)evaluate(binary.getLhs(), frame);
 					return high - low;
 				}catch (ClassCastException e) {
 					InternalFailure.internalFailure("Attempted to read range of binary expression." +

@@ -12,6 +12,8 @@ import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
+import wyscript.par.loop.GPUFlatLoop;
+import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
 import wyscript.par.util.Category;
 import wyscript.par.util.LoopModule;
@@ -19,7 +21,7 @@ import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
 
-public class KernelWriter {
+public class NewKernelWriter {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private Stmt.ParFor loop;
 
@@ -29,6 +31,8 @@ public class KernelWriter {
 	private String ptxFileName;
 	private Map<String, Type> environment;
 	private List<String> tokens = new ArrayList<String>();
+
+	private GPULoop gpuLoop;
 
 	private LoopModule module;
 	/**
@@ -42,7 +46,7 @@ public class KernelWriter {
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(LoopModule module) {
+	public NewKernelWriter(LoopModule module) {
 		module.getArguments();
 		this.module = module;
 		module.getOuterLoop().getIndex();
@@ -62,8 +66,7 @@ public class KernelWriter {
 		tokens.add("\"C\"");
 		writeFunctionDeclaration(tokens, module.getArguments());
 		tokens.add("{");
-		ArrayList<Stmt> body = module.getOuterLoop().getBody();
-		writeBody(body, tokens, environment);
+		writeBody(gpuLoop, tokens, environment);
 		tokens.add("}");
 	}
 	public void saveAndCompileKernel(String name , List<String> tokens) throws IOException {
@@ -120,17 +123,17 @@ public class KernelWriter {
 	private String getFunctionName() {
 		return fileName;
 	}
-	public List<String> writeBody(ArrayList<Stmt> body , List<String> tokens ,
+	public List<String> writeBody(GPULoop loop , List<String> tokens ,
 			Map<String,Type> environment) {
 		this.environment = environment;
 		writeThreadIndex(tokens);
-		writeThreadGuard();
-		for (Stmt statement : body) {
+		writeThreadGuard(tokens);
+		for (Stmt statement : loop.getLoop().getBody()) {
 			write(statement,tokens);
 		}
 		return tokens;
 	}
-	private void writeThreadGuard() {
+	private void writeThreadGuard(List<String> tokens2) {
 		// TODO Auto-generated method stub
 
 	}
@@ -144,7 +147,7 @@ public class KernelWriter {
 		while (module.isArgument(indexName2D)) {
 			indexName2D = "j"+Integer.toString(alias);
 		}
-		if (module.category != Category.IMPINNER) { //simply write this since it works
+		if (gpuLoop instanceof GPUFlatLoop) { //simply write this since it works
 			tokens.add("int");
 			tokens.add(index1D());
 			tokens.add("=");
@@ -164,15 +167,6 @@ public class KernelWriter {
 			for (String part : parts) {
 				tokens.add(part);
 			}
-//			tokens.add("int");
-//			tokens.add(index2D());
-//			tokens.add("=");
-//			tokens.add("blockIdx.x");
-//			tokens.add("*");
-//			tokens.add("blockDim.x");
-//			tokens.add("+");
-//			tokens.add("threadIdx.x");
-//			tokens.add(";");
 		}
 	}
 	/**

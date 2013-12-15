@@ -398,18 +398,18 @@ public class Interpreter {
 
 		switch (expr.getOp()) {
 		case AND:
-			return ((Boolean)lhs) && ((Boolean)execute(expr.getRhs(), frame));
+			return ((Boolean)lhs) && ((Boolean)execute(expr.getLhs(), frame));
 		case OR:
-			return ((Boolean)lhs) || ((Boolean)execute(expr.getRhs(), frame));
+			return ((Boolean)lhs) || ((Boolean)execute(expr.getLhs(), frame));
 		}
 
 		// Second, deal the rest.
-		Object rhs = execute(expr.getRhs(), frame);
+		Object rhs = execute(expr.getLhs(), frame);
 		Expr.BOp op = expr.getOp();
 
 		//Need to handle the nasty left recursive case for maths operators
-		if (expr.getRhs() instanceof Expr.Binary && isMathsOperator(expr.getOp())) {
-			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+		if (expr.getLhs() instanceof Expr.Binary && isMathsOperator(expr.getOp())) {
+			Expr.Binary bin = (Expr.Binary) expr.getLhs();
 			Expr.BOp otherOp = bin.getOp();
 
 			switch(otherOp) {
@@ -421,7 +421,7 @@ public class Interpreter {
 			case SUB:
 				Expr.Binary newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
 				lhs = execute(newExpr, frame);
-				rhs = execute(bin.getRhs(), frame);
+				rhs = execute(bin.getLhs(), frame);
 				op = otherOp;
 
 			default:

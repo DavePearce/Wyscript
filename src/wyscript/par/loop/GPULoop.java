@@ -1,14 +1,11 @@
 package wyscript.par.loop;
 
 import java.util.HashMap;
-import java.util.List;
-
 import wyscript.Interpreter;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
 import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.Binary;
-import wyscript.par.util.Argument;
 import wyscript.util.SyntaxError.InternalFailure;
 
 public abstract class GPULoop {
@@ -16,8 +13,10 @@ public abstract class GPULoop {
 		this.loop = loop;
 	}
 	protected final Stmt.ParFor loop;
-	public abstract Stmt.ParFor getLoop();
-	public abstract List<Argument> getArguments();
+
+	public Stmt.ParFor getLoop() {
+		return this.loop;
+	}
 	/**
 	 * Returns the lower index bound for the outer loop.
 	 * @param frame
@@ -26,20 +25,7 @@ public abstract class GPULoop {
 	public int outerLowerBound(HashMap<String,Object> frame){
 		Expr src = loop.getSource();
 		Interpreter interpreter = new Interpreter();
-		if (src instanceof Expr.Binary) {
-			Expr.Binary binary = (Binary) src;
-			Expr lhs = binary.getLhs();
-			if (binary.getOp()==BOp.RANGE) {
-				return (Integer) interpreter.execute(lhs,frame);
-			}else {
-				InternalFailure.internalFailure("Could not compute lower bound for range ", "FILE_UNKNOWN", loop);
-			}
-		}else if (src instanceof Expr.Variable) {
-			return 0;
-		}else {
-			InternalFailure.internalFailure("Could not compute lower bound for range ", "FILE_UNKNOWN", loop);
-		}
-		return -1;
+		return lowerBound(frame, src, interpreter);
 	}
 	/**
 	 * Returns the higher index bound for the outer loop.
@@ -49,16 +35,7 @@ public abstract class GPULoop {
 	public int outerUpperBound(HashMap<String,Object> frame){
 		Expr src = loop.getSource();
 		Interpreter interpreter = new Interpreter();
-		if (src instanceof Expr.Binary) {
-			Expr.Binary binary = (Binary) src;
-			Expr rhs = binary.getRhs();
-			if (binary.getOp()==BOp.RANGE) {
-				return (Integer) interpreter.execute(rhs,frame);
-			}else {
-				InternalFailure.internalFailure("Could not compute lower bound for range ", "FILE_UNKNOWN", loop);
-			}
-		}
-		return 0;
+		return upperBound(frame, src, interpreter);
 	}
 	/**
 	 * Returns -1 if this loop is flat
@@ -72,4 +49,46 @@ public abstract class GPULoop {
 	 * @return
 	 */
 	public abstract int innerUpperBound(HashMap<String,Object> frame);
+
+	public static int upperBound(HashMap<String, Object> frame, Expr src,
+			Interpreter interpreter) {
+		if (src instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) src;
+			Expr rhs = binary.getLhs();
+			if (binary.getOp()==BOp.RANGE) {
+				return (Integer) interpreter.execute(rhs,frame);
+			}else {
+				InternalFailure.internalFailure("Could not compute upper bound for range ", "FILE_UNKNOWN", src);
+			}
+		}
+		return 0;
+	}
+	public static int lowerBound(HashMap<String, Object> frame, Expr src,
+			Interpreter interpreter) {
+		if (src instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) src;
+			Expr lhs = binary.getLhs();
+			if (binary.getOp()==BOp.RANGE) {
+				return (Integer) interpreter.execute(lhs,frame);
+			}else {
+				InternalFailure.internalFailure("Could not compute lower bound for range ", "FILE_UNKNOWN", src);
+			}
+		}
+		return 0;
+	}
+	public String kernelName(String name) {
+		return name; //TODO make this work properly
+	}
+	public String lengthName(String name) {
+		return name + "_length";
+
+	}
+	public String widthName(String name) {
+		return name + "_width";
+
+	}
+	public String heightName(String name) {
+		return name + "_height";
+
+	}
 }
