@@ -13,6 +13,8 @@ import wyscript.lang.Stmt;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
+import wyscript.par.loop.GPULoop;
+import wyscript.par.util.LoopFilterFactory;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import wyscript.util.TypeChecker;
@@ -124,9 +126,10 @@ public class KernelGenerator {
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
 			Map<String,Type> environment , String filename) {
 		//writer = new KernelWriter(id, environment, loop);
-		LoopModule module = new LoopModule(filename, environment, loop);
-		//KernelRunner runner = writer.getRunner();
-		KernelRunner runner = module.getRunner();
+		GPULoop gpuLoop = LoopFilterFactory.produceLoop(loop);
+		LoopModule module = new LoopModule(filename, environment, gpuLoop);
+		KernelWriter writer = new KernelWriter(module);
+		KernelRunner runner = new KernelRunner(module.getPtxFile());
 		return runner;
 	}
 	/**
@@ -201,12 +204,12 @@ public class KernelGenerator {
 			break;
 		case RANGE:
 			Type t1 = getType(expression.getLhs(), file, env);
-			Type t2 = getType(expression.getLhs(), file, env);
+			Type t2 = getType(expression.getRhs(), file, env);
 			Type greater = greaterType(t1,t2,file);
 			return new Type.List(greater);
 		default:
 			Expr lhs = expression.getLhs();
-			Expr rhs = expression.getLhs();
+			Expr rhs = expression.getRhs();
 			t1 = getType(lhs, file ,env);
 			t2 = getType(rhs, file,env);
 			return greaterType(t1,t2,file);

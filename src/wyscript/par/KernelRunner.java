@@ -11,6 +11,7 @@ import wyscript.Interpreter;
 import wyscript.lang.*;
 import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.Binary;
+import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
@@ -32,12 +33,10 @@ public class KernelRunner {
 	//Three lists used to track the name, type and device pointer of elements
 
 	private List<CUdeviceptr> devicePointers = new ArrayList<CUdeviceptr>();
-
-	private List<Argument> arguments;
-
 	private File file;
 
 	private LoopModule module;
+	private GPULoop gpuLoop;
 	private int blockDimX = 1; //garanteed to be set later
 	private int blockDimY = 1;
 	private int blockDimZ = 1;
@@ -48,9 +47,9 @@ public class KernelRunner {
 
 	public KernelRunner(LoopModule module) {
 		this.module = module;
+		this.gpuLoop = module.getGPULoop();
 		this.interpreter = new Interpreter();
 		file = module.getPtxFile();
-		arguments = module.getArguments();
 		devicePointers = new ArrayList<CUdeviceptr>();
 		initialise();
 	}
@@ -61,7 +60,7 @@ public class KernelRunner {
 	 * @param ptxFileName
 	 */
 	public void initialise() {
-		String funcname = module.getFuncName();
+		String funcname = module.getName();
 		String ptxFileName = file.getAbsolutePath();
 		int result;
 		// initialise driver and create context
@@ -94,7 +93,7 @@ public class KernelRunner {
 			Thread.dumpStack();
 			InternalFailure.internalFailure(
 					"Failure with code"+result+". Got error: "+
-			cudaGetErrorString(result), file.getName(), module.getOuterLoop());
+			cudaGetErrorString(result), file.getName(), gpuLoop.getLoop());
 		}
 	}
 
@@ -114,8 +113,7 @@ public class KernelRunner {
 	public Object run(HashMap<String, Object> frame) {
 		List<CUdeviceptr> pointers = marshalParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
-		Stmt.ParFor innerLoop = module.getInnerLoop();
-		computeDimensions(frame, innerLoop);
+		computeDimensions(frame);
 		int result = cuLaunchKernel(function,
 				gridDimX, gridDimY, gridDimZ,
 				blockDimX, blockDimY, blockDimZ,
@@ -133,18 +131,18 @@ public class KernelRunner {
 		return null; //no need to return any particular object
 	}
 
-	private void computeDimensions(HashMap<String, Object> frame,
-			Stmt.ParFor innerLoop) {
-		gridDimX = getLoopRange(module.getOuterLoop(), frame);
-		if (innerLoop != null) {
-			blockDimX = getLoopRange(innerLoop, frame);
+	private void computeDimensions(HashMap<String, Object> frame) {
+		int lowX = gpuLoop.outerLowerBound(frame);
+		int highX = gpuLoop.outerUpperBound(frame);
+		//set single-dimensional block size
+		this.blockDimX = highX - lowX;
+		int lowY = gpuLoop.innerLowerBound(frame);
+		int highY = gpuLoop.innerUpperBound(frame);
+		if (lowY>0 && highY > 0) {
+			this.blockDimY = highY - lowY;
 		}else {
-			blockDimX = 1;
+			this.blockDimY = 1;
 		}
-//		while (gridDimX > 60000) {
-//			gridDimX *= 0.9;
-//			blockDimX *= 1.11;
-//		}
 	}
 	private int getLoopRange(Stmt.ParFor loop , HashMap<String,Object> frame) {
 		Expr src = loop.getSource();
@@ -154,7 +152,7 @@ public class KernelRunner {
 			if (op.equals(BOp.RANGE)) {
 				try {
 					Integer low = (Integer)evaluate(binary.getLhs(), frame);
-					Integer high = (Integer)evaluate(binary.getLhs(), frame);
+					Integer high = (Integer)evaluate(binary.getRhs(), frame);
 					return high - low;
 				}catch (ClassCastException e) {
 					InternalFailure.internalFailure("Attempted to read range of binary expression." +

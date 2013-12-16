@@ -12,28 +12,25 @@ import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
-import wyscript.par.loop.GPUSingleLoop;
-import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
 import wyscript.par.util.Category;
 import wyscript.par.util.LoopModule;
+import wyscript.util.SyntacticElement;
 import wyscript.util.SyntaxError.InternalFailure;
 
 
-public class KernelWriter {
+public class OldKernelWriter {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private Stmt.ParFor loop;
 
 	private String indexName1D = "i";
 	private String indexName2D = "j";
 	private String fileName;
+	private String ptxFileName;
 	private Map<String, Type> environment;
 	private List<String> tokens = new ArrayList<String>();
 
-	private GPULoop gpuLoop;
-
 	private LoopModule module;
-	private String ptxFileName;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -45,7 +42,7 @@ public class KernelWriter {
 	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
 	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
 	 */
-	public KernelWriter(LoopModule module) {
+	public OldKernelWriter(LoopModule module) {
 		module.getArguments();
 		this.module = module;
 		module.getOuterLoop().getIndex();
@@ -65,7 +62,8 @@ public class KernelWriter {
 		tokens.add("\"C\"");
 		writeFunctionDeclaration(tokens, module.getArguments());
 		tokens.add("{");
-		writeBody(gpuLoop, tokens, environment);
+		ArrayList<Stmt> body = module.getOuterLoop().getBody();
+		writeBody(body, tokens, environment);
 		tokens.add("}");
 	}
 	public void saveAndCompileKernel(String name , List<String> tokens) throws IOException {
@@ -87,8 +85,7 @@ public class KernelWriter {
 		}
 		writer.close();
 		//now compile it into a ptx file
-		String ptxFileName = preparePtxFile(cuName);
-		this.ptxFileName = ptxFileName;
+		preparePtxFile(cuName);
 	}
 	public List<String> writeFunctionDeclaration(List<String> tokens , List<Argument> arguments) {
     	tokens.add("__global__");
@@ -107,48 +104,35 @@ public class KernelWriter {
 		return tokens;
     }
 	private String convertName(Argument arg) {
-		return gpuLoop.kernelName(arg);
+		if (arg instanceof Argument.Length1D) {
+			return arg.name + "_length";
+		}else if(arg instanceof Argument.Length2D){
+			if (((Argument.Length2D) arg).isHeight){
+				return arg.name + "_height";
+			}else {
+				return arg.name + "_width";
+			}
+		}
+		 else {
+			return arg.name;
+		}
 	}
 	private String getFunctionName() {
 		return fileName;
 	}
-	public List<String> writeBody(GPULoop loop , List<String> tokens ,
+	public List<String> writeBody(ArrayList<Stmt> body , List<String> tokens ,
 			Map<String,Type> environment) {
 		this.environment = environment;
 		writeThreadIndex(tokens);
-		writeThreadGuard(tokens);
-		for (Stmt statement : loop.getLoop().getBody()) {
+		writeThreadGuard();
+		for (Stmt statement : body) {
 			write(statement,tokens);
 		}
 		return tokens;
 	}
-	private void writeThreadGuard(List<String> tokens) {
-		tokens.add("if");
-		tokens.add("(!");
-		tokens.add("(");
-		boolean needAnd = false;
-		for (Argument arg : module.getArguments()) {
-			if (needAnd) tokens.add("&&");
-			if (arg instanceof Argument.List1D) {
-				tokens.add(index1D());
-				tokens.add("<");
-				tokens.add(gpuLoop.lengthName(arg));
+	private void writeThreadGuard() {
+		// TODO Auto-generated method stub
 
-			}else if (arg instanceof Argument.List2D) {
-				tokens.add(index2D());
-				tokens.add("<");
-				tokens.add(gpuLoop.widthName(arg));
-				tokens.add("*");
-				tokens.add(gpuLoop.heightName(arg));
-			}
-			needAnd = true;
-		}
-		tokens.add(")");
-		tokens.add(")");
-		tokens.add("{");
-		tokens.add("return");
-		tokens.add(";");
-		tokens.add("}");
 	}
 	private void writeThreadIndex(List<String> tokens) {
 		//the 1D index
@@ -160,7 +144,7 @@ public class KernelWriter {
 		while (module.isArgument(indexName2D)) {
 			indexName2D = "j"+Integer.toString(alias);
 		}
-		if (gpuLoop instanceof GPUSingleLoop) { //simply write this since it works
+		if (module.category != Category.GPUEXPLICITNONNESTED) { //simply write this since it works
 			tokens.add("int");
 			tokens.add(index1D());
 			tokens.add("=");
@@ -180,6 +164,15 @@ public class KernelWriter {
 			for (String part : parts) {
 				tokens.add(part);
 			}
+//			tokens.add("int");
+//			tokens.add(index2D());
+//			tokens.add("=");
+//			tokens.add("blockIdx.x");
+//			tokens.add("*");
+//			tokens.add("blockDim.x");
+//			tokens.add("+");
+//			tokens.add("threadIdx.x");
+//			tokens.add(";");
 		}
 	}
 	/**
@@ -310,6 +303,8 @@ public class KernelWriter {
 	        endIndex = cuFileName.length()-1;
 	    }
 	    String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
+	    this.ptxFileName = ptxFileName;
+
 	    File cuFile = new File(cuFileName);
 	    if (!cuFile.exists())
 	    {
@@ -336,7 +331,7 @@ public class KernelWriter {
 	    if (exitValue != 0) {
 	    	///System.out.println(convertStreamToString(process.getErrorStream()));
 	    	InternalFailure.internalFailure("Failed to compile .ptx file for " +
-	    			"kernel. \nnvcc returned "+exitValue, cuFileName, gpuLoop.getLoop());
+	    			"kernel. \nnvcc returned "+exitValue, cuFileName, loop);
 	    }
 
 	    //System.out.println("Finished creating PTX file");
@@ -602,6 +597,13 @@ public class KernelWriter {
 		environment.put(decl.getName(), type);
 	}
 	/**
+	 * Return the File object associated with this kernel
+	 * @return
+	 */
+	public File getPtxFile() {
+		return new File(ptxFileName);
+	}
+	/**
 	 * Returns a List of the string representation of the kernel writer's tokens
 	 * @return
 	 */
@@ -621,14 +623,10 @@ public class KernelWriter {
 		}
 		return builder.toString();
 	}
-//	/**
-//	 * Return the File object associated with this kernel
-//	 * @return
-//	 */
-//	public File getPtxFile() {
-//		return new File(ptxFileName);
-//	}
-	public File getPtxFile() {
-		return new File(ptxFileName);
+	public SyntacticElement getLoop() {
+		return loop;
+	}
+	public Map<String, Type> getEnvironment() {
+		return environment;
 	}
 }

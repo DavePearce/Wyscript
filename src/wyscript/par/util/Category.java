@@ -1,8 +1,8 @@
 package wyscript.par.util;
 
 public enum Category {
-	IMP,
-	IMPINNER,
-	EXP,
+	GPUIMPLICITNESTED,
+	GPUEXPLICITNONNESTED,
+	GPUEXPLICITNESTED,
 	CPU
 }

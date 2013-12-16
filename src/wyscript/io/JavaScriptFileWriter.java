@@ -11,15 +11,15 @@ import wyscript.util.*;
 public class JavaScriptFileWriter {
 	private PrintStream out;
 	private WyscriptFile file;
-	
+
 	public JavaScriptFileWriter(File file) throws IOException {
 		this.out = new PrintStream(new FileOutputStream(file));
 	}
-	
+
 	public void close() {
 		out.close();
 	}
-	
+
 	public void write(WyscriptFile wf) {
 		this.file = wf;
 		for(WyscriptFile.Decl declaration : wf.declarations) {
@@ -28,7 +28,7 @@ public class JavaScriptFileWriter {
 			}
 		}
 	}
-	
+
 	public void write(WyscriptFile.FunDecl fd) {
 		out.print("function " + fd.name + "(");
 		boolean firstTime = true;
@@ -39,18 +39,18 @@ public class JavaScriptFileWriter {
 			firstTime=false;
 			out.print(p.name);
 		}
-		out.println(") {");		
-		write(fd.statements, 1);		
+		out.println(") {");
+		write(fd.statements, 1);
 		out.println("}");
 	}
-	
+
 	public void write(List<Stmt> statements, int indent) {
 		for(Stmt s : statements) {
 			write(s, indent);
 		}
 	}
-	
-	public void write(Stmt stmt, int indent) {			
+
+	public void write(Stmt stmt, int indent) {
 		if(stmt instanceof Stmt.Atom) {
 			indent(indent);
 			writeAtom((Stmt.Atom) stmt);
@@ -65,7 +65,7 @@ public class JavaScriptFileWriter {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
-	
+
 	public void write(Stmt.IfElse stmt, int indent) {
 		indent(indent);
 		out.print("if(");
@@ -75,15 +75,15 @@ public class JavaScriptFileWriter {
 		if(stmt.getFalseBranch().size() > 0) {
 			indent(indent);
 			out.println("} else {");
-			write(stmt.getFalseBranch(),indent+1);			
-		} 
+			write(stmt.getFalseBranch(),indent+1);
+		}
 		indent(indent);
 		out.println("}");
 	}
-	
+
 	public void write(Stmt.OldFor stmt, int indent) {
 		indent(indent);
-		out.print("for(");	
+		out.print("for(");
 		writeAtom(stmt.getDeclaration());
 		out.print(";");
 		write(stmt.getCondition());
@@ -94,7 +94,7 @@ public class JavaScriptFileWriter {
 		indent(indent);
 		out.println("}");
 	}
-	
+
 	public void write(Stmt.While stmt, int indent) {
 		indent(indent);
 		out.print("while(");
@@ -104,8 +104,8 @@ public class JavaScriptFileWriter {
 		indent(indent);
 		out.println("}");
 	}
-	
-	public void writeAtom(Stmt stmt) {			
+
+	public void writeAtom(Stmt stmt) {
 		if(stmt instanceof Stmt.Assign) {
 			write((Stmt.Assign) stmt);
 		} else if(stmt instanceof Stmt.Print) {
@@ -118,18 +118,18 @@ public class JavaScriptFileWriter {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
-	
+
 	public void write(Stmt.Assign stmt) {
 		write(stmt.getLhs());
 		out.print(" = ");
 		write(stmt.getRhs());
 	}
-	
-	
+
+
 	public void write(Stmt.Print stmt) {
 		Type type = stmt.getExpr().attribute(Attribute.Type.class).type;
 		out.print("sysout.println(");
-		if(type instanceof Type.Int) { 
+		if(type instanceof Type.Int) {
 			out.print("Math.round(");
 			write(stmt.getExpr());
 			out.print(")");
@@ -138,25 +138,25 @@ public class JavaScriptFileWriter {
 		}
 		out.print(")");
 	}
-	
+
 	public void write(Stmt.Return stmt) {
-		Expr expr = stmt.getExpr();		 
+		Expr expr = stmt.getExpr();
 		out.print("return");
 		if(expr != null) {
 			out.print(" ");
 			write(expr);
 		}
 	}
-	
+
 	public void write(Stmt.VariableDeclaration stmt) {
 		Expr init = stmt.getExpr();
 		out.print("var " + stmt.getName());
 		if(init != null) {
 			out.print(" = ");
 			write(init);
-		} 
+		}
 	}
-	
+
 	public void write(Expr expr) {
 		if(expr instanceof Expr.Binary) {
 			write((Expr.Binary) expr);
@@ -180,21 +180,21 @@ public class JavaScriptFileWriter {
 			write((Expr.Variable) expr);
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
-		} 
+		}
 	}
-	
+
 	public void write(Expr.Binary expr) {
 		out.print("(");
 		write(expr.getLhs());
 		out.print(" " + expr.getOp() + " ");
-		write(expr.getLhs());
+		write(expr.getRhs());
 		out.print(")");
 	}
-	
+
 	public void write(Expr.Cast expr) {
 		write(expr.getSource());
 	}
-	
+
 	public void write(Expr.Constant expr) {
 		Object val = expr.getValue();
 		if(val instanceof String) {
@@ -203,14 +203,14 @@ public class JavaScriptFileWriter {
 			out.print(val);
 		}
 	}
-	
+
 	public void write(Expr.IndexOf expr) {
 		write(expr.getSource());
 		out.print("[");
 		write(expr.getIndex());
 		out.print("]");
 	}
-	
+
 	public void write(Expr.Invoke expr) {
 		out.print(expr.getName() + "(");
 		boolean firstTime=true;
@@ -223,7 +223,7 @@ public class JavaScriptFileWriter {
 		}
 		out.print(")");
 	}
-	
+
 	public void write(Expr.ListConstructor expr) {
 		out.print("[");
 		boolean firstTime=true;
@@ -236,12 +236,12 @@ public class JavaScriptFileWriter {
 		}
 		out.print("]");
 	}
-	
+
 	public void write(Expr.RecordAccess expr) {
 		write(expr.getSource());
 		out.print("." + expr.getName());
 	}
-	
+
 	public void write(Expr.RecordConstructor expr) {
 		out.print("{");
 		boolean firstTime=true;
@@ -255,7 +255,7 @@ public class JavaScriptFileWriter {
 		}
 		out.print("}");
 	}
-	
+
 	public void write(Expr.Unary expr) {
 		out.print("(");
 		switch(expr.getOp()) {
@@ -270,11 +270,11 @@ public class JavaScriptFileWriter {
 		}
 		out.print(")");
 	}
-	
+
 	public void write(Expr.Variable expr) {
 		out.print(expr.getName());
 	}
-	
+
 	public void indent(int indent) {
 		for(int i=0;i!=indent;++i) {
 			out.print("    ");
