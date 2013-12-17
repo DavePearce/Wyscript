@@ -57,6 +57,10 @@ public interface Type extends SyntacticElement {
 		public Void(Attribute... attributes) {
 			super(attributes);
 		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Void;
+		}
 	}
 
 	/**
@@ -71,6 +75,10 @@ public interface Type extends SyntacticElement {
 
 		public Null(Attribute... attributes) {
 			super(attributes);
+		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Null;
 		}
 	}
 
@@ -87,6 +95,11 @@ public interface Type extends SyntacticElement {
 		public Bool(Attribute... attributes) {
 			super(attributes);
 		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Bool;
+		}
+
 	}
 
 	/**
@@ -101,6 +114,10 @@ public interface Type extends SyntacticElement {
 
 		public Int(Attribute... attributes) {
 			super(attributes);
+		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Int;
 		}
 	}
 
@@ -117,6 +134,10 @@ public interface Type extends SyntacticElement {
 
 		public Real(Attribute... attributes) {
 			super(attributes);
+		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Real;
 		}
 	}
 
@@ -135,6 +156,10 @@ public interface Type extends SyntacticElement {
 		public Char(Attribute... attributes) {
 			super(attributes);
 		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Char;
+		}
 	}
 
 	/**
@@ -148,6 +173,10 @@ public interface Type extends SyntacticElement {
 			Type {
 		public Strung(Attribute... attributes) {
 			super(attributes);
+		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Strung;
 		}
 	}
 
@@ -180,6 +209,14 @@ public interface Type extends SyntacticElement {
 		public String getName() {
 			return name;
 		}
+
+		public boolean equals(Object o) {
+			if (o == null)
+				return false;
+			if (!(o instanceof Type.Named))
+				return false;
+			return name == ((Type.Named)o).name;
+		}
 	}
 
 	/**
@@ -206,6 +243,15 @@ public interface Type extends SyntacticElement {
 		 */
 		public Type getElement() {
 			return element;
+		}
+
+		public boolean equals(Object o) {
+			if (o == null)
+				return false;
+			if (!(o instanceof Type.List))
+				return false;
+
+			return element.equals(((Type.List)o).element);
 		}
 	}
 
@@ -239,6 +285,16 @@ public interface Type extends SyntacticElement {
 		public Map<String, Type> getFields() {
 			return fields;
 		}
+
+		public boolean equals(Object o) {
+			if (o == null)
+				return false;
+			if (!(o instanceof Type.Record))
+				return false;
+
+			Type.Record r = (Type.Record)o;
+			return fields.equals(r.getFields());
+		}
 	}
 
 	/**
@@ -271,6 +327,16 @@ public interface Type extends SyntacticElement {
 		 */
 		public java.util.List<Type> getBounds() {
 			return bounds;
+		}
+
+		public boolean equals(Object o) {
+			if (o == null)
+				return false;
+			if (!(o instanceof Type.Union))
+				return false;
+
+			return new HashSet<Type>(bounds).equals
+					(new HashSet<Type>(((Type.Union)o).bounds));
 		}
 	}
 }
