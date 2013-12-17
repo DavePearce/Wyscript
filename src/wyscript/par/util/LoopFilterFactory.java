@@ -6,7 +6,10 @@ import java.util.List;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.ParFor;
 import wyscript.par.loop.GPULoop;
-import wyscript.par.loop.GPUNestedLoop;
+import wyscript.par.loop.GPUNestedLoopExplicit;
+import wyscript.par.loop.GPUNestedLoopImplicit;
+import wyscript.par.loop.GPUSingleLoop;
+import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * LoopFilter is responsible for identifying parts of a ParFor
@@ -21,13 +24,17 @@ public class LoopFilterFactory {
 		Category category = classify(loop);
 		switch (category) {
 		case CPU:
-			return null; //TODO add error here
-		case GPUEXPLICITNESTED:
-			return new GPUNestedLoop(loop);
-		case GPUEXPLICITNONNESTED:
-			return new GPUNestedLoop(loop);
-		case GPUIMPLICITNESTED:
-			return new GPUNestedLoop(loop);
+			InternalFailure.internalFailure("Cannot parallelise loop", "", loop);
+		case GPU_PART_IMPLICIT_NESTED:
+			return new GPUNestedLoopImplicit(loop);
+		case GPU_PART_IMPLICIT_NONNESTED:
+			return new GPUSingleLoop(loop);
+		case GPU_IMPLICIT_NONNESTED:
+			return new GPUSingleLoop(loop);
+		case GPU_NOTALOOP:
+			return new GPUSingleLoop(loop);
+		case GPU_EXPLICIT_NESTED:
+			return new GPUNestedLoopExplicit(loop);
 		default:
 			return null; //TODO add error here
 		}
@@ -39,32 +46,48 @@ public class LoopFilterFactory {
 	 * @return
 	 */
 	public static Category classify(Stmt.ParFor loop) {
-		Category category = null;
+		Category category = Category.GPU_NOTALOOP;
 		if (loop.getBody().size() == 1) {
 			Stmt stmt = loop.getBody().get(0);
 			//this loop may be implicit
 			if (stmt instanceof Stmt.ParFor) {
 				category = classify((ParFor) stmt);
-				if (category == Category.GPUIMPLICITNESTED) {
+				if (category == Category.GPU_IMPLICIT_NONNESTED) {
 					//then this loop is GPU-implicit
-					return Category.GPUEXPLICITNONNESTED;
+					return Category.GPU_PART_IMPLICIT_NESTED;
 				}
+			}else if (stmt instanceof Stmt.For) {
+					return Category.GPU_EXPLICIT_NESTED;
 			}else {
-				if (stmt instanceof Stmt.For) {
-					return Category.GPUEXPLICITNESTED;
-				}else {
-					return Category.GPUIMPLICITNESTED;
-				}
+				return Category.GPU_IMPLICIT_NONNESTED;
 			}
-			return category;
 		}
 		else {
 			for (Stmt stmt : loop.getBody()) {
 				if (stmt instanceof Stmt.For) {
-					category = Category.GPUEXPLICITNESTED;
+					category = Category.GPU_EXPLICIT_NESTED;
+					return category;
+				}else if (stmt instanceof Stmt.ParFor) {
+					Category nestedCat = classify((ParFor) stmt);
+					switch (category) {
+					case CPU:
+						return Category.CPU;
+					case GPU_PART_IMPLICIT_NESTED:
+						return Category.GPU_PART_IMPLICIT_NESTED;
+					case GPU_PART_IMPLICIT_NONNESTED:
+						return Category.GPU_PART_IMPLICIT_NESTED;
+					case GPU_IMPLICIT_NESTED:
+						return Category.GPU_PART_IMPLICIT_NESTED;
+					case GPU_IMPLICIT_NONNESTED:
+						return Category.GPU_PART_IMPLICIT_NESTED;
+					case GPU_NOTALOOP:
+						return Category.GPU_IMPLICIT_NONNESTED;
+					default:
+						return null; //TODO put error here
+					}
 				}
 			}
-			return category;
 		}
+		return category;
 	}
 }

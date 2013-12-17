@@ -2,8 +2,6 @@ package wyscript.par.loop;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,11 +17,6 @@ import wyscript.util.SyntaxError.InternalFailure;
 public class GPUUtils {
 	private GPUUtils(){}
 
-	public static List<Argument> identifyArguments(Stmt.ParFor loop , HashMap<String,Type> env) {
-		List<String> parameters = new ArrayList<String>();
-		Set<String> nonparameters = new HashSet<String>();
-		return scanForFunctionParameters(loop.getBody(), parameters, nonparameters, env);
-	}
     /**
 	 * This method generates a string of function parameters and analyses the
 	 * loop body for those assignment statements which require parameters to be
@@ -120,7 +113,7 @@ public class GPUUtils {
 	 */
 	private static void scanExpr(Expr expr, List<String> parameters, Set<String> nonparameters) {
 		if (expr instanceof Expr.Variable) {
-			scanVariableParam((Variable) expr, null, null);
+			scanVariableParam((Variable) expr, parameters, nonparameters);
 		}else if (expr instanceof Expr.Binary) {
 			Expr.Binary binary = (Expr.Binary) expr;
 			scanExpr(binary.getLhs(), parameters, nonparameters);
@@ -141,7 +134,10 @@ public class GPUUtils {
 	 * @param nonparameters
 	 */
 	private static void scanVariableParam(Variable var, List<String> parameters, Set<String> nonparameters) {
-		//TODO implement me
+		String name = var.getName();
+		if (!(parameters.contains(name)||nonparameters.contains(name))) {
+			parameters.add(name);
+		}
 	}
 	/**
 	 * Add an indexOf operation as parameter. indexOf should be a flat access
@@ -162,7 +158,7 @@ public class GPUUtils {
 		}else if (expression instanceof Expr.IndexOf){
 			//scan the next index
 			Expr.IndexOf inner = (Expr.IndexOf) expression;
-			scanExpr(inner.getIndex(), parameters, nonparameters);
+			scanExpr(inner.getSource(), parameters, nonparameters);
 			if (inner.getSource() instanceof Expr.Variable) {
 				scanVariableParam((Variable) inner.getSource(), parameters, nonparameters);
 			}else {

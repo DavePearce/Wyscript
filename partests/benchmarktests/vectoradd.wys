@@ -4,13 +4,22 @@ void main():
 	[int] y = [0]
 	[int] z = [0]
 	[int] u = [0]
-	while (n < 60000):
+	while (n < 1000000):
 		x = 0..n
 		y = 0..n
 		z = 0..n
 		u = 0..n
 		parFor i in 0..n:
-			z[i] = x[i] + y[i]
+			z[i] = x[i]+y[i]
 		for i in 0..n:
-			u[i] = x[i] + y[i]
+			u[i] = x[i]+y[i]
+		int c = 0
+		while (c < n):
+			if (z[c]-u[c] != 0):
+				print "fail"
+				for j in c..c+10:
+					print j
+					print z[j]
+				return
+			c = c + 1
 		n = n + 1000

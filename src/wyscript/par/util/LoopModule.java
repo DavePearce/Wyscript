@@ -18,8 +18,6 @@ public class LoopModule {
 	private Map<String , Type> environment; //passed to kernel writer at runtime
 
 	private String fileName;
-	private KernelWriter writer;
-
 	private GPULoop gpuLoop;
 
 	/**
@@ -37,12 +35,6 @@ public class LoopModule {
 		this.environment = environment;
 		this.fileName = filename;
 		this.gpuLoop = loop;
-	}
-	public KernelRunner getRunner() {
-		return new KernelRunner(this);
-	}
-	public File getPtxFile() {
-		return writer.getPtxFile();
 	}
 	public String getName() {
 		return this.fileName;

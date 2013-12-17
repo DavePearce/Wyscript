@@ -8,5 +8,6 @@ void main():
 	for i in 0..|a|:
 		if (ag[i]+12 != a[i]):
 			print "fail"
-			print i
+			print a
+			return
 	print "success"

@@ -7,10 +7,6 @@ import java.util.List;
 import jcuda.*;
 import jcuda.driver.*;
 import static jcuda.driver.JCudaDriver.*;
-import wyscript.Interpreter;
-import wyscript.lang.*;
-import wyscript.lang.Expr.BOp;
-import wyscript.lang.Expr.Binary;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
 import wyscript.par.util.LoopModule;
@@ -29,27 +25,24 @@ import static jcuda.runtime.JCuda.*;
  */
 public class KernelRunner {
 	private CUfunction function;
-	private Interpreter interpreter;
-	//Three lists used to track the name, type and device pointer of elements
-
 	private List<CUdeviceptr> devicePointers = new ArrayList<CUdeviceptr>();
 	private File file;
 
 	private LoopModule module;
 	private GPULoop gpuLoop;
-	private int blockDimX = 1; //garanteed to be set later
-	private int blockDimY = 1;
+
+	private int blockDimX = 16; //garanteed to be set later
+	private int blockDimY = 16;
 	private int blockDimZ = 1;
 
-	private int gridDimX = 1;
-	private int gridDimY = 1;
+	private int gridDimX = 10;
+	private int gridDimY = 10;
 	private int gridDimZ = 1;
 
-	public KernelRunner(LoopModule module) {
+	public KernelRunner(File ptxFile , LoopModule module) {
 		this.module = module;
 		this.gpuLoop = module.getGPULoop();
-		this.interpreter = new Interpreter();
-		file = module.getPtxFile();
+		file = ptxFile;
 		devicePointers = new ArrayList<CUdeviceptr>();
 		initialise();
 	}
@@ -111,7 +104,7 @@ public class KernelRunner {
 	 *          placed on frame once completed
 	 */
 	public Object run(HashMap<String, Object> frame) {
-		List<CUdeviceptr> pointers = marshalParametersToGPU(frame);
+ 		List<CUdeviceptr> pointers = marshalParametersToGPU(frame);
 		NativePointerObject[] parametersPointer = getPointerToParams(pointers);
 		computeDimensions(frame);
 		int result = cuLaunchKernel(function,
@@ -123,63 +116,42 @@ public class KernelRunner {
 		stopIfFailed(syncResult);
 		if (result != CUDA_SUCCESS) {
 			InternalFailure.internalFailure("Kernel did not launch successfully." +
-					cudaGetErrorString(result), file.getName(), module.getOuterLoop());
+					cudaGetErrorString(result), file.getName(), gpuLoop.getLoop());
 		}
 		marshalParametersFromGPU(frame,pointers);
-		//cuCtxDestroy(context); //major error avoided by commenting this line
-		cleanUp(pointers);
 		return null; //no need to return any particular object
 	}
 
 	private void computeDimensions(HashMap<String, Object> frame) {
 		int lowX = gpuLoop.outerLowerBound(frame);
 		int highX = gpuLoop.outerUpperBound(frame);
-		//set single-dimensional block size
-		this.blockDimX = highX - lowX;
 		int lowY = gpuLoop.innerLowerBound(frame);
 		int highY = gpuLoop.innerUpperBound(frame);
-		if (lowY>0 && highY > 0) {
-			this.blockDimY = highY - lowY;
-		}else {
+		//if (highY-lowY < 0)
+		int diffX = Math.abs(highX-lowX);
+		int diffY = Math.abs(highY-lowY);
+		if (diffY == 0) {
+			this.blockDimX = 256;
 			this.blockDimY = 1;
+			int remaining = diffX/(256)+1;
+			this.gridDimX = remaining;
+			this.gridDimY = 1;
+			return;
 		}
-	}
-	private int getLoopRange(Stmt.ParFor loop , HashMap<String,Object> frame) {
-		Expr src = loop.getSource();
-		if (src instanceof Expr.Binary) {
-			Expr.Binary binary = (Binary) src;
-			Expr.BOp op = binary.getOp();
-			if (op.equals(BOp.RANGE)) {
-				try {
-					Integer low = (Integer)evaluate(binary.getLhs(), frame);
-					Integer high = (Integer)evaluate(binary.getRhs(), frame);
-					return high - low;
-				}catch (ClassCastException e) {
-					InternalFailure.internalFailure("Attempted to read range of binary expression." +
-							"Could not cast to integer", file.getPath(), src);
-				}
+		else {
+			int total = diffX*diffY;
+			if (total >= 512) {
+				this.blockDimX = 16;
+				this.blockDimY = 16;
+				int remaining = total;
+				this.gridDimX = (int) Math.ceil(Math.sqrt(remaining))+2;
+				this.gridDimY = (int) Math.ceil(Math.sqrt(remaining))+2;
+			}else {
+				this.blockDimX = 21;
+				this.blockDimY = 21;
+				this.gridDimX = 20;
+				this.gridDimY = 20;
 			}
-		}
-		return 0; //unreachable code
-	}
-	/**
-	 * Fill me in with some code that was used elsewhere to access expression
-	 * values
-	 * @param expression
-	 * @param frame
-	 * @return
-	 */
-	private Object evaluate(Expr expression , HashMap<String,Object> frame) {
-		return interpreter.execute(expression,frame);
-	}
-
-	/**
-	 * Frees the list of device pointers
-	 * @param pointers
-	 */
-	private void cleanUp(List<CUdeviceptr> pointers) {
-		for (CUdeviceptr ptr : pointers) {
-			//cuMemFree(ptr);
 		}
 	}
 
@@ -203,6 +175,7 @@ public class KernelRunner {
 	 * @param frame
 	 */
 	private void marshalParametersFromGPU(HashMap<String, Object> frame,List<CUdeviceptr> devicePointers) {
+		List<Argument> arguments = gpuLoop.getArguments();
 		for (int i = 0 ; i < arguments.size() ; i++) {
 			CUdeviceptr ptr = devicePointers.get(i);
 			//update the frame
@@ -220,6 +193,7 @@ public class KernelRunner {
 	private List<CUdeviceptr> marshalParametersToGPU(HashMap<String, Object> frame) {
 		//List<CUdeviceptr> devPtrs = new ArrayList<CUdeviceptr>(arguments.size());
 		//this.devicePointers = devPtrs;
+		List<Argument> arguments = gpuLoop.getArguments();
 		for (int i = 0 ; i < arguments.size() ; i++) {
 			Argument arg = arguments.get(i);
 			CUdeviceptr ptr = null;
@@ -232,20 +206,6 @@ public class KernelRunner {
 			arg.write(frame, ptr);
 		}
 		return devicePointers;
-	}
-	/**
-	 * Allocates device memory for the integer array and returns a pointer to
-	 * it.
-	 * @param intArray
-	 * @return
-	 */
-	private CUdeviceptr generateH2DPointer(int[] intArray) {
-		CUdeviceptr dpointer = new CUdeviceptr();
-		int expectedLength = intArray.length;
-		cuMemAlloc(dpointer, expectedLength * Sizeof.INT);
-		cuMemcpyHtoD(dpointer, Pointer.to(intArray), expectedLength
-				* Sizeof.INT);
-		return dpointer;
 	}
 
 }

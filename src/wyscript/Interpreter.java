@@ -42,7 +42,6 @@ public class Interpreter {
 	private HashMap<String, Type> userTypes;
 	public boolean benchmarked = false;
 	private int depth = 0;
-	private long time;
 
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
@@ -261,11 +260,8 @@ public class Interpreter {
 	}
 
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
-		long time = 0;
 		depth++;
-		if (benchmarked && depth<=1) {
-			time = System.nanoTime();
-		}
+		long time = System.currentTimeMillis();
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
@@ -275,14 +271,12 @@ public class Interpreter {
 				return ret;
 			}
 		}
-		if (benchmarked && depth<=1) {
-			System.out.print(""+((System.nanoTime()-time)/1000));
-		}
+		long timeAfter = System.currentTimeMillis();
 		depth--;
+		if (depth == 0) System.out.print("\t"+(timeAfter - time)+"\n");
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
-		long time = 0;
 		if (stmt.getRunner() == null) { //the runner is not available, default
 			List src = (List) execute(stmt.getSource(), frame);
 			String index = stmt.getIndex().getName();
@@ -294,11 +288,10 @@ public class Interpreter {
 				}
 			}
 		}else {
-			if (benchmarked) {
-				time = System.nanoTime();
-			}
+			long time = System.currentTimeMillis();
 			Object out = stmt.getRunner().run(frame);
-			if (benchmarked) System.out.print("\t"+((System.nanoTime()-time)/1000)+"\n");
+			long timeAfter = System.currentTimeMillis();
+			System.out.print((timeAfter - time));
 			return out;
 		}
 		return null;

@@ -5,7 +5,8 @@ void main():
 		a[i] = b[0]
 	for i in 0..|a|:
 		if (a[i] == 1):
-
 		else:
 			print "fail"
+			print a
+			return
 	print "success"

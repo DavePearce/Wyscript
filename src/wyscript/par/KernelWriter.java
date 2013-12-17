@@ -6,64 +6,55 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import com.sun.xml.internal.ws.api.server.Module;
+
 import wyscript.lang.Expr;
 import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
+import wyscript.par.loop.GPULoopNested;
 import wyscript.par.loop.GPUSingleLoop;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
-import wyscript.par.util.Category;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 
 
 public class KernelWriter {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
-	private Stmt.ParFor loop;
-
 	private String indexName1D = "i";
 	private String indexName2D = "j";
-	private String fileName;
+	private String name;
 	private Map<String, Type> environment;
 	private List<String> tokens = new ArrayList<String>();
 
 	private GPULoop gpuLoop;
 
-	private LoopModule module;
 	private String ptxFileName;
 	/**
-	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
-	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
-	 * for <i>loop</i>.
-	 * @param filename
-	 * @param environment
-	 * @param loop
-	 * @throws IOException
-	 * @requires A correct mapping of the symbols used (when the parFor is executed) to their types
-	 * @ensures All necessary parameters extracted and converted into a Cuda kernel, as well as stored within KernelWriter
+	 * Initialises a KernelWriter using data contained in the
+	 * given module.
+	 * @param module
 	 */
 	public KernelWriter(LoopModule module) {
-		module.getArguments();
-		this.module = module;
-		module.getOuterLoop().getIndex();
+		this.gpuLoop = module.getGPULoop();
 		this.environment = module.getEnvironment();
-		this.loop = module.getOuterLoop();
-		this.fileName = module.getName();
+		this.name = module.getName();
 		writeAll();
 		try {
-			saveAndCompileKernel(fileName, tokens);
+			saveAndCompileKernel(name, tokens);
 		} catch (IOException e) {
 			InternalFailure.internalFailure("Could not write kernel. Got error: "+e.getMessage()
-					, fileName, module.getOuterLoop());
+					, name, gpuLoop.getLoop());
 		}
 	}
 	private void writeAll() {
 		tokens.add("extern");
 		tokens.add("\"C\"");
-		writeFunctionDeclaration(tokens, module.getArguments());
+		writeFunctionDeclaration(tokens, gpuLoop.getArguments());
 		tokens.add("{");
 		writeBody(gpuLoop, tokens, environment);
 		tokens.add("}");
@@ -110,7 +101,7 @@ public class KernelWriter {
 		return gpuLoop.kernelName(arg);
 	}
 	private String getFunctionName() {
-		return fileName;
+		return name;
 	}
 	public List<String> writeBody(GPULoop loop , List<String> tokens ,
 			Map<String,Type> environment) {
@@ -123,42 +114,55 @@ public class KernelWriter {
 		return tokens;
 	}
 	private void writeThreadGuard(List<String> tokens) {
-		tokens.add("if");
-		tokens.add("(!");
-		tokens.add("(");
+		List<String> guard = new ArrayList<String>();
+ 		guard.add("if");
+		guard.add("(!");
+		guard.add("(");
 		boolean needAnd = false;
-		for (Argument arg : module.getArguments()) {
-			if (needAnd) tokens.add("&&");
+		List<Argument> arguments = gpuLoop.getArguments();
+		for (int a = 0 ; a < arguments.size() ; a++) {
+			Argument arg = arguments.get(a);
 			if (arg instanceof Argument.List1D) {
-				tokens.add(index1D());
-				tokens.add("<");
-				tokens.add(gpuLoop.lengthName(arg));
+				if (needAnd) {
+					guard.add("&&");
+				}
+				guard.add(index1D());
+				guard.add("<");
+				Argument length = arguments.get(a+1);
+				guard.add("(*"+gpuLoop.kernelName(length)+")");
+				needAnd = true;
 
 			}else if (arg instanceof Argument.List2D) {
-				tokens.add(index2D());
-				tokens.add("<");
-				tokens.add(gpuLoop.widthName(arg));
-				tokens.add("*");
-				tokens.add(gpuLoop.heightName(arg));
+				if (needAnd) {
+					guard.add("&&");
+				}
+				guard.add(index2D());
+				guard.add("<");
+				Argument heightOrWidth1 = arguments.get(a+1);
+				Argument heightOrWidth2 = arguments.get(a+2);
+				guard.add("(*"+gpuLoop.kernelName(heightOrWidth1)+")");
+				guard.add("*");
+				guard.add("(*"+gpuLoop.kernelName(heightOrWidth2)+")");
+				needAnd = true;
 			}
-			needAnd = true;
 		}
-		tokens.add(")");
-		tokens.add(")");
-		tokens.add("{");
-		tokens.add("return");
-		tokens.add(";");
-		tokens.add("}");
+		guard.add(")");
+		guard.add(")");
+		guard.add("{");
+		guard.add("return");
+		guard.add(";");
+		guard.add("}");
+		if (needAnd) tokens.addAll(guard);
 	}
 	private void writeThreadIndex(List<String> tokens) {
 		//the 1D index
 		int alias = 0;
-		while (module.isArgument(indexName1D)) {
-			indexName1D = "i"+Integer.toString(alias);
+		while (gpuLoop.isArgument(indexName1D)) {
+			indexName1D = "i"+Integer.toString(alias++);
 		}
 		alias = 0;
-		while (module.isArgument(indexName2D)) {
-			indexName2D = "j"+Integer.toString(alias);
+		while (gpuLoop.isArgument(indexName2D)) {
+			indexName2D = "j"+Integer.toString(alias++);
 		}
 		if (gpuLoop instanceof GPUSingleLoop) { //simply write this since it works
 			tokens.add("int");
@@ -203,7 +207,7 @@ public class KernelWriter {
 		}
 		else {
 			InternalFailure.internalFailure("Encountered syntactic element not " +
-					"supported in parFor loop", fileName, statement);
+					"supported in parFor loop", name, statement);
 		}
 		return tokens;
 	}
@@ -249,7 +253,7 @@ public class KernelWriter {
 			write((Expr.ListConstructor)expression,tokens);
 		}
 		else{
-			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", fileName, expression);
+			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", name, expression);
 		}
 	}
 	/**
@@ -262,14 +266,15 @@ public class KernelWriter {
 	private void write(Expr.LVal val,List<String> tokens) {
 		if (val instanceof Expr.Variable) {
 			//if this is a parameter, have to dereference the pointer
-			if (module.isArgument(((Expr.Variable)val).getName())) {
+			if (gpuLoop.isArgument(((Expr.Variable)val).getName())) {
 					tokens.add("*");
 			}
 			//write a
 			Expr.Variable variable = (Expr.Variable) val;
 			//simply add the variable name
 			String name = variable.getName();
-			if (name.equals(loop.getIndex().getName())) {
+			Variable loopVar = gpuLoop.getIndexVar();
+			if (name.equals(loopVar.getName())) {
 				tokens.add(index1D());
 			}else {
 				tokens.add(name);
@@ -370,7 +375,7 @@ public class KernelWriter {
 			break;
 		default:
 			InternalFailure.internalFailure("Unknown unary expression encountered"
-					, fileName, unary);
+					, name, unary);
 
 		}
 	}
@@ -379,7 +384,7 @@ public class KernelWriter {
 			String name = ((Expr.Variable)expr).getName();
 			tokens.add("(");
 			tokens.add("*");
-			String lengthName = name+"_length"; //TODO fix me
+			String lengthName = gpuLoop.lengthName(name);
 			tokens.add(lengthName);
 			tokens.add(")");
 		}
@@ -389,7 +394,7 @@ public class KernelWriter {
 		}
 		else {
 			//TODO Implement me
-			InternalFailure.internalFailure("Writing length of this expression not implemented", fileName, expr);
+			InternalFailure.internalFailure("Writing length of this expression not implemented", name, expr);
 		}
 	}
 	private void writeOp(BOp op,List<String> tokens) {
@@ -407,7 +412,7 @@ public class KernelWriter {
 			tokens.add(Integer.toString((Integer)val));
 		}else {
 			InternalFailure.internalFailure("Cannot write this constant: "+val,
-					fileName, constant);
+					name, constant);
 		}
 	}
 	/**
@@ -442,12 +447,12 @@ public class KernelWriter {
 				write1DIndexOf(tokens, (Expr.Variable) src, indexVar);
 			}
 			else {
-				InternalFailure.internalFailure("Can only perform indexof on list", fileName, indexOf);
+				InternalFailure.internalFailure("Can only perform indexof on list", name, indexOf);
 			}
 		}else if (src instanceof Expr.IndexOf) {
 			write2DIndexOf(tokens, indexOf);
 		}else {
-			InternalFailure.internalFailure("Expected source type to be of type list", fileName, indexOf.getSource());
+			InternalFailure.internalFailure("Expected source type to be of type list", name, indexOf.getSource());
 		}
 	}
 	/**
@@ -475,42 +480,39 @@ public class KernelWriter {
 							instanceof Expr.Variable) {
 						String innerName = ((Expr.Variable) outerIndex).getName();
 						String outerName = ((Expr.Variable) innerIndex).getName();
-						if (outerName.equals(module.getOuterIndex().getName())&&
-								innerName.equals(module.getInnerIndex().getName())){
-							//cleared for writing a 2d array access
-							//first write the variable
-							tokens.add(variable.getName());
-							tokens.add("[");
-							tokens.add(index2D());
-							tokens.add("]");
+						if (gpuLoop instanceof GPULoopNested) {
+							GPULoopNested nestedGPULoop = (GPULoopNested)gpuLoop;
+							if (outerName.equals(nestedGPULoop.getIndexVar().getName())&&
+									innerName.equals(nestedGPULoop.getInnerIndexVar().getName())){
+								//cleared for writing a 2d array access
+								//first write the variable
+								tokens.add(variable.getName());
+								tokens.add("[");
+								tokens.add(index2D());
+								tokens.add("]");
+							}else {
+								InternalFailure.internalFailure("2D indices must match both loop indices", name, indexOf);
+							}
 						}
 						else {
-							InternalFailure.internalFailure("Writing non-loop index not implemented", fileName, indexOf);
+							//#omg #error
+							InternalFailure.internalFailure("Non-nested loop detected while writing 2D indexof", name, indexOf);
 						}
-					}else {
-						InternalFailure.internalFailure("IndexOf indices must both be nested loop indices", fileName, indexOf);
+					}
+					else {
+						InternalFailure.internalFailure("Writing non-loop index not implemented", name, indexOf);
 					}
 				}else {
-					InternalFailure.internalFailure("For 2D IndexOf, inner src must be variable", fileName, indexOf);
+					InternalFailure.internalFailure("IndexOf indices must both be nested loop indices", name, indexOf);
 				}
+			}else {
+				InternalFailure.internalFailure("For 2D IndexOf, inner src must be indexof", name, indexOf);
 			}
 		}else {
-			//fail here
-			InternalFailure.internalFailure("For 2D IndexOf, outer src must be variable", fileName, indexOf);
+			InternalFailure.internalFailure("For 2D IndexOf, outer src must be indexof", name, indexOf);
 		}
-//			if ((innerIndex.getName().equals(module.getInnerIndex().getName())) {
-//				write(indexSrc,tokens); //write the index source
-//				//TODO compare indices here
-//				tokens.add("[");
-//				tokens.add(indexName2D);
-//				tokens.add("]");
-//			}else {
-//				//TODO different behaviour here
-//			}
-//		}else {
-//			//TODO there is an issue if this happens
-//		}
 	}
+
 	private String index2D() {
 		return indexName2D;
 	}
@@ -527,8 +529,7 @@ public class KernelWriter {
 			//the type is correct for a kernel, write it here
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
-				if (((Expr.Variable) indexVar).getName().equals(module.getOuterIndex().getName())) {
-					if (module.category==Category.GPUEXPLICITNESTED) InternalFailure.internalFailure("Expected to index 1D list", fileName, indexVar);
+				if (((Expr.Variable) indexVar).getName().equals(gpuLoop.getIndexVar().getName())) {
 					tokens.add("["+index1D()+"]");
 				}
 			}else if (indexVar instanceof Expr.Constant) {
@@ -536,11 +537,11 @@ public class KernelWriter {
 				write((Expr.Constant)indexVar,tokens);
 				tokens.add("]");
 			}else {
-				InternalFailure.internalFailure("Index should be parFor loop index or constant", fileName, src);
+				InternalFailure.internalFailure("Index should be parFor loop index or constant", name, src);
 			}
 		}
 		else{
-			InternalFailure.internalFailure("List type should be int for kernel conversion", fileName, src);
+			InternalFailure.internalFailure("List type should be int for kernel conversion", name, src);
 		}
 	}
 	/**
@@ -592,11 +593,11 @@ public class KernelWriter {
 				write((Expr.ListConstructor)decl.getExpr(),tokens);
 				tokens.add(";");
 			}else {
-				InternalFailure.internalFailure("Can only write explicit list of integers",fileName,decl);
+				InternalFailure.internalFailure("Can only write explicit list of integers",name,decl);
 			}
 		}
 		else {
-			InternalFailure.internalFailure("Cannot write variable declaration for the given type",fileName,decl);
+			InternalFailure.internalFailure("Cannot write variable declaration for the given type",name,decl);
 
 		}
 		environment.put(decl.getName(), type);

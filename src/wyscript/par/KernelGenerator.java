@@ -124,12 +124,13 @@ public class KernelGenerator {
 	 * @return
 	 */
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
-			Map<String,Type> environment , String filename) {
+			HashMap<String,Type> environment , String filename) {
 		//writer = new KernelWriter(id, environment, loop);
 		GPULoop gpuLoop = LoopFilterFactory.produceLoop(loop);
+		gpuLoop.initialiseArguments(environment);
 		LoopModule module = new LoopModule(filename, environment, gpuLoop);
 		KernelWriter writer = new KernelWriter(module);
-		KernelRunner runner = new KernelRunner(module.getPtxFile());
+		KernelRunner runner = new KernelRunner(writer.getPtxFile(),module);
 		return runner;
 	}
 	/**

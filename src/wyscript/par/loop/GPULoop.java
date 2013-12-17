@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Set;
 
 import wyscript.Interpreter;
@@ -25,21 +26,36 @@ public abstract class GPULoop {
 	/**
 	 * Initialises the argument list of this GPULoop, allowing them to be used
 	 * for writing
-	 * @param env
+	 * @param env The type environment at the point of the Wyscript program that parFor loop resides
 	 * @return
 	 */
 	public List<Argument> initialiseArguments(HashMap<String,Type> env) {
 		List<String> parameters = new ArrayList<String>();
 		Set<String> nonparameters = new HashSet<String>();
 		//now ensure there are no name clashes
+		if (!env.containsKey("i")) nonparameters.add("i");
+		if (!env.containsKey("j")) nonparameters.add("j");
 		List<Argument> arguments = GPUUtils.scanForFunctionParameters(loop.getBody(), parameters, nonparameters, env);
 		//now mangle name
 		for (Argument arg : arguments) {
 			int suffix = 0;
 			String mangledName = arg.name;
-			if (arg instanceof Argument.Length1D || arg instanceof Argument.Length2D) {
+			if (arg instanceof Argument.Length1D) {
+				mangledName = arg.name+"_length";
 				while (parameters.contains(mangledName)) {
-					String identifier = "MANGLED";
+					String identifier = "_length";
+					mangledName = arg.name + identifier  + Integer.toString(suffix++);
+				}
+				nameMap.put(arg, mangledName);
+			}else if (arg instanceof Argument.Length2D) {
+				String identifier;
+				if (((Argument.Length2D) arg).isHeight) {
+					identifier = "_height";
+				}else {
+					identifier = "_width";
+				}
+				mangledName = arg.name + identifier;
+				while (parameters.contains(mangledName)) {
 					mangledName = arg.name + identifier  + Integer.toString(suffix++);
 				}
 				nameMap.put(arg, mangledName);
@@ -47,11 +63,16 @@ public abstract class GPULoop {
 				nameMap.put(arg, arg.name);
 			}
 		}
+		this.arguments = arguments;
 		return arguments;
 	}
 	public List<Argument> getArguments() {
 		return arguments;
 	}
+	/**
+	 * @param name
+	 * @return True if at least one argument has the name
+	 */
 	public boolean isArgument(String name) {
 		for (Argument arg : arguments) {
 			if (arg.name.equals(name)) return true;
@@ -73,6 +94,10 @@ public abstract class GPULoop {
 		Interpreter interpreter = new Interpreter();
 		return lowerBound(frame, src, interpreter);
 	}
+	/**
+	 * Return the outer loop's index variable. Guaranteed to be non-null.
+	 * @return
+	 */
 	public Expr.Variable getIndexVar() {
 		return loop.getIndex();
 	}
@@ -125,7 +150,52 @@ public abstract class GPULoop {
 		}
 		return 0;
 	}
+	/**
+	 * Returns the name of this argument within the kernel
+	 * (i.e. it can be accessed from within the kernel code)
+	 * @param arg
+	 * @return
+	 */
 	public String kernelName(Argument arg) {
-		return nameMap.get(arg.name);
+		String result = nameMap.get(arg);
+		if (result == null) return arg.name;
+		else return result;
+	}
+	/**
+	 * Converts a name within the Wyscript program to its form wihtin the kernel
+	 * @param name
+	 * @return
+	 */
+	public String kernelName(String name) {
+		for (Argument arg : arguments) {
+			if (name.equals(arg.name)) {
+				return nameMap.get(arg);
+			}
+		}
+		throw new NoSuchElementException("Could not find variable for "+name);
+	}
+	public String lengthName(String name) {
+		for (Argument arg : arguments) {
+			if (name.equals(arg.name)) {
+				if (arg instanceof Argument.Length1D) return nameMap.get(arg);
+			}
+		}
+		throw new NoSuchElementException("Could not find length variable for "+name);
+	}
+	public String widthName(String name) {
+		for (Argument arg : arguments) {
+			if (name.equals(arg.name) && arg instanceof Argument.Length2D) {
+				 if (!((Argument.Length2D)arg).isHeight) return nameMap.get(arg);
+			}
+		}
+		throw new NoSuchElementException("Could not find width variable for "+name);
+	}
+	public String heightName(String name) {
+		for (Argument arg : arguments) {
+			if (name.equals(arg.name) && arg instanceof Argument.Length2D) {
+				 if (((Argument.Length2D)arg).isHeight) return nameMap.get(arg);
+			}
+		}
+		throw new NoSuchElementException("Could not find height variable for "+name);
 	}
 }
