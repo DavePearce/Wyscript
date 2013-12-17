@@ -154,7 +154,10 @@ public class Interpreter {
 			return execute((Stmt.Switch) stmt, frame);
 		} else if(stmt instanceof Stmt.Next) {
 			return execute((Stmt.Next)stmt, frame);
-		} else {
+		} else if (stmt instanceof Stmt.LenWidCalc) {
+			return execute((Stmt.LenWidCalc)stmt, frame);
+		}
+		  else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
 		}
@@ -273,7 +276,7 @@ public class Interpreter {
 		}
 		long timeAfter = System.currentTimeMillis();
 		depth--;
-		if (depth == 0) System.out.print("\t"+(timeAfter - time)+"\n");
+		if (depth == 0 && benchmarked) System.out.print("\t"+(timeAfter - time)+"\n");
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
@@ -291,7 +294,7 @@ public class Interpreter {
 			long time = System.currentTimeMillis();
 			Object out = stmt.getRunner().run(frame);
 			long timeAfter = System.currentTimeMillis();
-			System.out.print((timeAfter - time));
+			if (benchmarked) System.out.print((timeAfter - time));
 			return out;
 		}
 		return null;
@@ -709,7 +712,24 @@ public class Interpreter {
 	private Object execute(Expr.Variable expr, HashMap<String,Object> frame) {
 		return frame.get(expr.getName());
 	}
-
+	/**
+	 * Calculates width (number of columns) and length (number of rows)
+	 * of a row-indexed array and inject these values into the frame.
+	 * @param calc
+	 * @param frame
+	 * @return
+	 */
+	private Object execute(Stmt.LenWidCalc calc , HashMap<String,Object> frame) {
+		ArrayList<ArrayList<?>> list2D = (ArrayList<ArrayList<?>>) frame.get(calc.name);
+		int height = list2D.size();
+		int width = -1;
+		for (ArrayList<?> list : list2D) {
+			if (list.size() > width) width = list.size();
+		}
+		frame.put(calc.lenName, height);
+		frame.put(calc.widName, width);
+		return null;
+	}
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,

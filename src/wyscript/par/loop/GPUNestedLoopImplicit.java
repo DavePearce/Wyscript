@@ -7,7 +7,7 @@ import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Stmt.ParFor;
 
-public class GPUNestedLoopImplicit extends GPULoopNested{
+public class GPUNestedLoopImplicit extends GPUNestedLoop{
 	private Expr innerExpression;
 	private Variable innerIndex;
 

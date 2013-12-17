@@ -15,10 +15,17 @@ import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.Binary;
 import wyscript.par.util.Argument;
 import wyscript.util.SyntaxError.InternalFailure;
-
+/**
+ * This abstract class is the parent representation of all parallel
+ * loops. It encapsulates the arguments and indices and bridges the
+ * namespace of the kernel and the loop.
+ * @author Mate Antunovic
+ *
+ */
 public abstract class GPULoop {
 	private List<Argument> arguments;
 	private HashMap<Argument,String> nameMap = new HashMap<Argument,String>();
+	protected final Stmt.ParFor loop;
 
 	public GPULoop(Stmt.ParFor loop) {
 		this.loop = loop;
@@ -79,7 +86,6 @@ public abstract class GPULoop {
 		}
 		return false;
 	}
-	protected final Stmt.ParFor loop;
 
 	public Stmt.ParFor getLoop() {
 		return this.loop;

@@ -15,7 +15,7 @@ import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
-import wyscript.par.loop.GPULoopNested;
+import wyscript.par.loop.GPUNestedLoop;
 import wyscript.par.loop.GPUSingleLoop;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
@@ -480,8 +480,8 @@ public class KernelWriter {
 							instanceof Expr.Variable) {
 						String innerName = ((Expr.Variable) outerIndex).getName();
 						String outerName = ((Expr.Variable) innerIndex).getName();
-						if (gpuLoop instanceof GPULoopNested) {
-							GPULoopNested nestedGPULoop = (GPULoopNested)gpuLoop;
+						if (gpuLoop instanceof GPUNestedLoop) {
+							GPUNestedLoop nestedGPULoop = (GPUNestedLoop)gpuLoop;
 							if (outerName.equals(nestedGPULoop.getIndexVar().getName())&&
 									innerName.equals(nestedGPULoop.getInnerIndexVar().getName())){
 								//cleared for writing a 2d array access

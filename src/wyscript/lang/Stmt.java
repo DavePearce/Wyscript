@@ -915,4 +915,26 @@ public interface Stmt extends SyntacticElement {
 			return "next";
 		}
 	}
+	public static final class LenWidCalc extends SyntacticElement.Impl implements
+	Atom {
+		public final String name;
+		public final String lenName;
+		public final String widName;
+
+		public LenWidCalc(String name, String lenName, String widName) {
+			this.name = name;
+			this.lenName = lenName;
+			this.widName = widName;
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			sb.append("LenWidth Calculator for ");
+			sb.append(name);
+			sb.append("\n");
+			return sb.toString();
+
+		}
+
+	}
 }
