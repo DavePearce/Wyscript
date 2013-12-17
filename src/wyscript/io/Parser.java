@@ -48,12 +48,15 @@ public class Parser {
 	private String filename;
 	private ArrayList<Token> tokens;
 	private HashSet<String> userDefinedTypes;
+	private HashMap<String, Expr> constants;
+
 	private int index;
 
 	public Parser(String filename, List<Token> tokens) {
 		this.filename = filename;
 		this.tokens = new ArrayList<Token>(tokens);
 		this.userDefinedTypes = new HashSet<String>();
+		constants = new HashMap<String, Expr>();
 	}
 
 	/**
@@ -81,8 +84,10 @@ public class Parser {
 
 			case Constant:
 				d = parseConstantDeclaration(errors);
-				if (d != null)
+				if (d != null) {
 					decls.add(d);
+					constants.put(d.name(), ((ConstDecl)d).constant);
+				}
 				break;
 
 			default:
@@ -173,6 +178,10 @@ public class Parser {
 			valid = false;
 
 		List<Stmt> stmts = parseBlock(ROOT_INDENT, errors, new HashSet<Token.Kind>());
+
+		if (stmts == null) {
+			valid = false;
+		}
 
 		return (valid) ? new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
 				index - 1))
@@ -314,17 +323,19 @@ public class Parser {
 
 	/**
 	 * Determine the indentation as given by the Indent token at this point (if
-	 * any). If none, then <code>null</code> is returned.
+	 * any). If none, then <code>null</code> is returned. If a newline is encountered, skip
+	 * over until an indent or a non-whitespace token is found
 	 *
 	 * @return
 	 */
 	private Indent getIndent() {
-		if(index < tokens.size()) {
-			Token token = tokens.get(index);
+		int pos = index;
+		while (pos < tokens.size() && isWhiteSpace(tokens.get(index))) {
+			Token token = tokens.get(pos);
 			if(token.kind == Indent) {
 				return new Indent(token.text,token.start);
 			}
-			return null;
+			pos ++;
 		}
 		return null;
 	}
@@ -359,6 +370,12 @@ public class Parser {
 			return parseWhile(index-1,indent, errors, follow);
 		case For:
 			return parseFor(index-1,indent, errors, follow);
+
+		case Next:
+			return parseNext(index-1, errors, follow);
+
+		case Switch:
+			return parseSwitch(index-1, indent, errors, follow);
 		case Identifier:
 			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
 				return parseInvokeStatement(token, errors, follow);
@@ -408,6 +425,18 @@ public class Parser {
 	}
 
 	/**
+	 * A simple statement only of use within a switch case body, where it signals
+	 * a fall-through to the next case body.
+	 *
+	 */
+	private Stmt.Next parseNext(int start, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		matchEndLine(errors);
+		return new Stmt.Next(sourceAttr(start, start));
+	}
+
+	/**
 	 * Parse an invoke statement, which has the form:
 	 *
 	 * <pre>
@@ -421,8 +450,8 @@ public class Parser {
 	private Expr.Invoke parseInvokeStatement(Token name, List<ParserErrorData> errors,
 			Set<Token.Kind> parentFollow) {
 
-		int start = name.start;
-		boolean valid = false;
+		int start = index;
+		boolean valid = true;
 
 		// An invoke statement begins with the name of the function to be
 		// invoked, followed by zero or more comma-separated arguments enclosed
@@ -636,6 +665,7 @@ public class Parser {
 		// expression representing the condition.
 		boolean valid = true;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		Map<Expr, List<Stmt>> alts = new HashMap<Expr, List<Stmt>>(); //The map of else-if alternatives
 		followSet.add(Colon);
 
 		Expr c = parseExpression(errors, followSet);
@@ -654,6 +684,7 @@ public class Parser {
 			if (tokens.get(index).kind != NewLine)
 				return null;
 		}
+
 		matchEndLine(errors);
 		if (!parentFollow.contains(NewLine))
 			followSet.remove(NewLine);
@@ -663,11 +694,11 @@ public class Parser {
 
 		// First, parse the true branch, which is required
 		List<Stmt> tblk = parseBlock(indent, errors, followSet);
-			if (tblk == null) {
-				valid = false;
-				if (tokens.get(index).kind != Else)
-					return null;
-			}
+		if (tblk == null) {
+			valid = false;
+			if (tokens.get(index).kind != Else)
+				return null;
+		}
 
 		// Second, attempt to parse the false branch, which is optional.
 		List<Stmt> fblk = Collections.emptyList();
@@ -675,7 +706,49 @@ public class Parser {
 
 			if (!parentFollow.contains(Else))
 				followSet.remove(Else);
-			followSet.add(NewLine);
+			followSet.add(Colon);
+
+			//Match any number of else-if statements
+			while (tryAndMatch(If) != null) {
+				Expr e = parseExpression(errors, followSet);
+				if (e == null) {
+					valid = false;
+					if (tokens.get(index).kind != Colon)
+						return null;
+				}
+				if (!parentFollow.contains(Colon))
+					followSet.remove(Colon);
+				followSet.add(NewLine);
+
+				if (match(errors, Colon, followSet) == null) {
+					valid = false;
+					if (tokens.get(index).kind != NewLine)
+						return null;
+				}
+				matchEndLine(errors);
+				if (!parentFollow.contains(NewLine))
+					followSet.remove(NewLine);
+				followSet.add(Else);
+
+				List<Stmt> blk = parseBlock(indent, errors, followSet);
+				if (blk == null) {
+					valid = false;
+					if (tokens.get(index).kind != Else)
+						return null;
+				}
+				//Add to the map of else-if alternatives
+				if (valid)
+					alts.put(e, blk);
+
+				if (! parentFollow.contains(Else))
+					followSet.remove(Else);
+				if (tryAndMatch(Else) == null) {
+					return (valid) ? new Stmt.IfElse(c, tblk, alts, fblk, sourceAttr(start, end - 1))
+					   			   : new Stmt.IfElse(null, new ArrayList<Stmt>(),
+					   					   new HashMap<Expr, List<Stmt>>(), new ArrayList<Stmt>());
+				}
+
+			}
 			// TODO: support "else if" chaining.
 			if (match(errors, Colon, followSet) == null) {
 				if (tokens.get(index).kind != NewLine);
@@ -687,8 +760,8 @@ public class Parser {
 				return null;
 		}
 		// Done!
-		return (valid) ? new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1))
-					   : new Stmt.IfElse(null, new ArrayList<Stmt>(), new ArrayList<Stmt>());
+		return (valid) ? new Stmt.IfElse(c, tblk, alts, fblk, sourceAttr(start, end - 1))
+					   : new Stmt.IfElse(null, new ArrayList<Stmt>(), new HashMap<Expr, List<Stmt>>(), new ArrayList<Stmt>());
 	}
 
 	/**
@@ -731,6 +804,181 @@ public class Parser {
 		return (valid) ? new Stmt.While(condition, blk, sourceAttr(start, end - 1))
 					   : new Stmt.While(null, new ArrayList<Stmt>());
 	}
+
+	private Stmt parseSwitch(int start, Indent indent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		boolean valid = true;
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(Colon);
+
+		Expr expr = parseExpression(errors, followSet);
+		if (expr == null) {
+			valid = false;
+			if (tokens.get(index).kind != Colon)
+				return null;
+		}
+
+		if (!parentFollow.contains(Colon))
+			followSet.remove(Colon);
+		followSet.add(NewLine);
+
+		if (match(errors, Colon, followSet) == null) {
+			if (tokens.get(index).kind != NewLine)
+				return null;
+		}
+
+		int end = index;
+		matchEndLine(errors);
+		if (!parentFollow.contains(NewLine))
+			followSet.remove(NewLine);
+
+		List<Stmt.SwitchStmt> cases = parseCases(indent, errors, parentFollow);
+		if (cases == null) {
+			return null;
+		}
+
+		return (valid) ? new Stmt.Switch(expr, cases, sourceAttr(start, end - 1))
+					   : new Stmt.Switch(null, new ArrayList<Stmt.SwitchStmt>());
+	}
+
+	/**
+	 * Parses a set of cases for a switch statement - similar in structure to parsing
+	 * a block, with the additional caveat that only case statements are allowed, and
+	 * no two case statements may have the same label
+	 */
+	private List<Stmt.SwitchStmt> parseCases(Indent parentIndent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		Indent indent = getIndent();
+		int start = index;
+		index = skipLineSpace(index);
+		//Check for the trivial case where the switch body is empty
+		if (indent == null || indent.lessThanEq(parentIndent) || index >= tokens.size() ||
+				(tokens.get(index).kind != Case && tokens.get(index).kind != Default)) {
+			return Collections.EMPTY_LIST;
+		}
+
+		else {
+			index = start;
+			ArrayList<Stmt.SwitchStmt> stmts = new ArrayList<Stmt.SwitchStmt>();
+			Indent nextIndent;
+			Set<String> usedLiterals = new HashSet<String>();
+			boolean def = true;
+
+			while ((nextIndent = getIndent()) != null
+					&& indent.lessThanEq(nextIndent)) {
+
+				//Check the indent
+				if (!indent.equivalent(nextIndent)) {
+					errors.add(new ParserErrorData(filename, nextIndent, Indent, BAD_INDENT));
+				}
+
+				//Matching a case statement
+				if (tryAndMatch(Case) != null) {
+
+					Stmt.Case tmp = (parseCase(indent, usedLiterals, errors, parentFollow));
+					if (tmp != null) {
+						stmts.add(tmp);
+						if (tmp.getConstant() != null)
+							usedLiterals.add(tmp.getConstant().toString());
+					}
+					else {
+						//Was a member of the follow set, so we need to return null to indicate
+						return null;
+					}
+				}
+				//Matching a default statement
+				else if (tryAndMatch(Default) != null) {
+					if (def) {
+						def = false;
+					}
+					else {
+						errors.add(new ParserErrorData(filename, tokens.get(index-1), Token.Kind.Case, SWITCH_MULTIPLE_DEFAULT));
+					}
+					Stmt.Default d = (parseDefault(indent, errors, parentFollow));
+					if (d == null)
+						return null;
+					else stmts.add(d);
+				}
+				else {
+					index = skipLineSpace(index);
+					errors.add(new ParserErrorData(filename, tokens.get(index), Token.Kind.Case, BAD_SWITCH_CASE));
+					synchronize(NewLine, new HashSet<Token.Kind>(), errors);
+				}
+			}
+			return stmts;
+		}
+	}
+
+	private Stmt.Case parseCase(Indent indent, Set<String> usedLiterals, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		int start = index -1;
+
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(Colon);
+		boolean valid = true;
+
+		Expr e = parseExpression(errors, followSet);
+
+		if (e == null) {
+			valid = false;
+			if (tokens.get(index).kind != Colon)
+				return null;
+		}
+
+		if (valid && !(e instanceof Expr.Constant || e instanceof Expr.ListConstructor)) {
+
+			//Constant is ok
+			if (e instanceof Expr.Variable &&
+					constants.get(((Expr.Variable) e).getName()) != null);
+			else {
+				valid = false;
+				Attribute.Source loc = e.attribute(Attribute.Source.class);
+				errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, BAD_SWITCH_CONST));
+			}
+		}
+
+		if (valid && usedLiterals.contains(e.toString())) {
+			valid = false;
+			Attribute.Source loc = e.attribute(Attribute.Source.class);
+			errors.add(new ParserExprErrorData(filename, e, null, Constant, loc.start, loc.end, DUPLICATE_SWITCH_CONST));
+		}
+
+		if (!parentFollow.contains(Colon))
+			followSet.remove(Colon);
+		followSet.add(NewLine);
+
+		match(errors, Colon, followSet);
+		matchEndLine(errors);
+
+		List<Stmt> stmts = parseBlock(indent, errors, parentFollow);
+		if (stmts == null)
+			return null;
+		int end = index;
+
+		return (valid) ? new Stmt.Case(e, stmts, sourceAttr(start, end-1))
+					   : new Stmt.Case(null, new ArrayList<Stmt>());
+	}
+
+	private Stmt.Default parseDefault(Indent indent, List<ParserErrorData> errors,
+			Set<Token.Kind> parentFollow) {
+
+		int start = index-1;
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(NewLine);
+		match(errors, Colon, followSet);
+		matchEndLine(errors);
+
+		List<Stmt> stmts = parseBlock(indent, errors, parentFollow);
+		if (stmts == null)
+			return null;
+		int end = index;
+
+		return new Stmt.Default(stmts, sourceAttr(start, end-1));
+	}
+
 
 	private Stmt parseFor(int start, Indent indent, List<ParserErrorData> errors,
 			Set<Token.Kind> parentFollow) {
@@ -1205,7 +1453,7 @@ public class Parser {
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
-				Expr e = parseExpression(errors, parentFollow);
+				Expr e = parseTerm(errors, parentFollow);
 
 				if (e == null)
 					return null;
@@ -1225,7 +1473,6 @@ public class Parser {
 
 		case Identifier:
 			if (tryAndMatch(LeftBrace) != null) {
-				// FIXME: bug here because we've already matched the identifier
 				return parseInvokeExpr(start,token, errors, parentFollow);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,
@@ -1634,11 +1881,12 @@ public class Parser {
 	private boolean synchronize(Token.Kind expected, Set<Token.Kind> follow,
 			List<ParserErrorData> errors) {
 
-		while(!follow.contains(tokens.get(index).kind)
+		while (    tokens.size() > index
+				&& !follow.contains(tokens.get(index).kind)
 				&& tokens.get(index).kind != expected) {
 			index++;
-			checkNotEof(errors, expected);
 		}
+		checkNotEof(errors, expected);
 		if (tokens.get(index).kind == expected)
 			return true;
 		return false;
@@ -1741,15 +1989,17 @@ public class Parser {
 	 */
 	private void checkNotEof(List<ParserErrorData> errors, Token.Kind expected) {
 		int start = (index > 0) ? tokens.get(index-1).end()+1 : tokens.get(index).end()+1;
+		int indexStart = index;
 		skipWhiteSpace();
+
+		//Work around to deal with cases where we are looking for a NewLine
+		if (expected == NewLine) {
+			index = skipLineSpace(indexStart);
+		}
+
 		if (index >= tokens.size()) {
 			errors.add(new ParserErrorData(filename, null, expected, start, start, MISSING_TOKEN));
 			handle(errors);
-		}
-		//Work around to deal with cases where we are looking for a NewLine
-		if (expected == NewLine) {
-			index = start;
-			index = skipLineSpace(index);
 		}
 	}
 

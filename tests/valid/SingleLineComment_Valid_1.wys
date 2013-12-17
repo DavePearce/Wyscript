@@ -1,3 +1,4 @@
-tests/valid/SingleLineComment_Valid_1.while:1: identifier expected
 //This is a single line comment
-^
+
+void main():
+	print "OK"

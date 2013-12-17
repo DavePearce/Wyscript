@@ -49,8 +49,12 @@ public class LexerErrorHandler {
 
 			case MISSING_STRING_END:
 				msg = "Error, missing closing \"";
-				suggestion = "\"";
+				suggestion = data.found()+"\"";
 				break;
+
+			case MISSING_COMMENT_END:
+				msg = "Error, missing closing */";
+				suggestion = data.found() + "*/";
 			}
 			outputSourceError(Main.errout, msg, data.filename(), data.pos(), data.pos());
 			outputSuggestion(Main.errout, suggestion, data.filename(), data.pos(), data.pos());

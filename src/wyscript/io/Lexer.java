@@ -78,7 +78,7 @@ public class Lexer {
 		ArrayList<LexerErrorData> errors = new ArrayList<LexerErrorData>();
 		pos = 0;
 
-		while (pos < input.length()) {
+		outer: while (pos < input.length()) {
 			char c = input.charAt(pos);
 
 			if (Character.isDigit(c)) {
@@ -87,7 +87,43 @@ public class Lexer {
 				tokens.add(scanStringConstant(errors));
 			} else if (c == '\'') {
 				tokens.add(scanCharacterConstant(errors));
-			} else if (isOperatorStart(c)) {
+			}
+
+			//Attempt to scan a comment
+			else if(c == '/' && pos < input.length()-1) {
+
+				//Single line comment
+				if (input.charAt(pos+1) == '/') {
+					pos = pos+2;
+					while (pos < input.length()) {
+						if (input.charAt(pos) == '\n') {
+							pos++;
+							continue outer;
+						}
+						pos++;
+					}
+				}
+				//Multi-line comment
+				else if(input.charAt(pos+1) == '*') {
+					pos = pos+2;
+					while (pos < input.length()-1) {
+						if (input.charAt(pos) == '*' &&
+								input.charAt(pos+1) == '/') {
+							pos += 2;
+							continue outer;
+						}
+						pos++;
+					}
+					errors.add(new LexerErrorData(pos+1, filename, input.charAt(pos),
+							LexerErrorData.ErrorType.MISSING_COMMENT_END));
+				}
+				else {
+					//Attempt to parse a divide operator
+					tokens.add(scanOperator(errors));
+				}
+			}
+
+			else if (isOperatorStart(c)) {
 				tokens.add(scanOperator(errors));
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());
@@ -123,12 +159,34 @@ public class Lexer {
 				return new Token(Token.Kind.IntValue, input.substring(start,
 						pos), start);
 			}
+			boolean exp = false;
+			int expPos = -1;
 			while (pos < input.length() && Character.isDigit(input.charAt(pos))) {
 				pos = pos + 1;
+
+				//Handle exponents
+				if (pos < input.length()-2 && (input.charAt(pos)) == 'E' && !exp) {
+
+					expPos = pos;
+					exp = true;
+					pos = pos+1;
+
+					if (input.charAt(pos) == '+' || input.charAt(pos) == '-') {
+						pos = pos+1;
+						if (Character.isDigit(input.charAt(pos)))
+							continue;
+					}
+
+					//Parsing an exponent failed, so reset position
+					pos = expPos;
+				}
 			}
+
 			return new Token(Token.Kind.RealValue, input.substring(start, pos),
 					start);
-		} else {
+		}
+
+		else {
 			return new Token(Token.Kind.IntValue, input.substring(start, pos),
 					start);
 		}
@@ -381,6 +439,9 @@ public class Lexer {
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);
+			put("case", Token.Kind.Case);
+			put("next", Token.Kind.Next);
+			put("default", Token.Kind.Default);
 			put("while", Token.Kind.While);
 			put("for", Token.Kind.For);
 			put("print", Token.Kind.Print);
@@ -414,6 +475,9 @@ public class Lexer {
 			String { public String toString() { return "string"; }},
 			If { public String toString() { return "if"; }},
 			Switch { public String toString() { return "switch"; }},
+			Case { public String toString() { return "case"; }},
+			Next { public String toString() { return "next"; }},
+			Default { public String toString() { return "default"; }},
 			While { public String toString() { return "while"; }},
 			Else { public String toString() { return "else"; }},
 			Is { public String toString() { return "is"; }},
@@ -429,6 +493,7 @@ public class Lexer {
 			IntValue { public String toString() { return "int"; }},
 			CharValue { public String toString() { return "char"; }},
 			StringValue { public String toString() { return "string"; }},
+			ConstantType {public String toString() { return "int or string constant"; }},
 			// Symbols
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
@@ -460,7 +525,7 @@ public class Lexer {
 			LogicalAnd { public String toString() { return "&&"; }},
 			LogicalOr { public String toString() { return "||"; }},
 			// Other
-			NewLine,
+			NewLine { public String toString() { return "\\n"; }},
 			Indent,
 
 			//Used by error handler to identify expected types
