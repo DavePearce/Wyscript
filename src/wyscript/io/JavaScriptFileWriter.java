@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import wyscript.Interpreter;
+
 import wyscript.lang.*;
 import wyscript.util.*;
 
@@ -62,207 +62,414 @@ public class JavaScriptFileWriter {
 	 */
 	private void setupFunctions() {
 
-		setUpPrintFunctions();
-		setUpCastFunctions();
+		setUpTypes();
 		setUpNumberFunctions();
 		setUpBinaryFunctions();
+
+		//Finally, the misc functions for overlap between strings and lists
+		// eg. the string replace/mutate function, length and indexOf functions
+		out.println("function $_stringIndexReplace_$(str, index, c) {");
+		indent(1);
+		out.println("var num = index;");
+		indent(1);
+		out.println("if (typeof index.num !== 'undefined') num = index.num;");
+		indent(1);
+		out.println("var tmp = str.split('');");
+		indent(1);
+		out.println("tmp[num] = c;");
+		indent(1);
+		out.println("return tmp.join('');}");
+
+		out.println("function $_indexOf_$(obj, index) {");
+		out.println("if (obj instanceof String || typeof obj === 'string')");
+		out.println("return obj.charAt(index);");
+		out.println("else return obj.getValue(index);\n}");
+
+		out.println("function $_length_$(obj) {");
+		out.println("if (obj instanceof String || typeof obj === 'string')");
+		out.println("return new $_Integer_$(obj.length);");
+		out.println("else return obj.length();\n}\n");
+
+	}
+
+	private void setUpTypes() {
+		//First, set up the record type
+		out.println("function $_Record_$(listNames, listValues) {");
+		indent(1);
+		out.println("this.names = listNames;");
+		indent(1);
+		out.println("this.values = listValues;\n}\n");
+
+		out.println("$_Record_$.prototype.getValue = function(name) {");
+		indent(1);
+		out.println("var index = this.names.indexOf(name);");
+		indent(1);
+		out.println("if (index === -1 || index >= this.values.length)");
+		indent(2);
+		out.println("return;");
+		indent(1);
+		out.println("else return this.values[index];\n}");
+
+		out.println("$_Record_$.prototype.hasKey = function(name) {");
+		indent(1);
+		out.println("return (this.names.findIndex(name) !== -1);\n}");
+
+		out.println("$_Record_$.prototype.setValue = function(name, key) {");
+		indent(1);
+		out.println("var index = this.names.indexOf(name);");
+		indent(1);
+		out.println("if (index === -1 || index >= this.values.length)");
+		indent(2);
+		out.println("return;");
+		indent(1);
+		out.println("else this.values[index] = key;\n}");
+
+		out.println("$_Record_$.prototype.cast = function(name, fieldList) {");
+		out.println("var result = this.clone();");
+		out.println("if (fieldList.length > 0) {");
+		out.println("var index = this.names.indexOf(fieldList[0]);");
+		out.println("result.values[index] = this.values[index].cast(name, fieldList.slice[1]);");
+		out.println("}");
+		out.println("else {");
+		out.println("var index = this.names.indexOf(name);");
+		out.println("result.values[index] = this.values[index].cast();");
+		out.println("return result;");
+		out.println("}\n}");
+
+		out.println("$_Record_$.prototype.clone = function() {");
+		indent(1);
+		out.println("var cnames = [];");
+		indent(1);
+		out.println("var cvalues = [];");
+		indent(1);
+		out.println("for (var i = 0; i < this.names.length; i++) {");
+		indent(2);
+		out.println("cnames[i] = this.names[i];");
+		indent(2);
+		out.println("var elem = this.values[i];");
+		indent(2);
+		out.println("if (elem instanceof $_List_$ || elem instanceof $_Record_$)");
+		indent(3);
+		out.println("elem = elem.clone();");
+		indent(2);
+		out.println("cvalues[i] = elem;");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("return new $_Record_$(cnames, cvalues);\n}");
+
+		out.println("$_Record_$.prototype.toString = function() {");
+		indent(1);
+		out.println("var str = '{';");
+		indent(1);
+		out.println("var tmpNames = []");
+		indent(1);
+		out.println("for (var i = 0; i < this.names.length; i++)");
+		indent(2);
+		out.println("tmpNames[i] = this.names[i];");
+		indent(1);
+		out.println("tmpNames.sort();");
+		indent(1);
+		out.println("var first = true;");
+		indent(1);
+		out.println("for (var i = 0; i < this.names.length; i++) {");
+		indent(2);
+		out.println("if (!first)");
+		indent(3);
+		out.println("str += ',';");
+		indent(2);
+		out.println("first = false;");
+		indent(2);
+		out.println("str += tmpNames[i];");
+		indent(2);
+		out.println("str += ':';");
+		indent(2);
+		out.println("var val = this.values[this.names.indexOf(tmpNames[i])];");
+		indent(2);
+		out.println("str += val;");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("str += '}';");
+		indent(1);
+		out.println("return str;\n}\n");
+
+		//And now make the list function
+		out.println("function $_List_$(list, type) {");
+		indent(1);
+		out.println("this.list = list;\n}");
+
+		out.println("$_List_$.prototype.getValue = function(index) {");
+		indent(1);
+		out.println("var idx = index;");
+		indent(1);
+		out.println("if (typeof index.num !== 'undefined') idx = index.num;");
+		indent(1);
+		out.println("return this.list[idx];\n}");
+
+		out.println("$_List_$.prototype.setValue = function(index, value) {");
+		indent(1);
+		out.println("var idx = index;");
+		indent(1);
+		out.println("if (typeof index.num !== 'undefined') idx = index.num;");
+		indent(1);
+		out.println("this.list[idx] = value;\n}");
+
+		out.println("$_List_$.prototype.length = function() {");
+		indent(1);
+		out.println("return new $_Integer_$(this.list.length);\n}");
+
+		out.println("$_List_$.prototype.append = function(other) {");
+		indent(1);
+		out.println("var result = [];");
+		indent(1);
+		out.println("var cnt = 0;");
+		indent(1);
+		out.println("for (var i = 0; i < this.list.length; i++)");
+		indent(2);
+		out.println("result[cnt++] = this.list[i];");
+		indent(1);
+		out.println("for (var i = 0; i < other.list.length; i++)");
+		indent(2);
+		out.println("result[cnt++] = other.list[i];");
+		indent(1);
+		out.println("return new $_List_$(result);\n}");
+
+		out.println("$_List_$.prototype.cast = function(name, fieldList) {");
+		out.println("var tmp = [];");
+		out.println("for (var i = 0; i < this.list.length; i++)");
+		out.println("tmp[i] = this.list[i].cast(name, fieldList);");
+		out.println("return new $_List_$(tmp)");
+		out.println("}");
+
+		out.println("$_List_$.prototype.clone = function() {");
+		indent(1);
+		out.println("var clist = [];");
+		indent(1);
+		out.println("for (var i = 0; i < this.list.length; i++) {");
+		indent(2);
+		out.println("var elem = this.list[i];");
+		indent(2);
+		out.println("if (elem instanceof $_List_$ || elem instanceof $_Record_$) {");
+		indent(3);
+		out.println("elem = elem.clone();\n}");
+		indent(2);
+		out.println("clist[i] = elem;");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("return new $_List_$(clist);\n}");
+
+		out.println("$_List_$.prototype.toString = function() {");
+		indent(1);
+		out.println("var str = '[';");
+		indent(1);
+		out.println("var first = true;");
+		indent(1);
+		out.println("for (var i = 0; i < this.list.length; i++) {");
+		indent(2);
+		out.println("if (!first)");
+		indent(3);
+		out.println("str += ', ';");
+		indent(2);
+		out.println("first = false;");
+		indent(2);
+		out.println("var val = this.list[i];");
+		indent(2);
+		out.println("str += val;");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("str += ']';");
+		indent(1);
+		out.println("return str;\n}");
+
+		out.println("$_List_$.prototype.equals = function(other) {");;
+		out.println("if (!(other instanceof $_List_$)) return false;");
+		out.println("if (this.length().num !== other.length().num) return false;");
+
+		out.println("for (var i = 0; i < this.list.length; i++) {");
+		out.println("if (!($_equals_$(this.list[i], other.list[i], true)))");
+		out.println("return false;\n}");
+		out.println("return true;\n}\n");
+
 	}
 
 	private void setUpBinaryFunctions() {
+
 		//First, the range function
-		StringBuilder sb = new StringBuilder("function $_range_$(lower, upper) {\n");
-		sb.append("var $_result_$ = [];\n");
-		sb.append("var $_count_$ = 0;\n");
-		sb.append("for (var $_tmp_$ = lower; $_tmp_$ < upper; $_tmp_$++) {\n");
-		sb.append("$_result_$[$_count_$] = new $_Integer_$($_tmp_$);\n");
-		sb.append("$_count_$++;\n}\n");
-		sb.append("return $_result_$;\n}\n");
+		out.println("function $_range_$(lower, upper) {");
+		indent(1);
+		out.println("var low = lower;");
+		indent(1);
+		out.println("var up = upper;");
+		indent(1);
+		out.println("if (typeof low.num !== 'undefined') low = lower.num;");
+		indent(1);
+		out.println("if (typeof up.num !== 'undefined') up = upper.num;");
+		indent(1);
+		out.println("var $_result_$ = [];");
+		indent(1);
+		out.println("var $_count_$ = 0;");
+		indent(1);
+		out.println("for (var $_tmp_$ = low; $_tmp_$ < up; $_tmp_$++) {");
+		indent(2);
+		out.println("$_result_$[$_count_$] = new $_Integer_$($_tmp_$);");
+		indent(2);
+		out.println("$_count_$++;");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("return $_result_$;\n}\n");
 
-		out.print(sb.toString());
+		//Next, the append function
+		out.println("function $_append_$(left, right) {");
+		indent(1);
+		out.println("if (left instanceof String || typeof left === 'string') {");
+		indent(2);
+		out.println("var other = right;");
+		indent(2);
+		out.println("return left.concat(other.toString());");
+		indent(1);
+		out.println("}");
+		indent(1);
+		out.println("else return left.append(right);\n}\n");
 
-		//Next, the 3 comparison functions - =/!=, >/>= and </<=
-		sb = new StringBuilder("function $_equals_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left === right);\n");
-		sb.append("else return (left !== right);\n}\n");
+		//Finally, the 3 comparison functions - =/!=, >/>= and </<=
+		out.println("function $_equals_$(lhs, rhs, isEqual) {");
+		indent(1);
+		out.println("var left = lhs;");
+		indent(1);
+		out.println("if (typeof left.num !== 'undefined') left = left.num;");
+		indent(1);
+		out.println("else if (left instanceof String) left = left.valueOf();");
+		indent(1);
+		out.println("var right = rhs;");
+		indent(1);
+		out.println("if (typeof right.num !== 'undefined') right = right.num;");
+		indent(1);
+		out.println("else if (right instanceof String) right = right.valueOf();");
+		out.println("if (left instanceof $_List_$) return left.equals(right);");
+		indent(1);
+		out.println("if (isEqual) return (left === right);");
+		indent(1);
+		out.println("else return (left !== right);\n}\n");
 
-		out.print(sb.toString());
+		out.println("function $_lt_$(lhs, rhs, isEqual) {");
+		indent(1);
+		out.println("var left = lhs;");
+		indent(1);
+		out.println("if (typeof left.num !== 'undefined') left = left.num;");
+		indent(1);
+		out.println("var right = rhs;");
+		indent(1);
+		out.println("if (typeof right.num !== 'undefined') right = right.num;");
+		indent(1);
+		out.println("if (isEqual) return (left <= right);");
+		indent(1);
+		out.println("else return (left < right);\n}\n");
 
-		sb = new StringBuilder("function $_lt_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left <= right);\n");
-		sb.append("else return (left < right);\n}\n");
-
-		out.print(sb.toString());
-
-		sb = new StringBuilder("function $_gt_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left >= right);\n");
-		sb.append("else return (left > right);\n}\n");
-
-		out.print(sb.toString());
-	}
-
-	private void setUpPrintFunctions() {
-
-		// First off, create a general print method for the more specific
-		// methods to reference
-		StringBuilder sb = new StringBuilder();
-		sb.append("function $_print_$(obj, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("if (obj instanceof Array)\n");
-		sb.append("$_printList_$(obj, endLine);\n");
-		sb.append("else if(obj instanceof $_Float_$) {\n");
-		sb.append("if (endLine)\n");
-		sb.append("sysout.println(obj.num);\n");
-		sb.append("else sysout.print(obj.num);\n}\n");
-		sb.append("else if(obj instanceof $_Integer_$)\n");
-		sb.append("sysout.print(obj.num.toFixed() + end);\n");
-		sb.append("else if(obj instanceof Object)\n");
-		sb.append("$_printRecord_$(obj, endLine);\n");
-		sb.append("else if(typeof obj === 'number')\n");
-		sb.append("$_printNumber_$(obj, endLine);\n");
-		sb.append("else sysout.print(obj + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-		//Simple number printer
-		sb = new StringBuilder("function $_printNumber_$(obj, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("if (String(obj)[String(obj).length-2] !== '.')\n");
-		sb.append("sysout.print(obj.toFixed() + end);\n");
-		sb.append("else {\n");
-		sb.append("if (endLine)\n");
-		sb.append("sysout.println(obj);\n");
-		sb.append("else sysout.print(obj);\n}\n}\n");
-
-		out.print(sb.toString());
-
-		// $_printList_$ method necessary to print WyScript's List type
-		sb = new StringBuilder();
-		sb.append("function $_printList_$(list, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("sysout.print(\"[\");\n");
-		sb.append("var first = true;\n");
-		sb.append("for (var i = 0; i < list.length; i++) {\n");
-		sb.append("if(!first)\n");
-		sb.append("sysout.print(\", \");\n");
-		sb.append("var elem = list[i];\n");
-		sb.append("first = false;\n");
-		sb.append("$_print_$(elem, false);\n");
-		sb.append("}\n");
-		sb.append("sysout.print(\"]\" + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-		// Now the $_printRecord_$ method
-		sb = new StringBuilder("function $_printRecord_$(record, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("sysout.print(\"{\");\n");
-		sb.append("var first = true;\n");
-		sb.append("var keys = Object.keys(record);\n");
-		sb.append("keys.sort();\n");
-		sb.append("for (var i = 0; i < keys.length; i++) {\n");
-		sb.append("var key = keys[i];\n");
-		sb.append("if (!first)\n");
-		sb.append("sysout.print(\",\");\n");
-		sb.append("first = false;\n");
-		sb.append("sysout.print(key + \":\");\n");
-		sb.append("var value = record[key];\n");
-		sb.append("$_print_$(value, false);\n");
-		sb.append("}\n");
-		sb.append("sysout.print(\"}\" + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-	}
-
-	private void setUpCastFunctions() {
-
-		//Set up list-casting method
-		StringBuilder sb = new StringBuilder("function $_castList_$(list, typeList) {\n");
-		sb.append("for (var i = 0; i < list.length; i++) {\n");
-		sb.append("if (list[i] instanceof Array)\n");
-		sb.append("list[i] = $_castList_$(list[i]);\n");
-		sb.append("else if (!(list[i] instanceof $_Float_$ || list[i] instanceof $_Integer_$)");
-		sb.append(" && list[i] instanceof Object)\n");
-		sb.append("list[i] = $_castRecord_$(list[i], typeList[0], typeList.slice(1));\n");
-		sb.append("else list[i] = list[i].cast();\n}\n");
-		sb.append("return list;\n}\n");
-
-		out.print(sb.toString());
-
-		sb = new StringBuilder("function $_castRecord_$(record, name, list) {\n");
-		sb.append("if (list.length > 0)\n");
-		sb.append("record[list[0]] = $_castRecord_$(record[list[0]], name, list.slice(1));\n");
-		sb.append("else record[name] = record[name].cast();\n");
-		sb.append("return record;\n}\n");
-
-		out.print(sb.toString());
+		out.println("function $_gt_$(lhs, rhs, isEqual) {");
+		indent(1);
+		out.println("var left = lhs;");
+		indent(1);
+		out.println("if (typeof left.num !== 'undefined') left = left.num;");
+		indent(1);
+		out.println("var right = rhs;");
+		indent(1);
+		out.println("if (typeof right.num !== 'undefined') right = right.num;");
+		indent(1);
+		out.println("if (isEqual) return (left >= right);");
+		indent(1);
+		out.println("else return (left > right);\n}\n");
 	}
 
 	private void setUpNumberFunctions() {
 
 		// Create a Float function to represent a WyScript Real
-		StringBuilder sb = new StringBuilder("function $_Float_$(i) {\n");
-		sb.append("if (typeof i.num !== 'undefined') this.num = i.num;\n");
-		sb.append("else this.num = i;\n}\n\n");
-		sb.append("$_Float_$.prototype.add = function(other) {\n");
-		sb.append("return new $_Float_$(this.num + other.num);\n}\n");
-		sb.append("$_Float_$.prototype.sub = function(other) {\n");
-		sb.append("return new $_Float_$(this.num - other.num);\n}\n");
-		sb.append("$_Float_$.prototype.mul = function(other) {\n");
-		sb.append("return new $_Float_$(this.num * other.num);\n}\n");
-		sb.append("$_Float_$.prototype.div = function(other) {\n");
-		sb.append("return new $_Float_$(this.num / other.num);\n}\n");
-		sb.append("$_Float_$.prototype.rem = function(other) {\n");
-		sb.append("return new $_Float_$(this.num % other.num);\n}\n");
-		sb.append("$_Float_$.prototype.cast = function() {\n");
-		sb.append("return new $_Integer_$(this.num);\n}\n");
-
-		out.print(sb.toString());
+		out.println("function $_Float_$(i) {");
+		indent(1);
+		out.println("if (typeof i.num !== 'undefined') this.num = i.num;");
+		indent(1);
+		out.println("else this.num = i;");
+		indent(1);
+		out.println("this.type = 'real';\n}\n");
+		out.println("$_Float_$.prototype.add = function(other) {");
+		indent(1);
+		out.println("return new $_Float_$(this.num + other.num);\n}");
+		out.println("$_Float_$.prototype.sub = function(other) {");
+		indent(1);
+		out.println("return new $_Float_$(this.num - other.num);\n}");
+		out.println("$_Float_$.prototype.mul = function(other) {");
+		indent(1);
+		out.println("return new $_Float_$(this.num * other.num);\n}");
+		out.println("$_Float_$.prototype.div = function(other) {");
+		indent(1);
+		out.println("return new $_Float_$(this.num / other.num);\n}");
+		out.println("$_Float_$.prototype.rem = function(other) {");
+		indent(1);
+		out.println("return new $_Float_$(this.num % other.num);\n}");
+		out.println("$_Float_$.prototype.cast = function() {");
+		indent(1);
+		out.println("return new $_Integer_$(this.num);\n}");
+		out.println("$_Float_$.prototype.toString = function() {");
+		indent(1);
+		out.println("var tmp = this.num.toString();");
+		out.println("if (tmp.indexOf('.') === -1)");
+		out.println("tmp += '.0';");
+		out.println("return tmp;\n}\n");
 
 		// And an Integer function for a WyScript int
-		sb = new StringBuilder("function $_Integer_$(i) {\n");
-		sb.append("if (typeof i.num !== 'undefined') this.num = ~~(i.num);\n");
-		sb.append("else this.num = ~~i;\n}\n\n");
-		sb.append("$_Integer_$.prototype.add = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num + other.num);\n");
-		sb.append("else return new $_Float_$(this.num + other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.sub = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num - other.num);\n");
-		sb.append("else return new $_Float_$(this.num - other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.mul = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num * other.num);\n");
-		sb.append("else return new $_Float_$(this.num * other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.div = function(other) {\n");
-		sb.append("var tmp = this.num / other.num;\n");
-		sb.append("if (other instanceof $_Integer_$) {\n");
-		sb.append("return new $_Integer_$(~~tmp);\n}\n");
-		sb.append("else return new $_Float_$(this.num / other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.rem = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num % other.num);\n");
-		sb.append("else return new $_Float_$(this.num % other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.cast = function() {\n");
-		sb.append("return new $_Float_$(this.num);\n}\n");
-
-		out.print(sb.toString());
+		out.println("function $_Integer_$(i) {");
+		indent(1);
+		out.println("this.type = 'int';");
+		indent(1);
+		out.println("if (typeof i.num !== 'undefined') this.num = ~~(i.num);");
+		indent(1);
+		out.println("else this.num = ~~i;\n}\n");
+		out.println("$_Integer_$.prototype.add = function(other) {");
+		indent(1);
+		out.println("if (other instanceof $_Integer_$)");
+		indent(2);
+		out.println("return new $_Integer_$(this.num + other.num);");
+		indent(1);
+		out.println("else return new $_Float_$(this.num + other.num);\n}");
+		out.println("$_Integer_$.prototype.sub = function(other) {");
+		indent(1);
+		out.println("if (other instanceof $_Integer_$)");
+		indent(2);
+		out.println("return new $_Integer_$(this.num - other.num);");
+		indent(1);
+		out.println("else return new $_Float_$(this.num - other.num);\n}");
+		out.println("$_Integer_$.prototype.mul = function(other) {");
+		indent(1);
+		out.println("if (other instanceof $_Integer_$)");
+		indent(2);
+		out.println("return new $_Integer_$(this.num * other.num);");
+		indent(1);
+		out.println("else return new $_Float_$(this.num * other.num);\n}");
+		out.println("$_Integer_$.prototype.div = function(other) {");
+		indent(1);
+		out.println("var tmp = this.num / other.num;");
+		indent(1);
+		out.println("if (other instanceof $_Integer_$) {");
+		indent(2);
+		out.println("return new $_Integer_$(~~tmp);\n}");
+		indent(1);
+		out.println("else return new $_Float_$(this.num / other.num);\n}");
+		out.println("$_Integer_$.prototype.rem = function(other) {");
+		indent(1);
+		out.println("if (other instanceof $_Integer_$)");
+		indent(2);
+		out.println("return new $_Integer_$(this.num % other.num);");
+		indent(1);
+		out.println("else return new $_Float_$(this.num % other.num);\n}");
+		out.println("$_Integer_$.prototype.cast = function() {");
+		indent(1);
+		out.println("return new $_Float_$(this.num);\n}");
+		out.println("$_Integer_$.prototype.toString = function() {");
+		indent(1);
+		out.println("return this.num.toFixed()\n}\n");
 	}
 
 	public void write(WyscriptFile.ConstDecl cd) {
@@ -307,6 +514,7 @@ public class JavaScriptFileWriter {
 	}
 
 	public void write(Stmt stmt, int indent) {
+
 		if(stmt instanceof Stmt.Atom) {
 			indent(indent);
 			writeAtom((Stmt.Atom) stmt);
@@ -319,6 +527,10 @@ public class JavaScriptFileWriter {
 			write((Stmt.While) stmt, indent);
 		} else if (stmt instanceof Stmt.For) {
 			write((Stmt.For) stmt, indent);
+		} else if (stmt instanceof Expr.Invoke) {
+			indent(indent);
+			write((Expr.Invoke)stmt);
+			out.println(";");
 		}
 		else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
@@ -403,16 +615,51 @@ public class JavaScriptFileWriter {
 	}
 
 	public void write(Stmt.Assign stmt) {
-		write(stmt.getLhs());
-		out.print(" = ");
-		write(stmt.getRhs());
+
+		Type t = stmt.getLhs().attribute(Attribute.Type.class).type;
+
+		if (t instanceof Type.Char && stmt.getLhs() instanceof Expr.IndexOf) {
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(" = $_stringIndexReplace_$(");
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(", ");
+			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
+			out.print(", ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		else if (stmt.getLhs() instanceof Expr.IndexOf) {
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(".setValue(");
+			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
+			out.print(", ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		else if (stmt.getLhs() instanceof Expr.RecordAccess) {
+			write(((Expr.RecordAccess)stmt.getLhs()).getSource());
+			out.print(".setValue('");
+			out.print(((Expr.RecordAccess)stmt.getLhs()).getName());
+			out.print("', ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		else {
+			write(stmt.getLhs());
+			out.print(" = ");
+			write(stmt.getRhs());
+
+			//Handle pass by value
+			if (t instanceof Type.List || t instanceof Type.Record)
+				out.print(".clone()");
+		}
 	}
 
 
 	public void write(Stmt.Print stmt) {
-		out.print("$_print_$(");
+		out.print("sysout.println(");
 		write(stmt.getExpr());
-		out.print(", true)");
+		out.print(".toString())");
 	}
 
 	public void write(Stmt.Return stmt) {
@@ -427,9 +674,12 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.VariableDeclaration stmt) {
 		Expr init = stmt.getExpr();
 		out.print("var " + stmt.getName());
+		Type t = init.attribute(Attribute.Type.class).type;
 		if(init != null) {
 			out.print(" = ");
 			write(init);
+			if (t instanceof Type.List || t instanceof Type.Record)
+				out.print(".clone()");
 		}
 	}
 
@@ -454,30 +704,65 @@ public class JavaScriptFileWriter {
 			write((Expr.Unary) expr);
 		} else if(expr instanceof Expr.Variable) {
 			write((Expr.Variable) expr);
-		} else {
+		} else if(expr instanceof Expr.Is) {
+			write((Expr.Is)expr);
+		}
+		else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 		}
 	}
 
 	public void write(Expr.Binary expr) {
 
-		//Must convert a range expression
-		if (expr.getOp() == Expr.BOp.RANGE) {
-			out.print("($_range_$(");
-			write(expr.getLhs());
-			out.print(".num, ");
-			write(expr.getRhs());
-			out.print(".num))");
-			return;
-		}
-
 		//Have to handle the case where
 		//Working with numbers - must call the method on the JavaScript object
+
+		//Need to handle the nasty left recursive case for maths operators
+		Expr.BOp op = expr.getOp();
+		if (expr.getRhs() instanceof Expr.Binary && (
+				   op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
+			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+			Expr.BOp otherOp = bin.getOp();
+
+			switch(otherOp) {
+
+			case ADD:
+			case DIV:
+			case MUL:
+			case REM:
+			case SUB:
+				Expr.Binary lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+				Expr.Binary newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+				write(newExpr);
+				return;
+
+			default:
+				break;
+			}
+		}
 		switch (expr.getOp()) {
+
+		case APPEND:
+			out.print("($_append_$(");
+			write(expr.getLhs());
+			out.print(", ");
+			write(expr.getRhs());
+			out.print("))");
+			return;
+
+		case RANGE:
+			out.print("($_range_$(");
+			write(expr.getLhs());
+			out.print(", ");
+			write(expr.getRhs());
+			out.print("))");
+			return;
 
 		case AND:
 		case OR:
-		case APPEND:
 			out.print("(");
 			write(expr.getLhs());
 			break;
@@ -499,8 +784,6 @@ public class JavaScriptFileWriter {
 			return;
 
 		case MUL:
-			out.print("(");
-			write(expr.getLhs());
 			out.print("(");
 			write(expr.getLhs());
 			out.print(".mul(");
@@ -576,168 +859,86 @@ public class JavaScriptFileWriter {
 		//We need to check for the case where casting one of the number types
 		//to the other number type, as this affects how we print the number
 		Type t = expr.getType();
-		if (t instanceof Type.Record) {
-			castRecord(expr.getSource(), (Type.Record) t);
-		}
-		else if (t instanceof Type.List) {
-			castList(expr.getSource(), (Type.List)t);
-		}
-		else if (t instanceof Type.Real) {
-			out.print("(new $_Float_$(");
+		if (t instanceof Type.Record || t instanceof Type.List) {
+
 			write(expr.getSource());
-			out.print("))");
-			return;
+			out.print(".cast(");
+
+			List<String> typeList = getRecordTypeList(expr.getSource().attribute(Attribute.Type.class).type, expr.getType());
+
+			if (typeList.isEmpty()) {
+				out.print("'', [])");
+			}
+			else {
+				out.print("'" + typeList.get(0) +"', [");
+				boolean first = true;
+				for (int i = 1; i < typeList.size(); i++) {
+					if(!first)
+						out.print(", ");
+					first = false;
+					out.print("'" + typeList.get(i) + "'");
+				}
+				out.print("])");
+			}
 		}
-		else if (t instanceof Type.Int) {
-			out.print("(new $_Integer_$(");
+		else if (t instanceof Type.Real || t instanceof Type.Int) {
 			write(expr.getSource());
-			out.print("))");
-			return;
+			out.print(".cast()");
 		}
 		else write(expr.getSource());
 	}
 
-	/**
-	 * Helper method used to determine whether or not we
-	 * need to take extra care casting a list - as is the
-	 * case when the list contains a number type to cast.
-	 */
-	private void castList(Expr source, Type.List type) {
+	private List<String> getRecordTypeList(Type actual, Type castType) {
+		if (actual.equals(castType))
+			return new ArrayList<String>();
 
-		Type t = type.getElement();
-		Type actual = source.attribute(Attribute.Type.class).type;
+		Type current = castType;
+		while (current instanceof Type.Named)
+			current = userTypes.get(((Type.Named)current).getName());
 
-		while (t instanceof Type.List) {
-			t = ((Type.List)t).getElement();
-			actual = ((Type.List)actual).getElement();
-		}
-		List<String> typeList = new ArrayList<String>();
+		Type temp = actual;
+		while (temp instanceof Type.Named)
+			temp = userTypes.get(((Type.Named)temp).getName());
 
-		if (t instanceof Type.Record && !t.equals(actual))
-			typeList = getRecordTypeList((Type.Record)actual, (Type.Record)t);
-
-		if (!t.equals(actual)) {
-			out.print("($_castList_$(");
-			write(source);
-			out.print(",");
-			StringBuilder list = new StringBuilder("[");
-			boolean first = true;
-			for (String s : typeList) {
-				if (!first)
-					list.append(", ");
-				first = false;
-				list.append(s);
-			}
-			list.append("]");
-			out.print(list.toString() + "))");
-		}
-		else write(source);
-	}
-
-	private List<String> getRecordTypeList(Type.Record actual, Type.Record type) {
-		Type.Record current = type;
 		String castedName = "";
 		Type casted = null;
 		List<String> fieldList = new ArrayList<String>();
 
-		while (casted == null) {
-			for (String s : actual.getFields().keySet()) {
-				if (actual.getFields().get(s).equals(current.getFields().get(s)))
-					continue;
-				else {
-					Type t = current.getFields().get(s);
-					if (t instanceof Type.Record) {
-						fieldList.add(s);
-						current = (Type.Record)t;
-						actual = (Type.Record)actual.getFields().get(s);
-					}
+		outer: while (casted == null) {
+			if (temp instanceof Type.List) {
+				temp = ((Type.List)temp).getElement();
+				current = ((Type.List)current).getElement();
+			}
+			else if (temp instanceof Type.Record) {
+				Type.Record actualRecord = (Type.Record)temp;
+				Type.Record currentRecord = (Type.Record)current;
+				for (String s : actualRecord.getFields().keySet()) {
+					if (actualRecord.getFields().get(s).equals(currentRecord.getFields().get(s)))
+						continue;
 					else {
-						casted = t;
-						castedName = s;
+						current = currentRecord.getFields().get(s);
+						temp = actualRecord.getFields().get(s);
+						if (current instanceof Type.Record || current instanceof Type.List) {
+							fieldList.add(s);
+							continue outer;
+						}
+						else {
+							casted = temp;
+							castedName = s;
+							break outer;
+						}
 					}
 				}
+				break; //Signals a 'pointless' cast
 			}
-			break; //Signals a 'pointless' cast
+			else return new ArrayList<String>(); //Should be dead code
+
 		}
 		if (casted == null)
-			return null; //pointless cast, no difference in types
+			return new ArrayList<String>(); //pointless cast, no difference in types
 		else {
 			fieldList.add(0, castedName);
 			return fieldList;
-		}
-	}
-
-	private void castRecord(Expr source, Type.Record type) {
-		Type src = source.attribute(Attribute.Type.class).type;
-		if (src instanceof Type.Named)
-			src = userTypes.get(((Type.Named)src).getName());
-		Type.Record actual = (Type.Record) src;
-		Type.Record current = type;
-		String castedName = "";
-		Type casted = null;
-		List<String> fieldList = new ArrayList<String>();
-
-		while (casted == null) {
-			for (String s : actual.getFields().keySet()) {
-				if (actual.getFields().get(s).equals(current.getFields().get(s)))
-					continue;
-				else {
-					Type t = current.getFields().get(s);
-					if (t instanceof Type.Record) {
-						fieldList.add(s);
-						current = (Type.Record)t;
-						actual = (Type.Record)actual.getFields().get(s);
-					}
-					else {
-						casted = t;
-						castedName = s;
-					}
-				}
-			}
-			break; //Signals a 'pointless' cast
-		}
-		if (casted == null) {
-			write(source);
-		}
-		else {
-			if (casted instanceof Type.Int || casted instanceof Type.Real) {
-				out.print("($_castRecord_$(");
-				write(source);
-				StringBuilder list = new StringBuilder("[");
-				boolean first = true;
-				for (String s : fieldList) {
-					if (!first)
-						list.append(", ");
-					first = false;
-					list.append(s);
-				}
-				list.append("]");
-				out.print(", \""+ castedName + "\", " + list.toString() + "))");
-			}
-			else if (casted instanceof Type.List) {
-				while (casted instanceof Type.List) {
-					casted = ((Type.List)casted).getElement();
-				}
-				if (casted instanceof Type.Int || casted instanceof Type.Real) {
-					out.print("($_castRecord_$(");
-					write(source);
-					out.print(",");
-					StringBuilder list = new StringBuilder("[");
-					boolean first = true;
-					for (String s : fieldList) {
-						if (!first)
-							list.append(", ");
-						first = false;
-						list.append(s);
-					}
-					list.append("]");
-					out.print(", "+ castedName + ", " + list.toString() + "))");
-				}
-				else
-					write(source);
-			}
-			else
-				write(source);
 		}
 	}
 
@@ -759,31 +960,42 @@ public class JavaScriptFileWriter {
 			out.print("\"");
 			out.print(s);
 			out.print("\"");
-		} else
+		}
+		else if (val instanceof Character) {
+			out.print("'");
+			out.print(val);
+			out.print("'");
+		}
+		else
 			out.print(val);
 	}
 
 	public void write(Expr.IndexOf expr) {
+		out.print("($_indexOf_$(");
 		write(expr.getSource());
-		out.print("[");
+		out.print(",");
 		write(expr.getIndex());
-		out.print(".num]");
+		out.print("))");
 	}
 
 	public void write(Expr.Invoke expr) {
 		out.print(expr.getName() + "(");
 		boolean firstTime=true;
 		for(Expr arg : expr.getArguments()) {
+			Type t = arg.attribute(Attribute.Type.class).type;
 			if(!firstTime) {
 				out.print(",");
 			}
 			firstTime=false;
 			write(arg);
+			if (t instanceof Type.List || t instanceof Type.Record)
+				out.print(".clone()");
 		}
 		out.print(")");
 	}
 
 	public void write(Expr.ListConstructor expr) {
+		out.print("new $_List_$(");
 		out.print("[");
 		boolean firstTime=true;
 		for(Expr arg : expr.getArguments()) {
@@ -793,26 +1005,35 @@ public class JavaScriptFileWriter {
 			firstTime=false;
 			write(arg);
 		}
-		out.print("]");
+		out.print("])");
 	}
 
 	public void write(Expr.RecordAccess expr) {
 		write(expr.getSource());
-		out.print("." + expr.getName());
+		out.print(".getValue('" + expr.getName() + "')");
 	}
 
 	public void write(Expr.RecordConstructor expr) {
-		out.print("({");
+		out.print("new $_Record_$(");
+		out.print("[");
 		boolean firstTime=true;
 		for(Pair<String,Expr> p : expr.getFields()) {
 			if(!firstTime) {
 				out.print(",");
 			}
 			firstTime=false;
-			out.print(p.first() + ": ");
+			out.print("'" + p.first() + "'");
+		}
+		out.print("], [");
+		firstTime=true;
+		for(Pair<String,Expr> p : expr.getFields()) {
+			if(!firstTime) {
+				out.print(",");
+			}
+			firstTime=false;
 			write(p.second());
 		}
-		out.print("})");
+		out.print("])");
 	}
 
 	public void write(Expr.Unary expr) {
@@ -830,17 +1051,22 @@ public class JavaScriptFileWriter {
 				out.print("new $_Float_$(");
 			out.print(expr.getOp() + "(");
 			write(expr.getExpr());
-			out.print(".num)");
+			out.print(".num))");
 			break;
 		case LENGTHOF:
+			out.print("$_length_$(");
 			write(expr.getExpr());
-			out.print(".length");
+			out.print(")");
 		}
 		out.print(")");
 	}
 
 	public void write(Expr.Variable expr) {
 		out.print(expr.getName());
+	}
+
+	public void write(Expr.Is expr) {
+		//TODO: Sort out this class malarkey
 	}
 
 	public void indent(int indent) {
