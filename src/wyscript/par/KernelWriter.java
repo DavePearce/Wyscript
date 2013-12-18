@@ -490,57 +490,36 @@ public class KernelWriter {
 				//the finally-indexed value must be a variable
 				if (innerInnerSrc instanceof Expr.Variable) {
 					Expr.Variable variable = (Variable) innerInnerSrc;
-					//now have the inner src which is a variable
-					//time to check out the indices
-					if (outerIndex instanceof Expr.Variable && innerIndex
-							instanceof Expr.Variable && gpuLoop instanceof GPUNestedLoop) {
-						String innerName = ((Expr.Variable) outerIndex).getName();
-						String outerName = ((Expr.Variable) innerIndex).getName();
-						GPUNestedLoop nestedGPULoop = (GPUNestedLoop)gpuLoop;
-						if (outerName.equals(nestedGPULoop.getIndexVar().getName())&&
-								innerName.equals(nestedGPULoop.getInnerIndexVar().getName())){
-							//cleared for writing a 2d array access
-							//first write the variable
-							tokens.add(variable.getName());
-							tokens.add("[");
-							tokens.add(index2D());
-							tokens.add("]");
+					if (gpuLoop instanceof GPUNestedLoop) {
+						GPUNestedLoop nestedLoop = (GPUNestedLoop) gpuLoop;
+						//now tested whether investigating variables or not
+						if (outerIndex instanceof Expr.Variable && innerIndex
+								instanceof Expr.Variable) {
+							Expr.Variable outerIndexVar = (Variable) outerIndex;
+							Expr.Variable innerIndexVar = (Variable) innerIndex;
+							//compare these variables to those of the nested loop
+							if (outerIndexVar.getName().equals(((GPUNestedLoop) gpuLoop).getInnerIndexVar().getName())
+								&& innerIndexVar.getName().equals(((GPUNestedLoop) gpuLoop).getIndexVar().getName())){
+								//success! we can write the loop index we so desire
+								tokens.add(variable.getName());
+								tokens.add("[");
+								tokens.add(index2D());
+								tokens.add("]");
+							}
 						}else {
-							//InternalFailure.internalFailure("2D indices must match both loop indices", name, indexOf);
-							tokens.add(variable.getName());
-							tokens.add("[");
-							tokens.add("(blockIdx.x + blockIdx.y * gridDim.x)");
-							tokens.add("*");
-							tokens.add("(*");
-							tokens.add(
-								gpuLoop.widthName(((Expr.Variable) innerInnerSrc).getName()));
-							tokens.add(")");
-							tokens.add("+");
-							write(innerIndex,tokens);
-							tokens.add("]");
+							//no way this is indexof for implicit-nested
+							//therefore go ahead with writing expression
 						}
-					}
-					else {
-						//InternalFailure.internalFailure("Writing non-loop index not implemented", name, indexOf);
-						//TODO write complex indexof formula here
-						tokens.add(variable.getName());
-						tokens.add("[");
-						write(outerIndex, tokens);
-						tokens.add("*");
-						tokens.add(
-							gpuLoop.widthName(((Expr.Variable) innerInnerSrc).getName()));
-						tokens.add("+");
-						write(innerIndex,tokens);
-						tokens.add("]");
+					}else {
+						//the loop is not a nested one
+						//however it is still possible to support nested index-ofs
 					}
 				}else {
-					InternalFailure.internalFailure("IndexOf indices must both be nested loop indices", name, indexOf);
+					//this indexof isn't for a variable.
 				}
 			}else {
-				InternalFailure.internalFailure("For 2D IndexOf, inner src must be indexof", name, indexOf);
+				//no idea
 			}
-		}else {
-			InternalFailure.internalFailure("For 2D IndexOf, outer src must be indexof", name, indexOf);
 		}
 	}
 
