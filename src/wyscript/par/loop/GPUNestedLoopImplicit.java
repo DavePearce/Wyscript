@@ -28,18 +28,6 @@ public class GPUNestedLoopImplicit extends GPUNestedLoop{
 	}
 
 	@Override
-	public int innerLowerBound(HashMap<String, Object> frame) {
-		Interpreter interpreter = new Interpreter();
-		return GPULoop.lowerBound(frame, innerExpression, interpreter);
-	}
-
-	@Override
-	public int innerUpperBound(HashMap<String, Object> frame) {
-		Interpreter interpreter = new Interpreter();
-		return GPULoop.upperBound(frame, innerExpression, interpreter);
-	}
-
-	@Override
 	public Variable getInnerIndexVar() {
 		return innerIndex;
 	}

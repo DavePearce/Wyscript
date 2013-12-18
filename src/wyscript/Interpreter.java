@@ -21,6 +21,7 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.lang.Expr.Binary;
 import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
 import wyscript.util.SyntacticElement;
@@ -136,6 +137,7 @@ public class Interpreter {
 		} else if(stmt instanceof Stmt.For) {
 			return execute((Stmt.For) stmt,frame);
 		}else if (stmt instanceof Stmt.ParFor) {
+			boundCalculate(((Stmt.ParFor) stmt).getCalc(), frame);
 			return execute((Stmt.ParFor)stmt,frame);
 		}
 		else if(stmt instanceof Stmt.While) {
@@ -154,10 +156,7 @@ public class Interpreter {
 			return execute((Stmt.Switch) stmt, frame);
 		} else if(stmt instanceof Stmt.Next) {
 			return execute((Stmt.Next)stmt, frame);
-		} else if (stmt instanceof Stmt.LenWidCalc) {
-			return execute((Stmt.LenWidCalc)stmt, frame);
-		}
-		  else {
+		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
 		}
@@ -719,16 +718,51 @@ public class Interpreter {
 	 * @param frame
 	 * @return
 	 */
-	private Object execute(Stmt.LenWidCalc calc , HashMap<String,Object> frame) {
-		ArrayList<ArrayList<?>> list2D = (ArrayList<ArrayList<?>>) frame.get(calc.name);
-		int height = list2D.size();
-		int width = -1;
-		for (ArrayList<?> list : list2D) {
-			if (list.size() > width) width = list.size();
+	private void boundCalculate(Stmt.BoundCalc calc , HashMap<String,Object> frame) {
+		Expr expr1 = calc.getOuter();
+		Expr expr2 = calc.getInner();
+		if (expr1 == null) {
+			calc.setLowX(-1);
+			calc.setHighX(-1);
 		}
-		frame.put(calc.lenName, height);
-		frame.put(calc.widName, width);
-		return null;
+		else if (expr1 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr1;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowX(left);
+			calc.setHighX(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr1, frame);
+			if (value instanceof List<?>){
+				calc.setLowX(0);
+				calc.setHighX(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr1);
+			}
+		}
+		if (expr2 == null) {
+			calc.setLowY(-1);
+			calc.setHighY(-1);
+		}
+		else if (expr2 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr2;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowY(left);
+			calc.setHighY(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr2, frame);
+			if (value instanceof List<?>){
+				calc.setLowY(0);
+				calc.setHighY(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr2);
+			}
+		}
 	}
 	/**
 	 * Perform a deep clone of the given object value. This is either a

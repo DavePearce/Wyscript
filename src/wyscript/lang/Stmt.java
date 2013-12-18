@@ -483,6 +483,7 @@ public interface Stmt extends SyntacticElement {
 		private final Expr.Variable index;
 		private final Expr source;
 		private final ArrayList<Stmt> body;
+		private BoundCalc calc;
 		private KernelRunner runner;
 
 		/**
@@ -503,6 +504,7 @@ public interface Stmt extends SyntacticElement {
 			this.index = index;
 			this.source = source;
 			this.body = new ArrayList<Stmt>(body);
+			calc = new BoundCalc(this);
 		}
 		/**
 		 * Construct a parallel for loop from a given index variable, source expression
@@ -556,6 +558,15 @@ public interface Stmt extends SyntacticElement {
 		public KernelRunner getRunner() {
 			return this.runner;
 		}
+
+		public BoundCalc getCalc() {
+			return calc;
+		}
+
+		public void setCalc(BoundCalc calc) {
+			this.calc = calc;
+		}
+
 	}
 	/**
 	 * Represents a classical if-else statement, made up from a
@@ -915,26 +926,52 @@ public interface Stmt extends SyntacticElement {
 			return "next";
 		}
 	}
-	public static final class LenWidCalc extends SyntacticElement.Impl implements
-	Atom {
-		public final String name;
-		public final String lenName;
-		public final String widName;
+	public static final class BoundCalc {
+		private Expr outer;
+		private Expr inner;
+		private int lowX = -1;
+		private int highX = -1;
+		private int lowY = -1;
+		private int highY = -1;
 
-		public LenWidCalc(String name, String lenName, String widName) {
-			this.name = name;
-			this.lenName = lenName;
-			this.widName = widName;
+		public BoundCalc(Stmt.ParFor loop) {
+			this.outer = loop.getSource();
+			for (Stmt stmt : loop.body) {
+				if (stmt instanceof Stmt.ParFor) {
+					this.inner = ((Stmt.ParFor) stmt).getSource();
+				}
+			}
 		}
 
-		public String toString() {
-			StringBuilder sb = new StringBuilder();
-			sb.append("LenWidth Calculator for ");
-			sb.append(name);
-			sb.append("\n");
-			return sb.toString();
-
+		public int getLowX() {
+			return lowX;
 		}
-
+		public int getHighX() {
+			return highX;
+		}
+		public int getLowY() {
+			return lowY;
+		}
+		public int getHighY() {
+			return highY;
+		}
+		public void setLowX(int lowX) {
+			this.lowX = lowX;
+		}
+		public void setHighX(int highX) {
+			this.highX = highX;
+		}
+		public void setLowY(int lowY) {
+			this.lowY = lowY;
+		}
+		public void setHighY(int highY) {
+			this.highY = highY;
+		}
+		public Expr getOuter() {
+			return outer;
+		}
+		public Expr getInner() {
+			return inner;
+		}
 	}
 }

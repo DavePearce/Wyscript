@@ -13,6 +13,7 @@ import wyscript.lang.Stmt;
 import wyscript.lang.Type;
 import wyscript.lang.Expr.BOp;
 import wyscript.lang.Expr.Binary;
+import wyscript.lang.Stmt.BoundCalc;
 import wyscript.par.util.Argument;
 import wyscript.util.SyntaxError.InternalFailure;
 /**
@@ -25,10 +26,12 @@ import wyscript.util.SyntaxError.InternalFailure;
 public abstract class GPULoop {
 	private List<Argument> arguments;
 	private HashMap<Argument,String> nameMap = new HashMap<Argument,String>();
+	protected BoundCalc boundCalc;
 	protected final Stmt.ParFor loop;
 
 	public GPULoop(Stmt.ParFor loop) {
 		this.loop = loop;
+		this.boundCalc = loop.getCalc();
 	}
 	/**
 	 * Initialises the argument list of this GPULoop, allowing them to be used
@@ -96,9 +99,7 @@ public abstract class GPULoop {
 	 * @return
 	 */
 	public int outerLowerBound(HashMap<String,Object> frame){
-		Expr src = loop.getSource();
-		Interpreter interpreter = new Interpreter();
-		return lowerBound(frame, src, interpreter);
+		return boundCalc.getLowX();
 	}
 	/**
 	 * Return the outer loop's index variable. Guaranteed to be non-null.
@@ -113,9 +114,7 @@ public abstract class GPULoop {
 	 * @return
 	 */
 	public int outerUpperBound(HashMap<String,Object> frame){
-		Expr src = loop.getSource();
-		Interpreter interpreter = new Interpreter();
-		return upperBound(frame, src, interpreter);
+		return boundCalc.getHighX();
 	}
 	/**
 	 * Returns -1 if this loop is flat

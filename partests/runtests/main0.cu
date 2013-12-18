@@ -1,6 +1,6 @@
-extern "C" __global__ void main0 ( int* a , int* a_height , int* a_width ) {
- int j = threadIdx.x + ( blockDim.x * ( ( gridDim.x * blockIdx.y ) + blockIdx.x) ) ;
- if (! ( j < (*a_height) * (*a_width) ) ) {
+extern "C" __global__ void main0 ( int* z , int* z_length , int* x , int* x_length , int* y , int* y_length ) {
+ int i = blockIdx.x * blockDim.x + threadIdx.x ;
+ if (! ( i < (*z_length) && i < (*x_length) && i < (*y_length) ) ) {
  return ;
- } a [ j ] = ( a [ j ] ) + ( 1 ) ;
+ } z [i] = ( x [i] ) + ( y [i] ) ;
  } 

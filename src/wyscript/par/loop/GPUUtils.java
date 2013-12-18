@@ -52,6 +52,10 @@ public class GPUUtils {
 				Stmt.ParFor loop = (Stmt.ParFor) statement;
 				scanExpr(loop.getSource(),parameters,nonparameters);
 				scanForFunctionParameters(loop.getBody(),parameters,nonparameters,env);
+			}else if (statement instanceof Stmt.For) {
+				Stmt.For loop = (Stmt.For) statement;
+				scanExpr(loop.getSource(),parameters,nonparameters);
+				scanForFunctionParameters(loop.getBody(),parameters,nonparameters,env);
 			}
 			else {
 				InternalFailure.internalFailure("Encountered unexpected statement type "

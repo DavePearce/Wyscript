@@ -18,23 +18,11 @@ public class GPUNestedLoopExplicit extends GPUNestedLoop{
 			if (stmt instanceof Stmt.ParFor) {
 				innerExpression = ((Stmt.ParFor) stmt).getSource();
 				innerIndex = ((Stmt.ParFor) stmt).getIndex();
+				return;
 			}
-			return;
 		}
 		throw new IllegalArgumentException("GPUNestedLoopExplicit must have " +
-				"parallel-for loop as within body");
-	}
-
-	@Override
-	public int innerLowerBound(HashMap<String, Object> frame) {
-		Interpreter interpreter = new Interpreter();
-		return GPULoop.lowerBound(frame, innerExpression, interpreter);
-	}
-
-	@Override
-	public int innerUpperBound(HashMap<String, Object> frame) {
-		Interpreter interpreter = new Interpreter();
-		return GPULoop.upperBound(frame, innerExpression, interpreter);
+				"parallel-for loop within body");
 	}
 
 	@Override

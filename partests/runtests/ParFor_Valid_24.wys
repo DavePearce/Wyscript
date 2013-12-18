@@ -5,6 +5,7 @@ void main():
 		parFor i in 0..|a|:
 			parFor j in 0..|a[i]|:
 				a[i][j] = a[i][j] + 1
+		n = n + 1
 	for i in 0..|a|:
 		for j in 0..|a[i]|:
 			print a[i][j]

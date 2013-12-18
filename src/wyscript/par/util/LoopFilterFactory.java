@@ -56,8 +56,6 @@ public class LoopFilterFactory {
 					//then this loop is GPU-implicit
 					return Category.GPU_PART_IMPLICIT_NESTED;
 				}
-			}else if (stmt instanceof Stmt.For) {
-					return Category.GPU_EXPLICIT_NESTED;
 			}else {
 				return Category.GPU_IMPLICIT_NONNESTED;
 			}
@@ -65,8 +63,8 @@ public class LoopFilterFactory {
 		else {
 			for (Stmt stmt : loop.getBody()) {
 				if (stmt instanceof Stmt.For) {
-					category = Category.GPU_EXPLICIT_NESTED;
-					return category;
+//					category = Category.GPU_EXPLICIT_NESTED;
+//					return category;
 				}else if (stmt instanceof Stmt.ParFor) {
 					Category nestedCat = classify((ParFor) stmt);
 					switch (category) {

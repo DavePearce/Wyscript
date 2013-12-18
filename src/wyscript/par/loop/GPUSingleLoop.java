@@ -12,8 +12,6 @@ public class GPUSingleLoop extends GPULoop {
 	public GPUSingleLoop(Stmt.ParFor loop) {
 		super(loop);
 		this.loop = loop;
-		//now scan to check if this loop iterates over a range or
-		//a list
 	}
 	public ParFor getLoop() {
 		return this.loop;

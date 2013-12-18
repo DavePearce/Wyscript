@@ -1,7 +1,9 @@
 package wyscript.par;
 
-//TODO The entire environment cannot be used from a function
-
+/**
+ * KernelGenerator provides a set of utilities that activate parallel-for loops
+ * so that they can run on the GPU.
+ */
 import static wyscript.util.SyntaxError.syntaxError;
 
 import java.util.HashMap;
@@ -10,6 +12,7 @@ import java.util.Map;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
+import wyscript.lang.Stmt.BoundCalc;
 import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;

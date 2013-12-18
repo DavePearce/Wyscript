@@ -3,9 +3,9 @@ void main():
 	[[int]] mat2 = [[0]]
 	[[int]] mat3 = [[0]]
 	[[int]] mat4 = [[0]]
-	int dim = 10
+	int dim = 550
 	int number = 0
-	while (dim < 530):
+	while (dim < 600):
 		mat1 = []
 		mat2 = []
 		mat3 = []
@@ -25,4 +25,4 @@ void main():
 		for i in 0..dim:
 			for j in 0..dim:
 				mat4[i][j] = mat1[i][j] * mat2[i][j]
-		dim = dim + 5
+		dim = dim + 10
