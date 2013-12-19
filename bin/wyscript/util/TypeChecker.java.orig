@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Map;
 
 import wyscript.lang.*;
-import wyscript.lang.WyscriptFile.FunDecl;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -26,19 +25,12 @@ public class TypeChecker {
 	private WyscriptFile file;
 	private WyscriptFile.FunDecl function;
 	private HashMap<String,WyscriptFile.FunDecl> functions;
-<<<<<<< HEAD
-	private HashMap<String, Map<String,Type>> environments = new HashMap<String, Map<String,Type>>();
-=======
 	private HashMap<String, Type> userTypes;
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 
 	public void check(WyscriptFile wf) {
 		this.file = wf;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
-<<<<<<< HEAD
-=======
 		this.userTypes = new HashMap<String, Type>();
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
@@ -58,11 +50,7 @@ public class TypeChecker {
 		}
 	}
 
-<<<<<<< HEAD
-	public Map<String,Type> check(WyscriptFile.FunDecl fd) {
-=======
 	public void check(WyscriptFile.FunDecl fd) {
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 		this.function = fd;
 
 		// First, initialise the typing environment
@@ -70,15 +58,9 @@ public class TypeChecker {
 		for (WyscriptFile.Parameter p : fd.parameters) {
 			environment.put(p.name(), p.type);
 		}
-<<<<<<< HEAD
-		// Second, check all statements in the function body
-		check(fd.statements,environment);
-		return environment;
-=======
 
 		// Second, check all statements in the function body
 		check(fd.statements,environment);
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 	}
 
 	public void check(List<Stmt> statements, Map<String,Type> environment) {
@@ -102,16 +84,13 @@ public class TypeChecker {
 			check((Stmt.IfElse) stmt, environment);
 		} else if(stmt instanceof Stmt.OldFor) {
 			check((Stmt.OldFor) stmt, environment);
+		} else if (stmt instanceof Stmt.ParFor) {
+			check((Stmt.ParFor) stmt, environment);
 		} else if(stmt instanceof Stmt.For) {
 			check((Stmt.For) stmt, environment);
 		}	else if(stmt instanceof Stmt.While) {
 			check((Stmt.While) stmt, environment);
-		} else if (stmt instanceof Stmt.ParFor) {
-			check((Stmt.ParFor) stmt, environment);
-		} else if (stmt instanceof Stmt.For) {
-			check((Stmt.For) stmt, environment);
-		}
-		  else {
+		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
@@ -127,6 +106,20 @@ public class TypeChecker {
 	}
 
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
+<<<<<<< HEAD
+		if (stmt.getExpr() == null) {
+			checkSubtype(function.ret, new Type.Void(), stmt.getExpr());
+			return;
+		}
+=======
+		Expr temp = stmt.getExpr();
+		//Check if not returning anything
+		if (temp == null && !(function.ret instanceof Type.Void))
+			syntaxError("Method has non-void return type, must return expression of type " + function.ret, file.filename, stmt);
+		else if (temp == null)
+			return;
+
+>>>>>>> 73a920b2df991e94eea4bcbdedb009c65bab7340
 		Type actual = check(stmt.getExpr(), environment);
 		checkSubtype(function.ret, actual, stmt.getExpr());
 	}
@@ -138,43 +131,23 @@ public class TypeChecker {
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
 			checkSubtype(stmt.getType(),type,stmt);
-			environment.put(stmt.getName(), type);
-		}else {
-			InternalFailure.internalFailure("Expression for variable declaration" +
-					" was null", file.filename, stmt);
 		}
+		environment.put(stmt.getName(), stmt.getType());
 	}
 
 	public void check(Stmt.IfElse stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
 		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
+
+		//Check else-if branches
+		for (Expr e : stmt.getAltExpressions()) {
+			checkSubtype(Type.Bool.class, check(e, environment), e);
+			check(stmt.getAltBranch(e), new HashMap<String, Type>(environment));
+		}
+
 		check(stmt.getFalseBranch(), new HashMap<String,Type>(environment));
 	}
-<<<<<<< HEAD
-	public void check(Stmt.ParFor stmt, Map<String,Type> environment) {
-		//Type type = check(stmt.getSource(),environment);
-		Map<String,Type> newEnvironment = new HashMap<String,Type>(environment);
- 		newEnvironment.put(stmt.getIndex().getName(), check(stmt.getSource()
- 				,newEnvironment));
-		for (Stmt statement : stmt.getBody()) {
-			check(statement , newEnvironment);
-		}
-	}
-	public void check(Stmt.For stmt, Map<String,Type> environment) {
-		//Type type = check(stmt.getSource(),environment);
-		Map<String,Type> newEnvironment = new HashMap<String,Type>(environment);
- 		newEnvironment.put(stmt.getIndex().getName(), check(stmt.getSource()
- 				,newEnvironment));
-		for (Stmt statement : stmt.getBody()) {
-			check(statement , newEnvironment);
-		}
-	}
-	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
-		for (Stmt statement : stmt.getBody()) {
-			check(statement , new HashMap<String,Type>(environment));
-		}
-=======
 
 	public void check(Stmt.OldFor stmt, Map<String,Type> environment) {
 		Stmt.VariableDeclaration d = stmt.getDeclaration();
@@ -205,7 +178,18 @@ public class TypeChecker {
 		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
 		newEnv.put(v.getName(), ((Type.List)t).getElement());
 		check(stmt.getBody(), newEnv);
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
+	}
+	public void check(Stmt.ParFor stmt, Map<String, Type> environment) {
+		Expr e = stmt.getSource();
+		Expr.Variable v = stmt.getIndex();
+
+		Type t = check(e, environment);
+		if (!(t instanceof Type.List))
+			syntaxError("For loop source expression must evaluate to a list type", file.filename, e);
+
+		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
+		newEnv.put(v.getName(), ((Type.List)t).getElement());
+		check(stmt.getBody(), newEnv);
 	}
 
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
@@ -251,11 +235,6 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Binary expr, Map<String,Type> environment) {
-<<<<<<< HEAD
-		Type lhstype = check(expr.getLhs(),environment);
-		Type rhstype = check(expr.getRhs(),environment);
-		return lhstype;//TODO this is incorrect!
-=======
 		switch (expr.getOp()) {
 
 		case APPEND:
@@ -333,10 +312,8 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Is expr, Map<String,Type> environment) {
-		//TODO: check with Dave
 		//Like == or !=, there's no way to have a 'bad' is expression
 		return new Type.Bool();
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 	}
 
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
@@ -396,18 +373,6 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.ListConstructor expr, Map<String,Type> environment) {
-<<<<<<< HEAD
-		Type solo = null;
-		for (Expr arg : expr.getArguments()) {
-			if (solo == null) solo = check(arg,environment);
-			Type argType = check(arg,environment);
-			checkSubtype(solo,argType,arg);
-		}
-		if (solo != null) {
-			return new Type.List(solo);
-		}else {
-			return new Type.List(new Type.Void());
-=======
 		List<Expr> args = expr.getArguments();
 		if (args.isEmpty())
 			return new Type.List(new Type.Null());
@@ -420,7 +385,6 @@ public class TypeChecker {
 				checkSubtype(t, t2, e);
 			}
 			return new Type.List(t);
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 		}
 	}
 
@@ -449,9 +413,6 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Unary expr, Map<String,Type> environment) {
-<<<<<<< HEAD
-		return check(expr.getExpr(),environment);
-=======
 
 		switch(expr.getOp()) {
 
@@ -478,7 +439,6 @@ public class TypeChecker {
 			internalFailure("Unknown unary operator encountered", file.filename, expr);
 			return null;
 		}
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 	}
 
 	public Type check(Expr.Variable expr, Map<String, Type> environment) {
@@ -542,11 +502,7 @@ public class TypeChecker {
 	 */
 	private boolean checkPossibleSubtype(Type t1, Type t2) {
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
-<<<<<<< HEAD
-			// OK
-=======
 			return true;
->>>>>>> 7ad76d15eef7dad1f0404b9ac2d1760a93a24062
 		} else if (t1 instanceof Type.Char && t2 instanceof Type.Char) {
 			return true;
 		} else if (t1 instanceof Type.Int && t2 instanceof Type.Int) {
@@ -663,9 +619,5 @@ public class TypeChecker {
 		else if (t2 instanceof Type.Null) {
 			return true;
 		} else return false;
-	}
-
-	public Map<String, Map<String, Type>> getEnvs() {
-		return environments;
 	}
 }

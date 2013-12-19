@@ -21,6 +21,7 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.lang.Expr.Binary;
 import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
 import wyscript.util.SyntacticElement;
@@ -38,12 +39,10 @@ import static wyscript.util.SyntaxError.*;
 public class Interpreter {
 	private HashMap<String, WyscriptFile.Decl> declarations;
 	private WyscriptFile file;
-<<<<<<< HEAD
-=======
 	private HashMap<String, Object> constants;
 	private HashMap<String, Type> userTypes;
-
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
+	public boolean benchmarked = false;
+	private int depth = 0;
 
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
@@ -103,13 +102,10 @@ public class Interpreter {
 			frame.put(parameter.name,arguments[i]);
 		}
 
-<<<<<<< HEAD
-=======
 		for (String s : constants.keySet()) {
 			frame.put(s, constants.get(s));
 		}
 
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 		// Third, execute the function body!
 		return execute(function.statements,frame);
 	}
@@ -141,6 +137,7 @@ public class Interpreter {
 		} else if(stmt instanceof Stmt.For) {
 			return execute((Stmt.For) stmt,frame);
 		}else if (stmt instanceof Stmt.ParFor) {
+			boundCalculate(((Stmt.ParFor) stmt).getCalc(), frame);
 			return execute((Stmt.ParFor)stmt,frame);
 		}
 		else if(stmt instanceof Stmt.While) {
@@ -163,8 +160,6 @@ public class Interpreter {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
 		}
-<<<<<<< HEAD
-=======
 	}
 
 	private Object execute(Stmt.Switch stmt, HashMap<String, Object> frame) {
@@ -216,7 +211,6 @@ public class Interpreter {
 	private Object execute(Stmt.Next stmt, HashMap<String, Object> frame) {
 		//Tombstone value to signal to the switch to progress to the next case
 		return new Type.Null();
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 	}
 
 	private Object execute(Stmt.Assign stmt, HashMap<String,Object> frame) {
@@ -268,7 +262,8 @@ public class Interpreter {
 	}
 
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
-		//long time = System.currentTimeMillis();
+		depth++;
+		long time = System.currentTimeMillis();
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
@@ -278,8 +273,9 @@ public class Interpreter {
 				return ret;
 			}
 		}
-<<<<<<< HEAD
-		//System.out.println("For loop took: "+(System.currentTimeMillis()-time));
+		long timeAfter = System.currentTimeMillis();
+		depth--;
+		if (depth == 0 && benchmarked) System.out.print("\t"+(timeAfter - time)+"\n");
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
@@ -294,20 +290,15 @@ public class Interpreter {
 				}
 			}
 		}else {
-			//long time = System.currentTimeMillis();
+			long time = System.currentTimeMillis();
 			Object out = stmt.getRunner().run(frame);
-			//System.out.println("ParFor loop took: "+(System.currentTimeMillis()-time));
+			long timeAfter = System.currentTimeMillis();
+			if (benchmarked) System.out.print((timeAfter - time));
 			return out;
 		}
-=======
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 		return null;
 
 	}
-<<<<<<< HEAD
-=======
-
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 	private Object execute(Stmt.While stmt, HashMap<String,Object> frame) {
 		while((Boolean) execute(stmt.getCondition(),frame)) {
 			Object ret = execute(stmt.getBody(),frame);
@@ -323,6 +314,13 @@ public class Interpreter {
 		if(condition) {
 			return execute(stmt.getTrueBranch(),frame);
 		} else {
+			//Check else-if branches
+			for (Expr e : stmt.getAltExpressions()) {
+				boolean altCondition = (Boolean) execute(e, frame);
+				if (altCondition) {
+					return execute(stmt.getAltBranch(e), frame);
+				}
+			}
 			return execute(stmt.getFalseBranch(),frame);
 		}
 	}
@@ -410,13 +408,15 @@ public class Interpreter {
 		// Second, deal the rest.
 		Object rhs = execute(expr.getRhs(), frame);
 <<<<<<< HEAD
-
-		switch (expr.getOp()) {
 =======
 		Expr.BOp op = expr.getOp();
 
 		//Need to handle the nasty left recursive case for maths operators
-		if (expr.getRhs() instanceof Expr.Binary) {
+		if (expr.getRhs() instanceof Expr.Binary && (
+				op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
 			Expr.BOp otherOp = bin.getOp();
 
@@ -431,14 +431,9 @@ public class Interpreter {
 				lhs = execute(newExpr, frame);
 				rhs = execute(bin.getRhs(), frame);
 				op = otherOp;
+>>>>>>> 73a920b2df991e94eea4bcbdedb009c65bab7340
 
-			default:
-				break;
-			}
-		}
-
-		switch (op) {
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
+		switch (expr.getOp()) {
 		case ADD:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);
@@ -446,13 +441,11 @@ public class Interpreter {
 				return ((Double)lhs) + ((Double)rhs);
 			}
 		case SUB:
-
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) - ((Integer)rhs);
 			} else {
 				return ((Double)lhs) - ((Double)rhs);
 			}
-
 		case MUL:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) * ((Integer)rhs);
@@ -531,6 +524,21 @@ public class Interpreter {
 		return null;
 	}
 
+	private boolean isMathsOperator(Expr.BOp op) {
+		switch (op) {
+
+		case ADD:
+		case DIV:
+		case MUL:
+		case REM:
+		case SUB:
+			return true;
+
+		default:
+			return false;
+		}
+	}
+
 	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {
 		Object lhs = execute(expr.getLhs(), frame);
 		return instanceOf(lhs,expr.getRhs());
@@ -538,12 +546,6 @@ public class Interpreter {
 
 	private Object execute(Expr.Cast expr, HashMap<String, Object> frame) {
 		Object rhs = execute(expr.getSource(), frame);
-<<<<<<< HEAD
-		// TODO: we need to actually implement casting here!
-		return rhs;
-	}
-
-=======
 
 		return doCast(expr.getType(), rhs, expr.getSource());
 	}
@@ -659,7 +661,6 @@ public class Interpreter {
 		return newList;
 	}
 
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {
 		return expr.getValue();
 	}
@@ -742,7 +743,59 @@ public class Interpreter {
 	private Object execute(Expr.Variable expr, HashMap<String,Object> frame) {
 		return frame.get(expr.getName());
 	}
-
+	/**
+	 * Calculates width (number of columns) and length (number of rows)
+	 * of a row-indexed array and inject these values into the frame.
+	 * @param calc
+	 * @param frame
+	 * @return
+	 */
+	private void boundCalculate(Stmt.BoundCalc calc , HashMap<String,Object> frame) {
+		Expr expr1 = calc.getOuter();
+		Expr expr2 = calc.getInner();
+		if (expr1 == null) {
+			calc.setLowX(-1);
+			calc.setHighX(-1);
+		}
+		else if (expr1 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr1;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowX(left);
+			calc.setHighX(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr1, frame);
+			if (value instanceof List<?>){
+				calc.setLowX(0);
+				calc.setHighX(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr1);
+			}
+		}
+		if (expr2 == null) {
+			calc.setLowY(-1);
+			calc.setHighY(-1);
+		}
+		else if (expr2 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr2;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowY(left);
+			calc.setHighY(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr2, frame);
+			if (value instanceof List<?>){
+				calc.setLowY(0);
+				calc.setHighY(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr2);
+			}
+		}
+	}
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
@@ -880,8 +933,6 @@ public class Interpreter {
 			}
 			return false;
 		}
-<<<<<<< HEAD
-=======
 	}
 
 	/**
@@ -917,6 +968,5 @@ public class Interpreter {
 		}
 		else return null;
 
->>>>>>> 4156ce1c12a90e52f435ce6e4d9c0e4192c69c20
 	}
 }

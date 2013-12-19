@@ -87,7 +87,7 @@ public class TestUtils {
 			classPath = classPath.replace('/', File.separatorChar);
 			classPath = classPath.replace(':', File.pathSeparatorChar);
 			srcDir = srcDir.replace('/', File.separatorChar);
-			String tmp = "java -Djava.library.path=../../bin/cuda/ -cp " + classPath + " " + className;
+			String tmp = "java -Djava.library.path=../../cudalib/ -cp " + classPath + " " + className;
 			for (String arg : args) {
 				tmp += " " + arg;
 			}

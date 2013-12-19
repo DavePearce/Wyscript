@@ -93,7 +93,6 @@ public class Main {
 			switch(mode) {
 			case interpret:
 				Interpreter interpreter = new Interpreter();
-				interpreter.benchmarked = benchmarked;
 				interpreter.run(ast);
 				break;
 			case js: {

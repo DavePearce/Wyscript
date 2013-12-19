@@ -284,10 +284,7 @@ public class Interpreter {
 				}
 			}
 		}else {
-			long time = System.currentTimeMillis();
 			Object out = stmt.getRunner().run(frame);
-			long timeAfter = System.currentTimeMillis();
-			if (benchmarked) System.out.print((timeAfter - time));
 			return out;
 		}
 		return null;
