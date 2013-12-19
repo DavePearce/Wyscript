@@ -41,8 +41,7 @@ public class Interpreter {
 	private WyscriptFile file;
 	private HashMap<String, Object> constants;
 	private HashMap<String, Type> userTypes;
-	public boolean benchmarked = false;
-	private int depth = 0;
+
 
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
@@ -262,8 +261,6 @@ public class Interpreter {
 	}
 
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
-		depth++;
-		long time = System.currentTimeMillis();
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
 		for(Object item : src) {
@@ -273,9 +270,6 @@ public class Interpreter {
 				return ret;
 			}
 		}
-		long timeAfter = System.currentTimeMillis();
-		depth--;
-		if (depth == 0 && benchmarked) System.out.print("\t"+(timeAfter - time)+"\n");
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
@@ -400,8 +394,35 @@ public class Interpreter {
 
 		// Second, deal the rest.
 		Object rhs = execute(expr.getRhs(), frame);
+		Expr.BOp op = expr.getOp();
 
-		switch (expr.getOp()) {
+		//Need to handle the nasty left recursive case for maths operators
+		if (expr.getRhs() instanceof Expr.Binary && (
+				op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
+			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+			Expr.BOp otherOp = bin.getOp();
+
+			switch(otherOp) {
+
+			case ADD:
+			case DIV:
+			case MUL:
+			case REM:
+			case SUB:
+				Expr.Binary newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+				lhs = execute(newExpr, frame);
+				rhs = execute(bin.getRhs(), frame);
+				op = otherOp;
+
+			default:
+				break;
+			}
+		}
+
+		switch (op) {
 		case ADD:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);
@@ -409,11 +430,13 @@ public class Interpreter {
 				return ((Double)lhs) + ((Double)rhs);
 			}
 		case SUB:
+
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) - ((Integer)rhs);
 			} else {
 				return ((Double)lhs) - ((Double)rhs);
 			}
+
 		case MUL:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) * ((Integer)rhs);
@@ -490,21 +513,6 @@ public class Interpreter {
 		internalFailure("unknown binary expression encountered (" + expr + ")",
 				file.filename, expr);
 		return null;
-	}
-
-	private boolean isMathsOperator(Expr.BOp op) {
-		switch (op) {
-
-		case ADD:
-		case DIV:
-		case MUL:
-		case REM:
-		case SUB:
-			return true;
-
-		default:
-			return false;
-		}
 	}
 
 	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {

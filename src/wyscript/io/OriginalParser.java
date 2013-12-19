@@ -46,9 +46,9 @@ public class OriginalParser {
 
 	public WyscriptFile read() {
 		ArrayList<Decl> decls = new ArrayList<Decl>();
-		
+
 		while (index < tokens.size()) {
-			Token t = tokens.get(index);			
+			Token t = tokens.get(index);
 			if (t instanceof Keyword) {
 				Keyword k = (Keyword) t;
 				if (t.text.equals("type")) {
@@ -126,10 +126,10 @@ public class OriginalParser {
 		int end = index;
 		return new ConstDecl(e, name.text, sourceAttr(start, end - 1));
 	}
-	
+
 	private List<Stmt> parseBlock() {
 		match("{");
-		
+
 		ArrayList<Stmt> stmts = new ArrayList<Stmt>();
 		while (index < tokens.size()
 				&& !(tokens.get(index) instanceof RightCurly)) {
@@ -137,13 +137,13 @@ public class OriginalParser {
 		}
 
 		match("}");
-		
+
 		return stmts;
 	}
-	
+
 	/**
 	 * Parse a given statement.
-	 * 
+	 *
 	 * @param withSemiColon
 	 *            Indicates whether to match semi-colons after the statement
 	 *            (where appropriate). This is useful as in some very special
@@ -188,7 +188,7 @@ public class OriginalParser {
 		}
 		return stmt;
 	}
-	
+
 	private boolean isType(int index) {
 		if(index >= tokens.size()) {
 			return false;
@@ -200,7 +200,7 @@ public class OriginalParser {
 					|| lookahead.text.equals("int")
 					|| lookahead.text.equals("real")
 					|| lookahead.text.equals("char")
-					|| lookahead.text.equals("string"); 			
+					|| lookahead.text.equals("string");
 		} else if(lookahead instanceof Identifier) {
 			Identifier id = (Identifier) lookahead;
 			return userDefinedTypes.contains(id.text);
@@ -208,11 +208,11 @@ public class OriginalParser {
 			return isType(index+1);
 		} else if(lookahead instanceof LeftSquare) {
 			return isType(index+1);
-		} 
-		
+		}
+
 		return false;
 	}
-	
+
 	private Expr.Invoke parseInvokeStmt() {
 		int start = index;
 		Identifier name = matchIdentifier();
@@ -252,14 +252,14 @@ public class OriginalParser {
 		return new Stmt.VariableDeclaration(type, id.text, initialiser, sourceAttr(start,
 				index - 1));
 	}
-	
+
 	private Stmt.Return parseReturn() {
 		int start = index;
 		// Every return statement begins with the return keyword!
 		matchKeyword("return");
 		Expr e = null;
 		// A return statement may optionally have a return expression.
-		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {			
+		if (index < tokens.size() && !(tokens.get(index) instanceof SemiColon)) {
 			e = parseCondition();
 		}
 		// Done.
@@ -298,7 +298,7 @@ public class OriginalParser {
 			}
 		}
 
-		return new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1));
+		return new Stmt.IfElse(c, tblk, new HashMap<Expr, List<Stmt>>(), fblk, sourceAttr(start, end - 1));
 	}
 
 	private Stmt parseWhile() {
@@ -362,7 +362,7 @@ public class OriginalParser {
 
 	private Expr parseConditionExpression() {
 		int start = index;
-		
+
 		Expr lhs = parseAppendExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof LessEquals) {
@@ -371,7 +371,7 @@ public class OriginalParser {
 			return new Expr.Binary(Expr.BOp.LTEQ, lhs, rhs, sourceAttr(start,
 					index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof LeftAngle) {
-			match("<");			
+			match("<");
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.LT, lhs, rhs, sourceAttr(start, index - 1));
 		} else if (index < tokens.size()
@@ -386,7 +386,7 @@ public class OriginalParser {
 			return new Expr.Binary(Expr.BOp.GT, lhs, rhs, sourceAttr(start, index - 1));
 		} else if (index < tokens.size()
 				&& tokens.get(index) instanceof EqualsEquals) {
-			match("==");		
+			match("==");
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.EQ, lhs, rhs, sourceAttr(start, index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof NotEquals) {
@@ -404,31 +404,31 @@ public class OriginalParser {
 		Expr lhs = parseAddSubExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof PlusPlus) {
-			match("++");			
+			match("++");
 			Expr rhs = parseAppendExpression();
 			return new Expr.Binary(Expr.BOp.APPEND, lhs, rhs,
 					sourceAttr(start, index - 1));
-		} 
+		}
 
 		return lhs;
 	}
 
-	
+
 	private Expr parseAddSubExpression() {
 		int start = index;
 		Expr lhs = parseMulDivExpression();
 
 		if (index < tokens.size() && tokens.get(index) instanceof Plus) {
-			match("+");			
+			match("+");
 			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(Expr.BOp.ADD, lhs, rhs,
 					sourceAttr(start, index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof Minus) {
-			match("-");			
+			match("-");
 			Expr rhs = parseAddSubExpression();
 			return new Expr.Binary(Expr.BOp.SUB, lhs, rhs,
 					sourceAttr(start, index - 1));
-		} 
+		}
 
 		return lhs;
 	}
@@ -438,17 +438,17 @@ public class OriginalParser {
 		Expr lhs = parseIndexTerm();
 
 		if (index < tokens.size() && tokens.get(index) instanceof Star) {
-			match("*");			
+			match("*");
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.MUL, lhs, rhs,
 					sourceAttr(start, index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof RightSlash) {
-			match("/");			
+			match("/");
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.DIV, lhs, rhs,
 					sourceAttr(start, index - 1));
 		} else if (index < tokens.size() && tokens.get(index) instanceof Percent) {
-			match("%");			
+			match("%");
 			Expr rhs = parseMulDivExpression();
 			return new Expr.Binary(Expr.BOp.REM, lhs, rhs,
 					sourceAttr(start, index - 1));
@@ -496,16 +496,16 @@ public class OriginalParser {
 		Token token = tokens.get(index);
 
 		if (token instanceof LeftBrace) {
-			match("(");			
+			match("(");
 			if(isType(index)) {
 				// indicates a cast
-				Type t = parseType();			
+				Type t = parseType();
 				checkNotEof();
 				match(")");
 				Expr e = parseCondition();
 				return new Expr.Cast(t,e,sourceAttr(start, index - 1));
 			} else {
-				Expr e = parseCondition();			
+				Expr e = parseCondition();
 				checkNotEof();
 				match(")");
 				return e;
@@ -549,26 +549,26 @@ public class OriginalParser {
 			match("!");
 			return new Expr.Unary(Expr.UOp.NOT, parseTerm(), sourceAttr(start,
 					index - 1));
-		} 
+		}
 		syntaxError("unrecognised term (\"" + token.text + "\")", token);
 		return null;
 	}
-	
+
 	private Expr parseListVal() {
 		int start = index;
 		ArrayList<Expr> exprs = new ArrayList<Expr>();
-		match("[");		
+		match("[");
 		boolean firstTime = true;
 		checkNotEof();
 		Token token = tokens.get(index);
 		while (!(token instanceof RightSquare)) {
 			if (!firstTime) {
 				match(",");
-				
+
 			}
 			firstTime = false;
 			exprs.add(parseCondition());
-			
+
 			checkNotEof();
 			token = tokens.get(index);
 		}
@@ -612,15 +612,15 @@ public class OriginalParser {
 
 	private Expr parseLengthOf() {
 		int start = index;
-		match("|");		
-		Expr e = parseIndexTerm();		
-		match("|");		
+		match("|");
+		Expr e = parseIndexTerm();
+		match("|");
 		return new Expr.Unary(Expr.UOp.LENGTHOF, e, sourceAttr(start, index - 1));
 	}
 
 	private Expr parseNegation() {
 		int start = index;
-		match("-");		
+		match("-");
 		Expr e = parseIndexTerm();
 
 		if (e instanceof Expr.Constant) {
@@ -660,7 +660,7 @@ public class OriginalParser {
 
 	private Expr parseString() {
 		int start = index;
-		String s = match(Strung.class, "a string").string;    
+		String s = match(Strung.class, "a string").string;
 		return new Expr.Constant(s, sourceAttr(start, index - 1));
 	}
 
@@ -738,8 +738,8 @@ public class OriginalParser {
 			match("}");
 			t = new Type.Record(types, sourceAttr(start, index - 1));
 		} else if (token instanceof LeftSquare) {
-			match("[");			
-			t = parseType();			
+			match("[");
+			t = parseType();
 			match("]");
 			t = new Type.List(t, sourceAttr(start, index - 1));
 		} else {
@@ -767,7 +767,7 @@ public class OriginalParser {
 		index = index + 1;
 		return t;
 	}
-	
+
 	@SuppressWarnings("unchecked")
 	private <T extends Token> T match(Class<T> c, String name) {
 		checkNotEof();

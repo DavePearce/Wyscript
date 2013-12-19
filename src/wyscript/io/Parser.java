@@ -668,6 +668,7 @@ public class Parser {
 		// expression representing the condition.
 		boolean valid = true;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		Map<Expr, List<Stmt>> alts = new HashMap<Expr, List<Stmt>>(); //The map of else-if alternatives
 		followSet.add(Colon);
 
 		Expr c = parseExpression(errors, followSet);
@@ -686,6 +687,7 @@ public class Parser {
 			if (tokens.get(index).kind != NewLine)
 				return null;
 		}
+
 		matchEndLine(errors);
 		if (!parentFollow.contains(NewLine))
 			followSet.remove(NewLine);
@@ -695,11 +697,11 @@ public class Parser {
 
 		// First, parse the true branch, which is required
 		List<Stmt> tblk = parseBlock(indent, errors, followSet);
-			if (tblk == null) {
-				valid = false;
-				if (tokens.get(index).kind != Else)
-					return null;
-			}
+		if (tblk == null) {
+			valid = false;
+			if (tokens.get(index).kind != Else)
+				return null;
+		}
 
 		// Second, attempt to parse the false branch, which is optional.
 		List<Stmt> fblk = Collections.emptyList();
@@ -707,7 +709,49 @@ public class Parser {
 
 			if (!parentFollow.contains(Else))
 				followSet.remove(Else);
-			followSet.add(NewLine);
+			followSet.add(Colon);
+
+			//Match any number of else-if statements
+			while (tryAndMatch(If) != null) {
+				Expr e = parseExpression(errors, followSet);
+				if (e == null) {
+					valid = false;
+					if (tokens.get(index).kind != Colon)
+						return null;
+				}
+				if (!parentFollow.contains(Colon))
+					followSet.remove(Colon);
+				followSet.add(NewLine);
+
+				if (match(errors, Colon, followSet) == null) {
+					valid = false;
+					if (tokens.get(index).kind != NewLine)
+						return null;
+				}
+				matchEndLine(errors);
+				if (!parentFollow.contains(NewLine))
+					followSet.remove(NewLine);
+				followSet.add(Else);
+
+				List<Stmt> blk = parseBlock(indent, errors, followSet);
+				if (blk == null) {
+					valid = false;
+					if (tokens.get(index).kind != Else)
+						return null;
+				}
+				//Add to the map of else-if alternatives
+				if (valid)
+					alts.put(e, blk);
+
+				if (! parentFollow.contains(Else))
+					followSet.remove(Else);
+				if (tryAndMatch(Else) == null) {
+					return (valid) ? new Stmt.IfElse(c, tblk, alts, fblk, sourceAttr(start, end - 1))
+					   			   : new Stmt.IfElse(null, new ArrayList<Stmt>(),
+					   					   new HashMap<Expr, List<Stmt>>(), new ArrayList<Stmt>());
+				}
+
+			}
 			// TODO: support "else if" chaining.
 			if (match(errors, Colon, followSet) == null) {
 				if (tokens.get(index).kind != NewLine);
@@ -719,8 +763,8 @@ public class Parser {
 				return null;
 		}
 		// Done!
-		return (valid) ? new Stmt.IfElse(c, tblk, fblk, sourceAttr(start, end - 1))
-					   : new Stmt.IfElse(null, new ArrayList<Stmt>(), new ArrayList<Stmt>());
+		return (valid) ? new Stmt.IfElse(c, tblk, alts, fblk, sourceAttr(start, end - 1))
+					   : new Stmt.IfElse(null, new ArrayList<Stmt>(), new HashMap<Expr, List<Stmt>>(), new ArrayList<Stmt>());
 	}
 
 	/**
@@ -1467,7 +1511,6 @@ public class Parser {
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
-				//TODO: Check with Dave, but this should fix precedence error
 				Expr e = parseTerm(errors, parentFollow);
 
 				if (e == null)
@@ -1488,7 +1531,6 @@ public class Parser {
 
 		case Identifier:
 			if (tryAndMatch(LeftBrace) != null) {
-				// FIXME: bug here because we've already matched the identifier
 				return parseInvokeExpr(start,token, errors, parentFollow);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,
