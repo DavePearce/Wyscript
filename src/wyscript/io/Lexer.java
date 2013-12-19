@@ -444,6 +444,7 @@ public class Lexer {
 			put("default", Token.Kind.Default);
 			put("while", Token.Kind.While);
 			put("for", Token.Kind.For);
+			put("parFor",Token.Kind.parFor);
 			put("print", Token.Kind.Print);
 			put("return", Token.Kind.Return);
 			put("constant", Token.Kind.Constant);
@@ -483,6 +484,7 @@ public class Lexer {
 			Is { public String toString() { return "is"; }},
 			In { public String toString() { return "in"; }},
 			For { public String toString() { return "for"; }},
+			parFor {public String toString() { return "parFor";} },
 			Debug { public String toString() { return "debug"; }},
 			Print { public String toString() { return "print"; }},
 			Return { public String toString() { return "return"; }},

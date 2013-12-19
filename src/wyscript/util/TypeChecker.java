@@ -98,6 +98,8 @@ public class TypeChecker {
 			check((Stmt.IfElse) stmt, environment);
 		} else if(stmt instanceof Stmt.OldFor) {
 			check((Stmt.OldFor) stmt, environment);
+		} else if (stmt instanceof Stmt.ParFor) {
+			//check((Stmt.ParFor) stmt, environment);
 		} else if(stmt instanceof Stmt.For) {
 			check((Stmt.For) stmt, environment);
 		} else if(stmt instanceof Stmt.While) {
@@ -352,6 +354,7 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Is expr, Map<String,Type> environment) {
+		//TODO: check with Dave
 		//Like == or !=, there's no way to have a 'bad' is expression
 		return new Type.Bool();
 	}

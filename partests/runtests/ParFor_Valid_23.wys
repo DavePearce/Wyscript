@@ -1,0 +1,20 @@
+void main():
+	int n = 100
+	[int] x = []
+	[int] y = []
+	[int] z = []
+	[int] u = []
+	while (n < 64000):
+		x = 0..n
+		y = 0..n
+		z = 0..n
+		u = 0..n
+		parFor i in 0..n:
+			z[i] = x[i] + y[i]
+		for i in 0..n:
+			u[i] = x[i] + y[i]
+			if (u[i] != z[i]):
+				print "fail"
+				return
+		n = n + 1000
+	print "success"

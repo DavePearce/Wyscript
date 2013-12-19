@@ -1,0 +1,4 @@
+extern "C" __global__ void main0 ( int* a , int* a , int* b , int* b ) {
+ int i = blockIdx.x * blockDim.x + threadIdx.x ;
+ b [i] = a [i] ;
+ } 

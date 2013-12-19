@@ -21,6 +21,8 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.lang.Expr.Binary;
+import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
 import wyscript.util.SyntacticElement;
 import static wyscript.util.SyntaxError.*;
@@ -133,7 +135,11 @@ public class Interpreter {
 			return execute((Stmt.OldFor) stmt,frame);
 		} else if(stmt instanceof Stmt.For) {
 			return execute((Stmt.For) stmt,frame);
-		} else if(stmt instanceof Stmt.While) {
+		}else if (stmt instanceof Stmt.ParFor) {
+			boundCalculate(((Stmt.ParFor) stmt).getCalc(), frame);
+			return execute((Stmt.ParFor)stmt,frame);
+		}
+		else if(stmt instanceof Stmt.While) {
 			return execute((Stmt.While) stmt,frame);
 		} else if(stmt instanceof Stmt.IfElse) {
 			return execute((Stmt.IfElse) stmt,frame);
@@ -266,7 +272,27 @@ public class Interpreter {
 		}
 		return null;
 	}
+	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
+		if (stmt.getRunner() == null) { //the runner is not available, default
+			List src = (List) execute(stmt.getSource(), frame);
+			String index = stmt.getIndex().getName();
+			for (Object item : src) {
+				frame.put(index, item);
+				Object ret = execute(stmt.getBody(), frame);
+				if (ret != null) {
+					return ret;
+				}
+			}
+		}else {
+			long time = System.currentTimeMillis();
+			Object out = stmt.getRunner().run(frame);
+			long timeAfter = System.currentTimeMillis();
+			if (benchmarked) System.out.print((timeAfter - time));
+			return out;
+		}
+		return null;
 
+	}
 	private Object execute(Stmt.While stmt, HashMap<String,Object> frame) {
 		while((Boolean) execute(stmt.getCondition(),frame)) {
 			Object ret = execute(stmt.getBody(),frame);
@@ -282,13 +308,6 @@ public class Interpreter {
 		if(condition) {
 			return execute(stmt.getTrueBranch(),frame);
 		} else {
-			//Check else-if branches
-			for (Expr e : stmt.getAltExpressions()) {
-				boolean altCondition = (Boolean) execute(e, frame);
-				if (altCondition) {
-					return execute(stmt.getAltBranch(e), frame);
-				}
-			}
 			return execute(stmt.getFalseBranch(),frame);
 		}
 	}
@@ -333,7 +352,7 @@ public class Interpreter {
 	 *            Stack frame mapping variables to their current value.
 	 * @return
 	 */
-	private Object execute(Expr expr, HashMap<String,Object> frame) {
+	public Object execute(Expr expr, HashMap<String,Object> frame) {
 		if(expr instanceof Expr.Binary) {
 			return execute((Expr.Binary) expr,frame);
 		} else if(expr instanceof Expr.Is) {
@@ -700,7 +719,59 @@ public class Interpreter {
 	private Object execute(Expr.Variable expr, HashMap<String,Object> frame) {
 		return frame.get(expr.getName());
 	}
-
+	/**
+	 * Calculates width (number of columns) and length (number of rows)
+	 * of a row-indexed array and inject these values into the frame.
+	 * @param calc
+	 * @param frame
+	 * @return
+	 */
+	private void boundCalculate(Stmt.BoundCalc calc , HashMap<String,Object> frame) {
+		Expr expr1 = calc.getOuter();
+		Expr expr2 = calc.getInner();
+		if (expr1 == null) {
+			calc.setLowX(-1);
+			calc.setHighX(-1);
+		}
+		else if (expr1 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr1;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowX(left);
+			calc.setHighX(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr1, frame);
+			if (value instanceof List<?>){
+				calc.setLowX(0);
+				calc.setHighX(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr1);
+			}
+		}
+		if (expr2 == null) {
+			calc.setLowY(-1);
+			calc.setHighY(-1);
+		}
+		else if (expr2 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr2;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowY(left);
+			calc.setHighY(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr2, frame);
+			if (value instanceof List<?>){
+				calc.setLowY(0);
+				calc.setHighY(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr2);
+			}
+		}
+	}
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,

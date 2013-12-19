@@ -20,6 +20,7 @@ package wyscript.lang;
 
 import java.util.*;
 
+import wyscript.par.KernelRunner;
 import wyscript.util.*;
 
 /**
@@ -478,7 +479,95 @@ public interface Stmt extends SyntacticElement {
 			return body;
 		}
 	}
+	public static final class ParFor extends SyntacticElement.Impl implements Stmt {
+		private final Expr.Variable index;
+		private final Expr source;
+		private final ArrayList<Stmt> body;
+		private BoundCalc calc;
+		private KernelRunner runner;
 
+		/**
+		 * Construct a for loop from a given index variable, source expression
+		 * and loop body.
+		 *
+		 * @param index
+		 *            The index variable, which may not be null
+		 * @param source
+		 *            The source expression, which may not be null
+		 * @param body
+		 *            A list of zero or more statements, which may not be null.
+		 * @param attributes
+		 */
+		public ParFor(Expr.Variable index, Expr source, Collection<Stmt> body,
+				Attribute... attributes) {
+			super(attributes);
+			this.index = index;
+			this.source = source;
+			this.body = new ArrayList<Stmt>(body);
+			calc = new BoundCalc(this);
+		}
+		/**
+		 * Construct a parallel for loop from a given index variable, source expression
+		 * and loop body.
+		 *
+		 * @param index
+		 *            The index variable, which may not be null
+		 * @param source
+		 *            The source expression, which may not be null
+		 * @param body
+		 *            A list of zero or more statements, which may not be null.
+		 * @param attributes
+		 */
+
+		/**
+		 * Get the index variable for this loop.
+		 *
+		 * @return May not be null.
+		 */
+		public Expr.Variable getIndex() {
+			return index;
+		}
+
+		/**
+		 * Get the source expression for this loop.
+		 *
+		 * @return May not be null.
+		 */
+		public Expr getSource() {
+			return source;
+		}
+
+		/**
+		 * Get the loop body.
+		 *
+		 * @return May not be null.
+		 */
+		public ArrayList<Stmt> getBody() {
+			return body;
+		}
+		/**
+		 * Give the parallel for a kernel runner to execute code on the GPU.
+		 * @param runner
+		 */
+		public void setKernelRunner(KernelRunner runner) {
+			this.runner = runner;
+		}
+		/**
+		 * @return The kernel runner associated with this parallel for
+		 */
+		public KernelRunner getRunner() {
+			return this.runner;
+		}
+
+		public BoundCalc getCalc() {
+			return calc;
+		}
+
+		public void setCalc(BoundCalc calc) {
+			this.calc = calc;
+		}
+
+	}
 	/**
 	 * Represents a classical if-else statement, made up from a
 	 * <i>condition</i>, <i>true branch</i>, optional additional <i> else-if branches </i>
@@ -874,6 +963,54 @@ public interface Stmt extends SyntacticElement {
 
 		public String toString() {
 			return "next";
+		}
+	}
+	public static final class BoundCalc {
+		private Expr outer;
+		private Expr inner;
+		private int lowX = -1;
+		private int highX = -1;
+		private int lowY = -1;
+		private int highY = -1;
+
+		public BoundCalc(Stmt.ParFor loop) {
+			this.outer = loop.getSource();
+			for (Stmt stmt : loop.body) {
+				if (stmt instanceof Stmt.ParFor) {
+					this.inner = ((Stmt.ParFor) stmt).getSource();
+				}
+			}
+		}
+
+		public int getLowX() {
+			return lowX;
+		}
+		public int getHighX() {
+			return highX;
+		}
+		public int getLowY() {
+			return lowY;
+		}
+		public int getHighY() {
+			return highY;
+		}
+		public void setLowX(int lowX) {
+			this.lowX = lowX;
+		}
+		public void setHighX(int highX) {
+			this.highX = highX;
+		}
+		public void setLowY(int lowY) {
+			this.lowY = lowY;
+		}
+		public void setHighY(int highY) {
+			this.highY = highY;
+		}
+		public Expr getOuter() {
+			return outer;
+		}
+		public Expr getInner() {
+			return inner;
 		}
 	}
 }

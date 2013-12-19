@@ -1,4 +1,4 @@
-[int] reverse([int] ls):
+ [int] reverse([int] ls):
     int i = |ls|
     [int] r = []
     while i > 0:

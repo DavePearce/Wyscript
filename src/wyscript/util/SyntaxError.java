@@ -302,7 +302,7 @@ public class SyntaxError extends RuntimeException {
 			start=attr.start;
 			end=attr.end;
 		}
-
+		new Throwable().printStackTrace();
 		throw new InternalFailure(msg, filename, start, end);
 	}
 

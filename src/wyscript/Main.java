@@ -24,6 +24,7 @@ import java.io.PrintStream;
 import wyscript.error.HandledException;
 import wyscript.io.*;
 import wyscript.lang.WyscriptFile;
+import wyscript.par.KernelGenerator;
 import wyscript.util.*;
 
 public class Main {
@@ -42,6 +43,7 @@ public class Main {
 
 	public static boolean run(String[] args) {
 		boolean verbose = false;
+		boolean benchmarked = false;
 		int fileArgsBegin = 0;
 		Mode mode = Mode.interpret;
 
@@ -58,14 +60,16 @@ public class Main {
 					verbose = true;
 				} else if (arg.equals("-js")) {
 					mode = Mode.js;
-				} else {
+				} else if (arg.equals("-b")) {
+					benchmarked = true;
+				}
+				  else {
 					throw new RuntimeException("Unknown option: " + args[i]);
 				}
 
 				fileArgsBegin = i + 1;
 			}
 		}
-
 		if (fileArgsBegin == args.length) {
 			usage();
 			return false;
@@ -79,14 +83,18 @@ public class Main {
 			Lexer lexer = new Lexer(srcFile.getPath());
 			Parser parser = new Parser(srcFile.getPath(), lexer.scan());
 			WyscriptFile ast = parser.read();
-
+			//now generate kernels for parfor loops and append them to parfor loops
 			// Second, we'd want to perform some kind of type checking here.
 			new TypeChecker().check(ast);
+
+			KernelGenerator.generateKernels(ast);
 
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {
 			case interpret:
-				new Interpreter().run(ast);
+				Interpreter interpreter = new Interpreter();
+				interpreter.benchmarked = benchmarked;
+				interpreter.run(ast);
 				break;
 			case js: {
 				File jsFile = new File(filename.substring(0,filename.lastIndexOf('.')) + ".js");
@@ -116,6 +124,8 @@ public class Main {
 			errout.println("Error: " + e.getMessage());
 			if (verbose) {
 				e.printStackTrace(errout);
+			}else {
+				e.printStackTrace();
 			}
 			return false;
 		}

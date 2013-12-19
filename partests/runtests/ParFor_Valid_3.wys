@@ -1,0 +1,6 @@
+void main():
+    int x = 0
+    parFor i in 0..5:
+        if (i == 2):
+            x = 2
+    print x

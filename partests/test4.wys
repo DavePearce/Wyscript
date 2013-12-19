@@ -1,0 +1,6 @@
+void main():
+	[int] a = [1,2,3,4,5]
+	[int] b = [1,2,3,4,5]
+	[int] c = [0,0,0,0,0]
+	parFor i in 0..|l|:
+		c[i] = a[i]*b[i] + 3 - a[i]

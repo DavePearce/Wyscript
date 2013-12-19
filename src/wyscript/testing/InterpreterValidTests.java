@@ -15,15 +15,17 @@ public class InterpreterValidTests {
 	// Test Harness
 	// ======================================================================
 
+
 	protected void runInterpreterTest(String name) {
 		// The name of the file which contains the output for this test
 		String sampleOutputFile = testdir + File.separatorChar + name
 				+ ".sysout";
 		// Classpath to project root
-		String classPath = "../../src";
+		String classPath = "../../bin/";
 
 		// First, execute the While program using the interpreter
 		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".wys");
+
 
 		// Second, compare the output!
 		TestUtils.compare(output, sampleOutputFile);

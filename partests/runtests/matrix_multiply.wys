@@ -1,0 +1,8 @@
+void main():
+	[[int]] matrix1 = [[0,1,2],[3,4,5],[6,7,8]]
+	[[int]] matrix2 = [[0,1,2],[3,4,5],[6,7,8]]
+	[[int]] matrix3 = [[0,0,0],[0,0,0],[0,0,0]]
+	parFor i in 0..3:
+		parFor j in 0..3:
+			for k in 0..3:
+				matrix3[i][j] = matrix3[i][j] + matrix1[k][j]*matrix2[k][i]
