@@ -6,9 +6,9 @@ import java.io.*;
 
 /**
  * Provides some simple helper functions used by all test harnesses.
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class TestUtils {
 
@@ -16,7 +16,7 @@ public class TestUtils {
 	 * Execute a given class file using the "java" command, and return all
 	 * output written to stdout. In the case of some kind of failure, write the
 	 * generated stderr stream to this processes stdout.
-	 * 
+	 *
 	 * @param classPath
 	 *            Class path to use when executing Java code. Note, directories
 	 *            can always be safely separated with '/', and path separated
@@ -40,7 +40,7 @@ public class TestUtils {
 				tmp += " " + arg;
 			}
 			Process p = Runtime.getRuntime().exec(tmp, null, new File(srcDir));
-
+			System.out.println("Executing "+tmp);
 			StringBuffer syserr = new StringBuffer();
 			StringBuffer sysout = new StringBuffer();
 			new StreamGrabber(p.getErrorStream(), syserr);
@@ -64,12 +64,65 @@ public class TestUtils {
 
 		return null;
 	}
+	/**
+	 * Execute a given class file using the "java" command, and return all
+	 * output written to stdout. In the case of some kind of failure, write the
+	 * generated stderr stream to this processes stdout.
+	 *
+	 * @param classPath
+	 *            Class path to use when executing Java code. Note, directories
+	 *            can always be safely separated with '/', and path separated
+	 *            with ':'.
+	 * @param srcDir
+	 *            Path to root of package containing class. Note, directories
+	 *            can always be safely separated with '/'.
+	 * @param className
+	 *            Name of class to execute
+	 * @param args
+	 *            Arguments to supply on the command-line.
+	 * @return All output generated from the class that was written to stdout.
+	 */
+	public static String parExec(String classPath, String srcDir, String className, String... args) {
+		try {
+			classPath = classPath.replace('/', File.separatorChar);
+			classPath = classPath.replace(':', File.pathSeparatorChar);
+			srcDir = srcDir.replace('/', File.separatorChar);
+			String tmp = "java -Djava.library.path=../../cudalib/ -cp " + classPath + " " + className;
+			for (String arg : args) {
+				tmp += " " + arg;
+			}
+			System.out.println("Running command: "+tmp);
+			Process p = Runtime.getRuntime().exec(tmp, null, new File(srcDir));
+
+			StringBuffer syserr = new StringBuffer();
+			StringBuffer sysout = new StringBuffer();
+			new StreamGrabber(p.getErrorStream(), syserr);
+			new StreamGrabber(p.getInputStream(), sysout);
+			int exitCode = p.waitFor();
+			if (exitCode != 0) {
+				System.err
+						.println("====================ERROR  BEGIN============================");
+				System.err.println(className);
+				System.err.println(syserr);
+				System.err
+						.println("====================ERROR  END =============================");
+				return null;
+			} else {
+				return sysout.toString();
+			}
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			fail("Problem running compiled test");
+		}
+
+		return null;
+	}
 
 	/**
 	 * Compare the output of executing java on the test case with a reference
 	 * file. If the output differs from the reference output, then the offending
 	 * line is written to the stdout and an exception is thrown.
-	 * 
+	 *
 	 * @param output
 	 *            This provides the output from executing java on the test case.
 	 * @param referenceFile
@@ -123,9 +176,9 @@ public class TestUtils {
 	 * reading from other streams can happen concurrently. For example, we can
 	 * read concurrently from <code>stdin</code> and <code>stderr</code> for
 	 * some process without blocking that process.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	static public class StreamGrabber extends Thread {
 		private InputStream input;

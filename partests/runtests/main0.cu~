@@ -1,0 +1,9 @@
+extern "C" __global__ void main0 ( int* x , int* x_length , int* y , int* y_length , int* flag ) {
+ int i = blockIdx.x * blockDim.x + threadIdx.x ;
+ if ( i < 0 && i >= 0 ) {
+      if ( ( ( ( x [i] ) ) + ( ( y [i] ) ) ) != ( 11 ) ) {
+      ( * flag ) = ( i ) ;
+      } else {
+	  } 
+	} 
+ } 

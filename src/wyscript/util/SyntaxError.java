@@ -26,7 +26,7 @@ import java.io.PrintStream;
 
 /**
  * This exception is thrown when a syntax error occurs in the parser.
- * 
+ *
  * @author David Pearce
  */
 public class SyntaxError extends RuntimeException {
@@ -38,7 +38,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Identify a syntax error at a particular point in a file.
-	 * 
+	 *
 	 * @param msg
 	 *            Message detailing the problem.
 	 * @param filename
@@ -57,7 +57,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Identify a syntax error at a particular point in a file.
-	 * 
+	 *
 	 * @param msg
 	 *            Message detailing the problem.
 	 * @param filename
@@ -86,7 +86,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Error message
-	 * 
+	 *
 	 * @return
 	 */
 	public String msg() {
@@ -95,7 +95,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Filename for file where the error arose.
-	 * 
+	 *
 	 * @return
 	 */
 	public String filename() {
@@ -104,7 +104,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Get index of first character of offending location.
-	 * 
+	 *
 	 * @return
 	 */
 	public int start() {
@@ -113,7 +113,7 @@ public class SyntaxError extends RuntimeException {
 
 	/**
 	 * Get index of last character of offending location.
-	 * 
+	 *
 	 * @return
 	 */
 	public int end() {
@@ -121,11 +121,12 @@ public class SyntaxError extends RuntimeException {
 	}
 
 	/**
-	 * Output the syntax error to a given output stream.
+	 * Output an error message to a given output stream.
 	 */
-	public void outputSourceError(PrintStream output) {
+	public static void outputSourceError(PrintStream output, String message,
+			String filename, int start, int end) {
 		if (filename == null) {
-			output.println("syntax error: " + getMessage());
+			output.println("syntax error: " + message);
 		} else {
 			int line = 0;
 			int lineStart = 0;
@@ -147,13 +148,14 @@ public class SyntaxError extends RuntimeException {
 					lineEnd = parseLine(text, lineEnd);
 					line = line + 1;
 				}
+				in.close();
 			} catch (IOException e) {
-				output.println("syntax error: " + getMessage());
+				output.println("syntax error: " + message);
 				return;
 			}
 			lineEnd = Math.min(lineEnd, text.length());
 
-			output.println(filename + ":" + line + ": " + getMessage());
+			output.println(filename + ":" + line + ": " + message);
 			// NOTE: in the following lines I don't print characters
 			// individually. The reason for this is that it messes up the ANT
 			// task output.
@@ -182,6 +184,46 @@ public class SyntaxError extends RuntimeException {
 			}
 			output.println(str);
 		}
+	}
+
+	/**
+	 * Utility method used to find the line of code an error occurred in
+	 */
+	public static void outputSuggestion(PrintStream output, String suggestion,
+			String filename, int start, int end) {
+
+		String str = "Error making suggestion: ";
+		int line = 0;
+		int lineStart = 0;
+		int lineEnd = 0;
+		StringBuilder text = new StringBuilder();
+
+		try {
+			BufferedReader in = new BufferedReader(new InputStreamReader(
+					new FileInputStream(filename), "UTF-8"));
+
+			// first, read whole file
+			int len = 0;
+			char[] buf = new char[1024];
+			while ((len = in.read(buf)) != -1) {
+				text.append(buf, 0, len);
+			}
+
+			while (lineEnd < text.length() && lineEnd <= start) {
+				lineStart = lineEnd;
+				lineEnd = parseLine(text, lineEnd);
+				line = line + 1;
+			}
+			in.close();
+		} catch (IOException e) {
+			output.print(str + e.getMessage());
+			return;
+		}
+
+		lineEnd = Math.min(lineEnd, text.length());
+		String[] result = {text.substring(lineStart, start), text.substring(Math.min(end+1, lineEnd), lineEnd)};
+		if (result[1].equals("")) result[1] = "\n";
+		output.println("Suggestion:\n" + result[0] + suggestion + result[1]);
 	}
 
 	private static int parseLine(StringBuilder text, int index) {
@@ -228,9 +270,9 @@ public class SyntaxError extends RuntimeException {
 	 * something went wrong whilst processing some piece of syntax. In other
 	 * words, is an internal error in the compiler, rather than a mistake in the
 	 * input program.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class InternalFailure extends SyntaxError {
 		public InternalFailure(String msg, String filename, int start, int end) {
@@ -249,32 +291,32 @@ public class SyntaxError extends RuntimeException {
 			}
 		}
 	}
-	
+
 	public static void internalFailure(String msg, String filename,
 			SyntacticElement elem) {
 		int start = -1;
-		int end = -1;		
-		
+		int end = -1;
+
 		Attribute.Source attr = (Attribute.Source) elem.attribute(Attribute.Source.class);
 		if(attr != null) {
 			start=attr.start;
-			end=attr.end;			
+			end=attr.end;
 		}
-		
+		new Throwable().printStackTrace();
 		throw new InternalFailure(msg, filename, start, end);
 	}
-	
+
 	public static void internalFailure(String msg, String filename,
 			SyntacticElement elem, Throwable ex) {
 		int start = -1;
-		int end = -1;		
-		
+		int end = -1;
+
 		Attribute.Source attr = (Attribute.Source) elem.attribute(Attribute.Source.class);
 		if(attr != null) {
 			start=attr.start;
-			end=attr.end;			
+			end=attr.end;
 		}
-		
+
 		throw new InternalFailure(msg, filename, start, end, ex);
 	}
 }

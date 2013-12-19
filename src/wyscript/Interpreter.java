@@ -21,7 +21,10 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.lang.Expr.Binary;
+import wyscript.par.KernelRunner;
 import wyscript.util.Pair;
+import wyscript.util.SyntacticElement;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -29,22 +32,39 @@ import static wyscript.util.SyntaxError.*;
  * Abstract Syntax Tree form directly. The interpreter is not designed to be
  * efficient in anyway, however it's purpose is to provide a reference
  * implementation for the language.
- * 
+ *
  * @author David J. Pearce
- * 
+ *
  */
 public class Interpreter {
 	private HashMap<String, WyscriptFile.Decl> declarations;
 	private WyscriptFile file;
-	
+	private HashMap<String, Object> constants;
+	private HashMap<String, Type> userTypes;
+
+
 	public void run(WyscriptFile wf) {
 		// First, initialise the map of declaration names to their bodies.
+		//Also, initialise any constant values declared in the file
 		declarations = new HashMap<String,WyscriptFile.Decl>();
+		constants = new HashMap<String, Object>();
+		userTypes = new HashMap<String, Type>();
+
 		for(WyscriptFile.Decl decl : wf.declarations) {
 			declarations.put(decl.name(), decl);
+
+			if (decl instanceof WyscriptFile.ConstDecl) {
+				WyscriptFile.ConstDecl constant = (WyscriptFile.ConstDecl) decl;
+				constants.put(constant.name, execute(constant.constant, constants));
+			}
+
+			else if (decl instanceof WyscriptFile.TypeDecl) {
+				WyscriptFile.TypeDecl type = (WyscriptFile.TypeDecl) decl;
+				userTypes.put(type.name(), type.type);
+			}
 		}
 		this.file = wf;
-		
+
 		// Second, pick the main method (if one exits) and execute it
 		WyscriptFile.Decl main = declarations.get("main");
 		if(main instanceof WyscriptFile.FunDecl) {
@@ -54,25 +74,25 @@ public class Interpreter {
 			System.out.println("Cannot find a main() function");
 		}
 	}
-	
+
 	/**
 	 * Execute a given function with the given argument values. If the number of
 	 * arguments is incorrect, then an exception is thrown.
-	 * 
+	 *
 	 * @param function
 	 *            Function declaration to execute.
 	 * @param arguments
 	 *            Array of argument values.
 	 */
 	private Object execute(WyscriptFile.FunDecl function, Object... arguments) {
-		
+
 		// First, sanity check the number of arguments
 		if(function.parameters.size() != arguments.length){
 			throw new RuntimeException(
 					"invalid number of arguments supplied to execution of function \""
 							+ function.name + "\"");
 		}
-		
+
 		// Second, construct the stack frame in which this function will
 		// execute.
 		HashMap<String,Object> frame = new HashMap<String,Object>();
@@ -80,38 +100,46 @@ public class Interpreter {
 			WyscriptFile.Parameter parameter = function.parameters.get(i);
 			frame.put(parameter.name,arguments[i]);
 		}
-		
+
+		for (String s : constants.keySet()) {
+			frame.put(s, constants.get(s));
+		}
+
 		// Third, execute the function body!
 		return execute(function.statements,frame);
 	}
-	
+
 	private Object execute(List<Stmt> block, HashMap<String,Object> frame) {
-		for(int i=0;i!=block.size();i=i+1) {			
-			Object r = execute(block.get(i),frame);			
+		for(int i=0;i!=block.size();i=i+1) {
+			Object r = execute(block.get(i),frame);
 			if(r != null) {
 				return r;
 			}
 		}
 		return null;
 	}
-	
+
 	/**
 	 * Execute a given statement in a given stack frame.
-	 * 
+	 *
 	 * @param stmt
 	 *            Statement to execute.
 	 * @param frame
 	 *            Stack frame mapping variables to their current value.
 	 * @return
 	 */
-	private Object execute(Stmt stmt, HashMap<String,Object> frame) {		
+	private Object execute(Stmt stmt, HashMap<String,Object> frame) {
 		if(stmt instanceof Stmt.Assign) {
 			return execute((Stmt.Assign) stmt,frame);
 		} else if(stmt instanceof Stmt.OldFor) {
 			return execute((Stmt.OldFor) stmt,frame);
 		} else if(stmt instanceof Stmt.For) {
 			return execute((Stmt.For) stmt,frame);
-		} else if(stmt instanceof Stmt.While) {
+		}else if (stmt instanceof Stmt.ParFor) {
+			boundCalculate(((Stmt.ParFor) stmt).getCalc(), frame);
+			return execute((Stmt.ParFor)stmt,frame);
+		}
+		else if(stmt instanceof Stmt.While) {
 			return execute((Stmt.While) stmt,frame);
 		} else if(stmt instanceof Stmt.IfElse) {
 			return execute((Stmt.IfElse) stmt,frame);
@@ -123,13 +151,68 @@ public class Interpreter {
 			return execute((Stmt.Print) stmt,frame);
 		} else if(stmt instanceof Expr.Invoke) {
 			return execute((Expr.Invoke) stmt,frame);
+		} else if(stmt instanceof Stmt.Switch) {
+			return execute((Stmt.Switch) stmt, frame);
+		} else if(stmt instanceof Stmt.Next) {
+			return execute((Stmt.Next)stmt, frame);
 		} else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 			return null;
-		} 
+		}
 	}
-	
-	private Object execute(Stmt.Assign stmt, HashMap<String,Object> frame) {	
+
+	private Object execute(Stmt.Switch stmt, HashMap<String, Object> frame) {
+		Object expr = execute(stmt.getExpr(), frame);
+
+		boolean hasEvaluated = false;
+		boolean evaluateNext = false;
+
+		Stmt.Default def = null;
+
+		for (Stmt.SwitchStmt s: stmt.cases()) {
+			if (s instanceof Stmt.Default)  {
+				def = (Stmt.Default) s;
+				if (evaluateNext) {
+					evaluateNext = false;
+					Object tmp = execute(def.getStmts(), frame);
+
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+						else return tmp;
+				}
+			}
+			else {
+				Stmt.Case c = (Stmt.Case) s;
+				Object o = execute(c.getConstant(), frame);
+
+				//We've found a match amongst the cases, or fall-through has occurred
+				if (o.equals(expr) || evaluateNext) {
+					hasEvaluated = true;
+					evaluateNext = false;
+					Object tmp = execute(c.getStmts(), frame);
+
+					//Fall-through
+					if (tmp instanceof Type.Null)
+						evaluateNext = true;
+
+					else return tmp;
+				}
+			}
+		}
+		if (def != null && !hasEvaluated) {
+			Object tmp = execute(def.getStmts(), frame);
+			if (!(tmp instanceof Type.Null))
+				return tmp;
+		}
+		return null;
+	}
+
+	private Object execute(Stmt.Next stmt, HashMap<String, Object> frame) {
+		//Tombstone value to signal to the switch to progress to the next case
+		return new Type.Null();
+	}
+
+	private Object execute(Stmt.Assign stmt, HashMap<String,Object> frame) {
 		Expr lhs = stmt.getLhs();
 		if(lhs instanceof Expr.Variable) {
 			Expr.Variable ev = (Expr.Variable) lhs;
@@ -146,7 +229,7 @@ public class Interpreter {
 			src.put(ra.getName(), deepClone(rhs));
 		} else if(lhs instanceof Expr.IndexOf) {
 			Expr.IndexOf io = (Expr.IndexOf) lhs;
-			Object src = execute(io.getSource(),frame);			
+			Object src = execute(io.getSource(),frame);
 			Integer idx = (Integer) execute(io.getIndex(),frame);
 			Object rhs = execute(stmt.getRhs(),frame);
 			if(src instanceof ArrayList) {
@@ -156,15 +239,15 @@ public class Interpreter {
 				list.set(idx,deepClone(rhs));
 			} else {
 				StringBuffer str = (StringBuffer) src;
-				str.setCharAt(idx, (Character) rhs);							
+				str.setCharAt(idx, (Character) rhs);
 			}
 		} else {
 			internalFailure("unknown lval encountered (" + lhs + ")", file.filename,stmt);
 		}
-		
+
 		return null;
 	}
-	
+
 	private Object execute(Stmt.OldFor stmt, HashMap<String,Object> frame) {
 		execute(stmt.getDeclaration(),frame);
 		while((Boolean) execute(stmt.getCondition(),frame)) {
@@ -176,7 +259,7 @@ public class Interpreter {
 		}
 		return null;
 	}
-	
+
 	private Object execute(Stmt.For stmt, HashMap<String,Object> frame) {
 		List src = (List) execute(stmt.getSource(),frame);
 		String index = stmt.getIndex().getName();
@@ -186,10 +269,27 @@ public class Interpreter {
 			if(ret != null) {
 				return ret;
 			}
-		}		
+		}
 		return null;
 	}
-	
+	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
+		if (stmt.getRunner() == null) { //the runner is not available, default
+			List src = (List) execute(stmt.getSource(), frame);
+			String index = stmt.getIndex().getName();
+			for (Object item : src) {
+				frame.put(index, item);
+				Object ret = execute(stmt.getBody(), frame);
+				if (ret != null) {
+					return ret;
+				}
+			}
+		}else {
+			Object out = stmt.getRunner().run(frame);
+			return out;
+		}
+		return null;
+
+	}
 	private Object execute(Stmt.While stmt, HashMap<String,Object> frame) {
 		while((Boolean) execute(stmt.getCondition(),frame)) {
 			Object ret = execute(stmt.getBody(),frame);
@@ -199,7 +299,7 @@ public class Interpreter {
 		}
 		return null;
 	}
-	
+
 	private Object execute(Stmt.IfElse stmt, HashMap<String,Object> frame) {
 		boolean condition = (Boolean) execute(stmt.getCondition(),frame);
 		if(condition) {
@@ -208,7 +308,7 @@ public class Interpreter {
 			return execute(stmt.getFalseBranch(),frame);
 		}
 	}
-	
+
 	private Object execute(Stmt.Return stmt, HashMap<String,Object> frame) {
 		Expr re = stmt.getExpr();
 		if(re != null) {
@@ -217,7 +317,7 @@ public class Interpreter {
 			return Collections.EMPTY_SET; // used to indicate a function has returned
 		}
 	}
-	
+
 	private Object execute(Stmt.VariableDeclaration stmt,
 			HashMap<String, Object> frame) {
 		Expr re = stmt.getExpr();
@@ -233,23 +333,23 @@ public class Interpreter {
 		frame.put(stmt.getName(), deepClone(value));
 		return null;
 	}
-	
+
 	private Object execute(Stmt.Print stmt, HashMap<String,Object> frame) {
 		String str = toString(execute(stmt.getExpr(),frame));
 		System.out.println(str);
 		return null;
 	}
-	
+
 	/**
 	 * Execute a given expression in a given stack frame.
-	 * 
+	 *
 	 * @param expr
 	 *            Expression to execute.
 	 * @param frame
 	 *            Stack frame mapping variables to their current value.
 	 * @return
 	 */
-	private Object execute(Expr expr, HashMap<String,Object> frame) {
+	public Object execute(Expr expr, HashMap<String,Object> frame) {
 		if(expr instanceof Expr.Binary) {
 			return execute((Expr.Binary) expr,frame);
 		} else if(expr instanceof Expr.Is) {
@@ -275,24 +375,51 @@ public class Interpreter {
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 			return null;
-		} 
+		}
 	}
-	
+
 	private Object execute(Expr.Binary expr, HashMap<String,Object> frame) {
 		// First, deal with the short-circuiting operators first
 		Object lhs = execute(expr.getLhs(), frame);
-		
+
 		switch (expr.getOp()) {
 		case AND:
 			return ((Boolean)lhs) && ((Boolean)execute(expr.getRhs(), frame));
 		case OR:
 			return ((Boolean)lhs) || ((Boolean)execute(expr.getRhs(), frame));
 		}
-		
-		// Second, deal the rest.		
+
+		// Second, deal the rest.
 		Object rhs = execute(expr.getRhs(), frame);
-		
-		switch (expr.getOp()) {
+		Expr.BOp op = expr.getOp();
+
+		//Need to handle the nasty left recursive case for maths operators
+		if (expr.getRhs() instanceof Expr.Binary && (
+				op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
+			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+			Expr.BOp otherOp = bin.getOp();
+
+			switch(otherOp) {
+
+			case ADD:
+			case DIV:
+			case MUL:
+			case REM:
+			case SUB:
+				Expr.Binary newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+				lhs = execute(newExpr, frame);
+				rhs = execute(bin.getRhs(), frame);
+				op = otherOp;
+
+			default:
+				break;
+			}
+		}
+
+		switch (op) {
 		case ADD:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);
@@ -300,11 +427,13 @@ public class Interpreter {
 				return ((Double)lhs) + ((Double)rhs);
 			}
 		case SUB:
+
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) - ((Integer)rhs);
 			} else {
 				return ((Double)lhs) - ((Double)rhs);
 			}
+
 		case MUL:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) * ((Integer)rhs);
@@ -359,7 +488,7 @@ public class Interpreter {
 				StringBuffer l = (StringBuffer) lhs;
 				return new StringBuffer(l).append(toString(rhs));
 			} else if(rhs instanceof StringBuffer) {
-				return toString(lhs) + ((StringBuffer)rhs);				
+				return toString(lhs) + ((StringBuffer)rhs);
 			} else if(lhs instanceof ArrayList && rhs instanceof ArrayList) {
 				ArrayList<Object> l = (ArrayList<Object>) lhs;
 				l = (ArrayList) deepClone(l);
@@ -375,29 +504,140 @@ public class Interpreter {
 				start = start + 1;
 			}
 			return result;
-		}			
+		}
 		}
 
 		internalFailure("unknown binary expression encountered (" + expr + ")",
 				file.filename, expr);
 		return null;
 	}
-	
+
 	private Object execute(Expr.Is expr, HashMap<String, Object> frame) {
 		Object lhs = execute(expr.getLhs(), frame);
 		return instanceOf(lhs,expr.getRhs());
 	}
-	
+
 	private Object execute(Expr.Cast expr, HashMap<String, Object> frame) {
-		Object rhs = execute(expr.getSource(), frame);		
-		// TODO: we need to actually implement casting here!
-		return rhs;
+		Object rhs = execute(expr.getSource(), frame);
+
+		return doCast(expr.getType(), rhs, expr.getSource());
 	}
-	
-	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {		
+
+	/**
+	 * Method that passes cast execution to the appropriate method
+	 * for the type of the cast
+	 */
+	private Object doCast(Type t, Object o, SyntacticElement elem) {
+
+		if (t instanceof Type.List)
+			return doListCast((Type.List)t, (ArrayList)o, elem);
+
+		else if(t instanceof Type.Record) {
+			return doRecordCast((Type.Record)t, (HashMap)o, elem);
+		}
+		else if(t instanceof Type.Union) {
+			//We trust the type checker has done its job
+			return o;
+		}
+		else if(t instanceof Type.Named) {
+			return doCast(userTypes.get(t.toString()), o, elem);
+		}
+
+		else return doPrimitiveCast(t, o, elem);
+
+	}
+
+	private Object doRecordCast(Type.Record t, HashMap o, SyntacticElement elem) {
+		HashMap result = new HashMap();
+
+		for(Object name : o.keySet()) {
+			Object casted = null;
+			casted = doCast(t.getFields().get(name), o.get(name), elem);
+
+			result.put(name, casted);
+		}
+
+		return result;
+	}
+
+	/**
+	 * Casts a non-list object to the java equivalent of the given type,
+	 * and returns the resulting object.
+	 */
+	private Object doPrimitiveCast(Type t, Object o, SyntacticElement elem) {
+		Class c = getJavaClass(t);
+
+		//Need to have explicit conversions for the number types
+		//As Double cannot be cast to Integer, and vice versa
+
+		if (c.equals(Double.class)) {
+			Double d = 0.0;
+
+			if (o instanceof Integer) {
+				d = ((Integer)o).doubleValue();
+				return d;
+			}
+
+			else if (o instanceof Double) {
+				d = (Double)o;
+				return d;
+			}
+
+			else {
+				//Shouldn't happen, indicates a type failure
+				internalFailure("Casting error - cannot cast between types", file.filename, elem);
+				return null;
+			}
+		}
+
+		else if(c.equals(Integer.class)) {
+
+				Integer i = 0;
+
+				if (o instanceof Integer) {
+					i = (Integer)o;
+					return i;
+				}
+
+				else if (o instanceof Double) {
+					i = ((Double)o).intValue();
+					return i;
+				}
+
+				else {
+					//Shouldn't happen, indicates a type checking failure
+					internalFailure("Casting error - cannot cast between types", file.filename, elem);
+					return null;
+				}
+		}
+
+		//In all other cases, type checker should have paved the way for us
+		return c.cast(o);
+	}
+
+	/**
+	 * Casts all elements in a list to the given type of the list class.
+	 * Recursively deals with nested lists.
+	 *
+	 * @param t 	- The type of the cast
+	 * @param list	- The list being casted
+	 * @return
+	 */
+	private ArrayList doListCast(Type.List t, ArrayList list, SyntacticElement elem) {
+
+		Class listType = getJavaClass(t.getElement());
+		ArrayList newList = new ArrayList();
+
+		for (Object o : list)
+			newList.add(doCast(t.getElement(), o, elem));
+
+		return newList;
+	}
+
+	private Object execute(Expr.Constant expr, HashMap<String,Object> frame) {
 		return expr.getValue();
 	}
-	
+
 	private Object execute(Expr.Invoke expr, HashMap<String, Object> frame) {
 		List<Expr> arguments = expr.getArguments();
 		Object[] values = new Object[arguments.size()];
@@ -410,7 +650,7 @@ public class Interpreter {
 				.getName());
 		return execute(fun, values);
 	}
-	
+
 	private Object execute(Expr.IndexOf expr, HashMap<String,Object> frame) {
 		Object _src = execute(expr.getSource(),frame);
 		int idx = (Integer) execute(expr.getIndex(),frame);
@@ -432,23 +672,23 @@ public class Interpreter {
 		}
 		return ls;
 	}
-	
+
 	private Object execute(Expr.RecordAccess expr, HashMap<String, Object> frame) {
 		HashMap<String, Object> src = (HashMap) execute(expr.getSource(), frame);
 		return src.get(expr.getName());
 	}
-	
+
 	private Object execute(Expr.RecordConstructor expr, HashMap<String,Object> frame) {
 		List<Pair<String,Expr>> es = expr.getFields();
 		HashMap<String,Object> rs = new HashMap<String,Object>();
-		
+
 		for(Pair<String,Expr> e : es) {
 			rs.put(e.first(),execute(e.second(),frame));
 		}
-		
+
 		return rs;
 	}
-	
+
 	private Object execute(Expr.Unary expr, HashMap<String, Object> frame) {
 		Object value = execute(expr.getExpr(), frame);
 		switch (expr.getOp()) {
@@ -472,18 +712,70 @@ public class Interpreter {
 				file.filename, expr);
 		return null;
 	}
-	
+
 	private Object execute(Expr.Variable expr, HashMap<String,Object> frame) {
 		return frame.get(expr.getName());
 	}
-	
+	/**
+	 * Calculates width (number of columns) and length (number of rows)
+	 * of a row-indexed array and inject these values into the frame.
+	 * @param calc
+	 * @param frame
+	 * @return
+	 */
+	private void boundCalculate(Stmt.BoundCalc calc , HashMap<String,Object> frame) {
+		Expr expr1 = calc.getOuter();
+		Expr expr2 = calc.getInner();
+		if (expr1 == null) {
+			calc.setLowX(-1);
+			calc.setHighX(-1);
+		}
+		else if (expr1 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr1;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowX(left);
+			calc.setHighX(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr1, frame);
+			if (value instanceof List<?>){
+				calc.setLowX(0);
+				calc.setHighX(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr1);
+			}
+		}
+		if (expr2 == null) {
+			calc.setLowY(-1);
+			calc.setHighY(-1);
+		}
+		else if (expr2 instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) expr2;
+			int left = (Integer) execute(binary.getLhs(), frame);
+			int right = (Integer) execute(binary.getRhs(), frame);
+			calc.setLowY(left);
+			calc.setHighY(right);
+		}else{
+			//expression must be a list
+			Object value = execute(expr2, frame);
+			if (value instanceof List<?>){
+				calc.setLowY(0);
+				calc.setHighY(((List<?>) value).size());
+			}else{
+				InternalFailure.internalFailure("Could not interpret loop expression",
+						file.filename, expr2);
+			}
+		}
+	}
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
 	 * <code>Character</code>, <code>String</code>, <code>ArrayList</code> (for
 	 * lists) or <code>HaspMap</code> (for records). Only the latter two need to
 	 * be cloned, since the others are immutable.
-	 * 
+	 *
 	 * @param o
 	 * @return
 	 */
@@ -510,14 +802,14 @@ public class Interpreter {
 			return o;
 		}
 	}
-	
+
 	/**
 	 * Convert the given object value to a string. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
 	 * <code>Character</code>, <code>String</code>, <code>ArrayList</code> (for
-	 * lists) or <code>HaspMap</code> (for records). The latter two must be
+	 * lists) or <code>HashMap</code> (for records). The latter two must be
 	 * treated recursively.
-	 * 
+	 *
 	 * @param o
 	 * @return
 	 */
@@ -553,13 +845,13 @@ public class Interpreter {
 			return "null";
 		}
 	}
-	
+
 	/**
 	 * Determine whether a given value is an instanceof a given type. This is
 	 * done by recursively exploring the type and the value together, until we
 	 * can safely conclude that the value does (or does not) match the required
 	 * type.
-	 * 
+	 *
 	 * @param value
 	 * @param type
 	 * @return
@@ -567,7 +859,9 @@ public class Interpreter {
 	private boolean instanceOf(Object value, Type type) {
 		if(type instanceof Type.Void) {
 			return false;
-		} else if(type instanceof Type.Bool) {
+		}else if (type instanceof Type.Null) {
+			return value == null;
+		}else if(type instanceof Type.Bool) {
 			return value instanceof Boolean;
 		} else if(type instanceof Type.Char) {
 			return value instanceof Character;
@@ -601,6 +895,8 @@ public class Interpreter {
 				return true;
 			}
 			return false;
+		} else if(type instanceof Type.Named) {
+			return instanceOf(value, userTypes.get(type.toString()));
 		} else {
 			Type.Union ut = (Type.Union) type;
 			for (Type bt : ut.getBounds()) {
@@ -609,6 +905,41 @@ public class Interpreter {
 				}
 			}
 			return false;
-		} 
+		}
+	}
+
+	/**
+	 * The inverse of the above method - given a WyScript type, return
+	 * the corresponding java class. Used for type casting.
+	 * Returns null if the type is a union - in this case, no
+	 * Java cast is required
+	 */
+	private Class getJavaClass(Type t) {
+
+		if (t instanceof Type.Bool)
+			return Boolean.class;
+
+		else if (t instanceof Type.Int)
+			return Integer.class;
+
+		else if (t instanceof Type.Real)
+			return Double.class;
+
+		else if (t instanceof Type.Strung)
+			return StringBuffer.class;
+
+		else if (t instanceof Type.Char)
+			return Character.class;
+
+		else if (t instanceof Type.List) {
+			//Is there a better way to do this?
+			return ArrayList.class;
+		}
+
+		else if (t instanceof Type.Record) {
+			return HashMap.class;
+		}
+		else return null;
+
 	}
 }

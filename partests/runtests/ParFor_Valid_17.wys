@@ -1,0 +1,13 @@
+void main():
+	[int] a = 0..400
+	parFor i in 0..|a|:
+		if (i % 2 == 0):
+			int result = 1 + 2 - 3
+			a[i] = result
+	for i in 0..|a|:
+		if (i % 2 == 0):
+			if (a[i] != 0):
+				print "fail"
+				print i
+				return
+	print "success"

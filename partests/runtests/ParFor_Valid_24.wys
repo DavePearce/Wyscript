@@ -1,0 +1,11 @@
+void main():
+	[[int]] a = [[0,0,0],[0,0,0],[0,0,0]]
+	int n = 0
+	while (n < 3):
+		parFor i in 0..|a|:
+			parFor j in 0..|a[i]|:
+				a[i][j] = a[i][j] + 1
+		n = n + 1
+	for i in 0..|a|:
+		for j in 0..|a[i]|:
+			print a[i][j]

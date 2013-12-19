@@ -1,4 +1,4 @@
-WhileyLanguageSpecification
+WyScriptLanguageSpecification
 ===========================
 
-The Whiley Language Specification (DRAFT)
+The WyScript Language Specification (DRAFT)

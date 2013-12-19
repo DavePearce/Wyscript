@@ -1,0 +1,7 @@
+void main():
+	int i = 1
+	[int] a = [1,2,3,4,5]
+	parFor j in 0..|a|:
+		a[j] = a[j] + i
+	for j in 0..|a|:
+		print a[j]

@@ -10,9 +10,10 @@ import java.io.PrintStream;
 import java.io.Reader;
 
 import org.junit.*;
-import org.mozilla.javascript.Context;
-import org.mozilla.javascript.Scriptable;
-import org.mozilla.javascript.ScriptableObject;
+
+import sun.org.mozilla.javascript.internal.Context;
+import sun.org.mozilla.javascript.internal.Scriptable;
+import sun.org.mozilla.javascript.internal.ScriptableObject;
 
 public class JavaScriptValidTests {
 	/**
@@ -24,6 +25,7 @@ public class JavaScriptValidTests {
 	// Test Harness
 	// ======================================================================
 
+
 	private void runTest(String name) {
 		// The name of the file which contains the output for this test
 		String generatedJavaScriptFile = testdir + File.separatorChar + name
@@ -34,26 +36,26 @@ public class JavaScriptValidTests {
 
 		// Classpath to project root
 		String classPath = "../../src";
-		
+
 		// First, we need to compile the given test into javascript
 		String errors = TestUtils.exec(classPath, testdir, "wyscript.Main", "-js", name + ".wys");
-		
+
 		if(!errors.equals("")) {
 			System.err.println(errors);
 			fail(errors);
 		}
-		
-		// Second, execute the generated JavaScript Program. 
+
+		// Second, execute the generated JavaScript Program.
 		String output = execJavaScript(generatedJavaScriptFile);
 
 		// Third, compare the output!
 		TestUtils.compare(output,sampleOutputFile);
 	}
-	
+
 	/**
 	 * Execute the main() method on a given (generated) Javascript file, and
 	 * capture the output.
-	 * 
+	 *
 	 * @param filename Filename of generated JavaScript source file.
 	 * @return
 	 */
@@ -68,8 +70,8 @@ public class JavaScriptValidTests {
 	      OutputStream err = new ByteArrayOutputStream();
 	      Object syserr = Context.javaToJS(new PrintStream(err), scope);
 
-	      ScriptableObject.putConstProperty(scope, "sysout", sysout);
-	      ScriptableObject.putConstProperty(scope, "syserr", syserr);
+	      //ScriptableObject.putConstProperty(scope, "sysout", sysout);
+	      //ScriptableObject.putConstProperty(scope, "syserr", syserr);
 	      cxt.evaluateReader(scope, file, filename, 1, null);
 	      cxt.evaluateString(scope, "main()", "main", 1, null);
 
@@ -84,7 +86,7 @@ public class JavaScriptValidTests {
 
 	    return null;
 	  }
-	
+
 	// ======================================================================
 	// Tests
 	// ======================================================================

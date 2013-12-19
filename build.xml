@@ -1,77 +1,137 @@
-<project name="wyscript" default="jarfile">  
-  <property name="version" value="0.1"/>
-
-  <!-- ============================================== -->
-  <!-- Build Commands -->
-  <!-- ============================================== -->
-
-  <target name="build">
-    <javac debug="true" debuglevel="vars,lines,source" source="1.6" includeantruntime="true" classpath=""> 
-      <src path="src"/>
-      <include name="*/**"/>
-      <exclude name="wyscript/testing/**"/> 
-      <exclude name="*/**/package-info.java"/> 
-    </javac>
-  </target>
-
-  <!-- ============================================== -->
-  <!-- Documenation --> 
-  <!-- ============================================== -->
-
-  <target name="doc">
-    <javadoc
-       destdir="docs/api"
-       author="true"
-       version="true"
-       use="true"
-       windowtitle="While Lang Compiler API">
-      <doctitle><![CDATA[<h1>The While Lang Compiler (v${version})</h1>]]></doctitle>
-      <bottom><![CDATA[<i>Copyright &#169; 2013 David J. Pearce. All Rights Reserved.</i>]]></bottom>
-      <packageset dir="src">
-	<include name="wyscript/**"/>
-	<exclude name="wyscript/testing/**"/>
-      </packageset>
-      </javadoc>
-  </target>
-
-  <!-- ============================================== -->
-  <!-- Distribution -->
-  <!-- ============================================== -->
-
-  <target name="jarfile" depends="build">
-    <mkdir dir="lib"/>
-    <mkdir dir="tmp"/>
-    <manifest file="tmp/MANIFEST.MF">
-      <attribute name="Built-By" value="${user.name}"/>
-      <attribute name="Main-Class" value="wyscript.Main"/>
-    </manifest>    
-    <jar destfile="lib/wyscript.jar" manifest="tmp/MANIFEST.MF">
-      <fileset dir="src">
-	<include name="wyscript/**/*.class"/>
-      </fileset>
-    </jar>
-    <delete dir="tmp"/>
-    <echo message="============================================="/>
-    <echo message="BUILT: lib/wyscript.jar"/>
-    <echo message="============================================="/>
-  </target>
-
-  <!-- ============================================== -->
-  <!-- Misc Commands -->
-  <!-- ============================================== -->
-
-  <target name="clean">
-    <delete includeEmptyDirs="true" failonerror="false">
-      <fileset file="*~"/>
-      <fileset dir="lib"/>
-      <fileset dir="dist"/>
-      <fileset dir="docs"/>
-      <fileset dir="tests">
-	<include name="**/*.class"/>
-	<include name="**/*.wyil"/>
-	<include name="**/*.o"/>
-      </fileset>
-    </delete>
-  </target>
-
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- WARNING: Eclipse auto-generated file.
+              Any modifications will be overwritten.
+              To include a user specific buildfile here, simply create one in the same
+              directory with the processing instruction <?eclipse.ant.import?>
+              as the first entry and export the buildfile again. -->
+<project basedir="." default="build" name="Wyscript">
+    <property environment="env"/>
+    <property name="ECLIPSE_HOME" value="../../../../../../../embassy/vol/x6/eclipse/eclipse-jee-juno-SR1-x86_64"/>
+    <property name="junit.output.dir" value="junit"/>
+    <property name="debuglevel" value="source,lines,vars"/>
+    <property name="target" value="1.6"/>
+    <property name="source" value="1.6"/>
+    <path id="JUnit 4.libraryclasspath">
+        <pathelement location="${ECLIPSE_HOME}/plugins/org.junit_4.10.0.v4_10_0_v20120426-0900/junit.jar"/>
+        <pathelement location="${ECLIPSE_HOME}/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>
+    </path>
+    <path id="Wyscript.classpath">
+        <pathelement location="bin"/>
+        <path refid="JUnit 4.libraryclasspath"/>
+        <pathelement location="../../../../../../../../u/students/antunomate/summer_research/jcuda_bin/JCuda-All-0.5.0b-bin-linux-x86_64/jcuda-0.5.0b.jar"/>
+    </path>
+    <target name="init">
+        <mkdir dir="bin"/>
+        <copy includeemptydirs="false" todir="bin">
+            <fileset dir="src">
+                <exclude name="**/*.launch"/>
+                <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+    </target>
+    <target name="clean">
+        <delete dir="bin"/>
+    </target>
+    <target depends="clean" name="cleanall"/>
+    <target depends="build-subprojects,build-project" name="build"/>
+    <target name="build-subprojects"/>
+    <target depends="init" name="build-project">
+        <echo message="${ant.project.name}: ${ant.file}"/>
+        <javac debug="true" debuglevel="${debuglevel}" destdir="bin" includeantruntime="false" source="${source}" target="${target}">
+            <src path="src"/>
+            <classpath refid="Wyscript.classpath"/>
+        </javac>
+    </target>
+    <target description="Build all projects which reference this project. Useful to propagate changes." name="build-refprojects"/>
+    <target description="copy Eclipse compiler jars to ant lib directory" name="init-eclipse-compiler">
+        <copy todir="${ant.library.dir}">
+            <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
+        </copy>
+        <unzip dest="${ant.library.dir}">
+            <patternset includes="jdtCompilerAdapter.jar"/>
+            <fileset dir="${ECLIPSE_HOME}/plugins" includes="org.eclipse.jdt.core_*.jar"/>
+        </unzip>
+    </target>
+    <target description="compile project with Eclipse compiler" name="build-eclipse-compiler">
+        <property name="build.compiler" value="org.eclipse.jdt.core.JDTCompilerAdapter"/>
+        <antcall target="build"/>
+    </target>
+    <target name="InterpreterValidTests">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.InterpreterValidTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="KernelWriterTests.test">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.KernelWriterTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="KernelWriterTests">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.KernelWriterTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="KernelWriterTests.test2">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.KernelWriterTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="KernelWriterTests.test3">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.KernelWriterTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="Main">
+        <java classname="wyscript.Main" failonerror="true" fork="yes">
+            <arg line="/home/state-opera1/antunomate/summer_research/wy_material/WyScript_fork/Wyscript/tests/valid/ParFor_Valid_1.wys"/>
+            <classpath refid="Wyscript.classpath"/>
+        </java>
+    </target>
+    <target name="InterpreterValidTests.ListAccess_Valid_4">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.InterpreterValidTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="InterpreterValidTests.ListAppend_Valid_7">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.InterpreterValidTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="InterpreterValidTests.parFor_Valid_1">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="wyscript.testing.InterpreterValidTests" todir="${junit.output.dir}"/>
+            <classpath refid="Wyscript.classpath"/>
+        </junit>
+    </target>
+    <target name="junitreport">
+        <junitreport todir="${junit.output.dir}">
+            <fileset dir="${junit.output.dir}">
+                <include name="TEST-*.xml"/>
+            </fileset>
+            <report format="frames" todir="${junit.output.dir}"/>
+        </junitreport>
+    </target>
 </project>

@@ -15,20 +15,22 @@ public class InterpreterValidTests {
 	// Test Harness
 	// ======================================================================
 
+
 	protected void runInterpreterTest(String name) {
 		// The name of the file which contains the output for this test
 		String sampleOutputFile = testdir + File.separatorChar + name
 				+ ".sysout";
 		// Classpath to project root
-		String classPath = "../../src";
-				
-		// First, execute the While program using the interpreter		
+		String classPath = "../../bin/";
+
+		// First, execute the While program using the interpreter
 		String output = TestUtils.exec(classPath, testdir, "wyscript.Main", name + ".wys");
-		
+
+
 		// Second, compare the output!
 		TestUtils.compare(output, sampleOutputFile);
 	}
- 
+
 	// ======================================================================
 	// Tests
 	// ======================================================================
@@ -106,6 +108,11 @@ public class InterpreterValidTests {
 	@Test
 	public void Cast_Valid_4() {
 		runInterpreterTest("Cast_Valid_4");
+	}
+
+	@Test
+	public void Cast_Valid_5() {
+		runInterpreterTest("Cast_Valid_5");
 	}
 
 	@Test
@@ -354,6 +361,21 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Normalize_Valid_1() {
+		runInterpreterTest("Normalize_Valid_1");
+	}
+
+	@Test
+	public void Normalize_Valid_2() {
+		runInterpreterTest("Normalize_Valid_2");
+	}
+
+	@Test
+	public void Normalize_Valid_3() {
+		runInterpreterTest("Normalize_Valid_3");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runInterpreterTest("RealDiv_Valid_1");
 	}
@@ -464,11 +486,6 @@ public class InterpreterValidTests {
 	}
 
 	@Test
-	public void Switch_Valid_2() {
-		runInterpreterTest("Switch_Valid_2");
-	}
-
-	@Test
 	public void Switch_Valid_3() {
 		runInterpreterTest("Switch_Valid_3");
 	}
@@ -491,6 +508,11 @@ public class InterpreterValidTests {
 	@Test
 	public void Switch_Valid_8() {
 		runInterpreterTest("Switch_Valid_8");
+	}
+
+	@Test
+	public void Switch_Valid_9() {
+		runInterpreterTest("Switch_Valid_9");
 	}
 
 	@Test

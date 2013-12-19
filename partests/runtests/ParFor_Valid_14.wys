@@ -1,0 +1,12 @@
+void main():
+	[int] a = 0..400
+	parFor i in 0..|a|:
+		[int] b = [1,2,3]
+		a[i] = b[0]
+	for i in 0..|a|:
+		if (a[i] == 1):
+		else:
+			print "fail"
+			print a
+			return
+	print "success"

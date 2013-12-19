@@ -28,13 +28,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-import wyscript.util.SyntaxError;
+import wyscript.error.LexerErrorData;
+import static wyscript.error.LexerErrorHandler.handle;
 
 /**
  * Responsible for turning a stream of characters into a sequence of tokens.
- * 
- * @author Daivd J. Pearce
- * 
+ *
+ * @author David J. Pearce
+ *
  */
 public class Lexer {
 
@@ -67,32 +68,74 @@ public class Lexer {
 	/**
 	 * Scan all characters from the input stream and generate a corresponding
 	 * list of tokens, whilst discarding all whitespace and comments.
-	 * 
+	 * Stores a list of all errors encountered, in order to be able to
+	 * attempt error recovery
+	 *
 	 * @return
 	 */
 	public List<Token> scan() {
 		ArrayList<Token> tokens = new ArrayList<Token>();
+		ArrayList<LexerErrorData> errors = new ArrayList<LexerErrorData>();
 		pos = 0;
 
-		while (pos < input.length()) {
+		outer: while (pos < input.length()) {
 			char c = input.charAt(pos);
 
 			if (Character.isDigit(c)) {
 				tokens.add(scanNumericConstant());
 			} else if (c == '"') {
-				tokens.add(scanStringConstant());
+				tokens.add(scanStringConstant(errors));
 			} else if (c == '\'') {
-				tokens.add(scanCharacterConstant());
-			} else if (isOperatorStart(c)) {
-				tokens.add(scanOperator());
+				tokens.add(scanCharacterConstant(errors));
+			}
+
+			//Attempt to scan a comment
+			else if(c == '/' && pos < input.length()-1) {
+
+				//Single line comment
+				if (input.charAt(pos+1) == '/') {
+					pos = pos+2;
+					while (pos < input.length()) {
+						if (input.charAt(pos) == '\n') {
+							pos++;
+							continue outer;
+						}
+						pos++;
+					}
+				}
+				//Multi-line comment
+				else if(input.charAt(pos+1) == '*') {
+					pos = pos+2;
+					while (pos < input.length()-1) {
+						if (input.charAt(pos) == '*' &&
+								input.charAt(pos+1) == '/') {
+							pos += 2;
+							continue outer;
+						}
+						pos++;
+					}
+					errors.add(new LexerErrorData(pos+1, filename, input.charAt(pos),
+							LexerErrorData.ErrorType.MISSING_COMMENT_END));
+				}
+				else {
+					//Attempt to parse a divide operator
+					tokens.add(scanOperator(errors));
+				}
+			}
+
+			else if (isOperatorStart(c)) {
+				tokens.add(scanOperator(errors));
 			} else if (Character.isJavaIdentifierStart(c)) {
 				tokens.add(scanIdentifier());
 			} else if(Character.isWhitespace(c)) {
-				scanWhiteSpace(tokens);
+				scanWhiteSpace(tokens, errors);
 			} else {
-				syntaxError("syntax error");
+				//Skip over the offending token for now
+				errors.add(new LexerErrorData(pos++, filename, c, LexerErrorData.ErrorType.INVALID_CHARACTER));
 			}
 		}
+		if (!errors.isEmpty())
+			handle(errors);
 
 		return tokens;
 	}
@@ -100,7 +143,7 @@ public class Lexer {
 	/**
 	 * Scan a numeric constant. That is a sequence of digits which gives either
 	 * an integer constant, or a real constant (if it includes a dot).
-	 * 
+	 *
 	 * @return
 	 */
 	public Token scanNumericConstant() {
@@ -116,12 +159,34 @@ public class Lexer {
 				return new Token(Token.Kind.IntValue, input.substring(start,
 						pos), start);
 			}
+			boolean exp = false;
+			int expPos = -1;
 			while (pos < input.length() && Character.isDigit(input.charAt(pos))) {
 				pos = pos + 1;
+
+				//Handle exponents
+				if (pos < input.length()-2 && (input.charAt(pos)) == 'E' && !exp) {
+
+					expPos = pos;
+					exp = true;
+					pos = pos+1;
+
+					if (input.charAt(pos) == '+' || input.charAt(pos) == '-') {
+						pos = pos+1;
+						if (Character.isDigit(input.charAt(pos)))
+							continue;
+					}
+
+					//Parsing an exponent failed, so reset position
+					pos = expPos;
+				}
 			}
+
 			return new Token(Token.Kind.RealValue, input.substring(start, pos),
 					start);
-		} else {
+		}
+
+		else {
 			return new Token(Token.Kind.IntValue, input.substring(start, pos),
 					start);
 		}
@@ -132,10 +197,10 @@ public class Lexer {
 	 * taken to properly handle escape codes. For example, '\n' is a single
 	 * character constant which is made up from two characters in the input
 	 * string.
-	 * 
+	 *
 	 * @return
 	 */
-	public Token scanCharacterConstant() {
+	public Token scanCharacterConstant(List<LexerErrorData> errors) {
 		int start = pos;
 		pos++;
 		char c = input.charAt(pos++);
@@ -149,18 +214,21 @@ public class Lexer {
 				c = '\n';
 				break;
 			default:
-				syntaxError("unrecognised escape character", pos);
+				errors.add(new LexerErrorData(pos-1, filename, input.charAt(pos-1), LexerErrorData.ErrorType.INVALID_ESCAPE));
+				c = '\n';
 			}
 		}
 		if (input.charAt(pos) != '\'') {
-			syntaxError("unexpected end-of-character", pos);
+			//This simulates adding a closing quote
+			pos--;
+			errors.add(new LexerErrorData(pos, filename, input.charAt(pos), LexerErrorData.ErrorType.MISSING_CHAR_END));
 		}
 		pos = pos + 1;
 		return new Token(Token.Kind.CharValue, input.substring(start, pos),
 				start);
 	}
-	
-	public Token scanStringConstant() {
+
+	public Token scanStringConstant(List<LexerErrorData> errors) {
 		int start = pos;
 		pos++;
 		while (pos < input.length()) {
@@ -171,14 +239,14 @@ public class Lexer {
 			}
 			pos = pos + 1;
 		}
-		syntaxError("unexpected end-of-string", pos - 1);
-		return null;
+		errors.add(new LexerErrorData(pos-1, filename, null, LexerErrorData.ErrorType.MISSING_STRING_END));
+		return new Token(Token.Kind.StringValue, input.substring(start, pos), start);
 	}
 
-	
+
 	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
-			'-', '*', '/', '%', '!', '?', '=', '<', '>', ':', ';', '&', '|',
-			'.', '~' };
+			'-', '*', '/', '%', '!', '=', '<', '>', ':', ';', '&', '|',
+			'.'};
 
 	public boolean isOperatorStart(char c) {
 		for (char o : opStarts) {
@@ -189,25 +257,31 @@ public class Lexer {
 		return false;
 	}
 
-	public Token scanOperator() {
+	public Token scanOperator(List<LexerErrorData> errors) {
 		char c = input.charAt(pos);
 
 		switch(c) {
-		case '.':		
+		case '.':
 			if((pos+1) < input.length() && input.charAt(pos+1) == '.') {
 				pos = pos + 2;
 				return new Token(Token.Kind.DotDot,"..",pos);
 			} else {
 				return new Token(Token.Kind.Dot,".",pos++);
-			}			
+			}
 		case  ',':
 			return new Token(Token.Kind.Comma,",",pos++);
 		case  ';':
 			return new Token(Token.Kind.SemiColon,";",pos++);
 		case ':':
 			return new Token(Token.Kind.Colon,":",pos++);
+
 		case '|':
-			return new Token(Token.Kind.VerticalBar,"|",pos++);
+			if((pos+1) < input.length() && input.charAt(pos+1) == '.') {
+				pos = pos+2;
+				return new Token(Token.Kind.LogicalOr, "||", pos);
+			}
+				return new Token(Token.Kind.VerticalBar,"|",pos++);
+
 		case '(':
 			return new Token(Token.Kind.LeftBrace,"(",pos++);
 		case ')':
@@ -227,7 +301,7 @@ public class Lexer {
 			} else {
 				return new Token(Token.Kind.Plus,"+",pos++);
 			}
-		case '-':			
+		case '-':
 			return new Token(Token.Kind.Minus,"-",pos++);
 		case '*':
 			return new Token(Token.Kind.Star,"*",pos++);
@@ -237,10 +311,10 @@ public class Lexer {
 				pos += 2;
 				return new Token(Token.Kind.LogicalAnd,"&&", pos - 2);
 			}
-			break;	
-		case '/':			
+			break;
+		case '/':
 			return new Token(Token.Kind.RightSlash,"/",pos++);
-		case '%':			
+		case '%':
 			return new Token(Token.Kind.Percent,"%",pos++);
 		case '!':
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
@@ -270,12 +344,15 @@ public class Lexer {
 			} else {
 				return new Token(Token.Kind.RightAngle,">",pos++);
 			}
-		} 
+		}
 
-		syntaxError("unknown operator encountered: " + c);
-		return null;
+		//Shouldn't be possible, but will handle it anyway
+		errors.add(new LexerErrorData(pos, filename, c, LexerErrorData.ErrorType.INVALID_OP));
+
+		//Semicolon is not used for anything, so makes a good dud value
+		return new Token(Token.Kind.SemiColon, ";", pos++);
 	}
-	
+
 	public Token scanIdentifier() {
 		int start = pos;
 		while (pos < input.length()
@@ -292,8 +369,8 @@ public class Lexer {
 		}
 		return new Token(kind, text, start);
 	}
-	
-	public void scanWhiteSpace(List<Token> tokens) {
+
+	public void scanWhiteSpace(List<Token> tokens, List<LexerErrorData> errors) {
 		while (pos < input.length()
 				&& Character.isWhitespace(input.charAt(pos))) {
 			if (input.charAt(pos) == ' ' || input.charAt(pos) == '\t') {
@@ -308,16 +385,19 @@ public class Lexer {
 						pos + 2), pos));
 				pos = pos + 2;
 			} else {
-				syntaxError("unknown whitespace character encounterd: \""
-						+ input.charAt(pos));
+				errors.add(new LexerErrorData(pos, filename, input.charAt(pos),
+						LexerErrorData.ErrorType.INVALID_WHITESPACE));
+
+				//Just skip over the bad whitespace
+				pos++;
 			}
 		}
 	}
-	
+
 	/**
 	 * Scan one or more spaces or tab characters, combining them to form an
 	 * "indent".
-	 * 
+	 *
 	 * @return
 	 */
 	public Token scanIndent() {
@@ -328,11 +408,11 @@ public class Lexer {
 		}
 		return new Token(Token.Kind.Indent, input.substring(start, pos), start);
 	}
-		
+
 	/**
 	 * Skip over any whitespace at the current index position in the input
 	 * string.
-	 * 
+	 *
 	 * @param tokens
 	 */
 	public void skipWhitespace(List<Token> tokens) {
@@ -340,28 +420,6 @@ public class Lexer {
 				&& (input.charAt(pos) == '\n' || input.charAt(pos) == '\t')) {
 			pos++;
 		}
-	}
-
-	/**
-	 * Raise a syntax error with a given message at given index.
-	 * 
-	 * @param msg
-	 *            --- message to raise.
-	 * @param index
-	 *            --- index position to associate the error with.
-	 */
-	private void syntaxError(String msg, int index) {
-		throw new SyntaxError(msg, filename, index, index);
-	}
-
-	/**
-	 * Raise a syntax error with a given message at the current index.
-	 * 
-	 * @param msg
-	 * @param index
-	 */
-	private void syntaxError(String msg) {
-		throw new SyntaxError(msg, filename, pos, pos);
 	}
 
 	/**
@@ -375,14 +433,18 @@ public class Lexer {
 			put("int", Token.Kind.Int);
 			put("real", Token.Kind.Real);
 			put("char", Token.Kind.Char);
-			put("string", Token.Kind.String);			
+			put("string", Token.Kind.String);
 			put("true", Token.Kind.True);
 			put("false", Token.Kind.False);
 			put("if", Token.Kind.If);
 			put("else", Token.Kind.Else);
 			put("switch", Token.Kind.Switch);
+			put("case", Token.Kind.Case);
+			put("next", Token.Kind.Next);
+			put("default", Token.Kind.Default);
 			put("while", Token.Kind.While);
 			put("for", Token.Kind.For);
+			put("parFor",Token.Kind.parFor);
 			put("print", Token.Kind.Print);
 			put("return", Token.Kind.Return);
 			put("constant", Token.Kind.Constant);
@@ -390,45 +452,50 @@ public class Lexer {
 			put("is", Token.Kind.Is);
 			put("in", Token.Kind.In);
 		}
-	};	
-	
+	};
+
 	/**
 	 * The base class for all tokens.
-	 * 
+	 *
 	 * @author David J. Pearce
-	 * 
+	 *
 	 */
 	public static class Token {
 
-		public enum Kind {			
+		public enum Kind {
 			Identifier,
 			// Keywords
 			True { public String toString() { return "true"; }},
 			False { public String toString() { return "true"; }},
 			Null { public String toString() { return "null"; }},
 			Void { public String toString() { return "void"; }},
-			Bool { public String toString() { return "Bool"; }},
-			Int { public String toString() { return "Int"; }},
-			Real { public String toString() { return "Real"; }},
-			Char { public String toString() { return "Char"; }},
-			String { public String toString() { return "String"; }},
+			Bool { public String toString() { return "bool"; }},
+			Int { public String toString() { return "int"; }},
+			Real { public String toString() { return "real"; }},
+			Char { public String toString() { return "char"; }},
+			String { public String toString() { return "string"; }},
 			If { public String toString() { return "if"; }},
 			Switch { public String toString() { return "switch"; }},
+			Case { public String toString() { return "case"; }},
+			Next { public String toString() { return "next"; }},
+			Default { public String toString() { return "default"; }},
 			While { public String toString() { return "while"; }},
 			Else { public String toString() { return "else"; }},
 			Is { public String toString() { return "is"; }},
 			In { public String toString() { return "in"; }},
 			For { public String toString() { return "for"; }},
+			parFor {public String toString() { return "parFor";} },
 			Debug { public String toString() { return "debug"; }},
 			Print { public String toString() { return "print"; }},
 			Return { public String toString() { return "return"; }},
 			Constant { public String toString() { return "constant"; }},
-			Type { public String toString() { return "type"; }},			
-			// Constants
-			RealValue,
-			IntValue,
-			CharValue,
-			StringValue,
+			Type { public String toString() { return "type"; }},
+			// Constants (Given a toString for error handling purposes)
+			RealValue { public String toString() { return "real"; }},
+			IntValue { public String toString() { return "int"; }},
+			CharValue { public String toString() { return "char"; }},
+			StringValue { public String toString() { return "string"; }},
+			ConstantType {public String toString() { return "int or string constant"; }},
 			// Symbols
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
@@ -459,11 +526,17 @@ public class Lexer {
 			GreaterEquals { public String toString() { return ">="; }},
 			LogicalAnd { public String toString() { return "&&"; }},
 			LogicalOr { public String toString() { return "||"; }},
-			// Other			
-			NewLine,
-			Indent			
+			// Other
+			NewLine { public String toString() { return "\\n"; }},
+			Indent,
+
+			//Used by error handler to identify expected types
+			ExprLval { public String toString() { return "variable, list access, or record access"; }},
+			Expression { public String toString() { return "<<Expression>>"; }},
+			Statement { public String toString() { return "<<Statement>>"; }},
+			Type2 { public String toString() { return "<<Type>>"; }}
 		}
-		
+
 		public final Kind kind;
 		public final String text;
 		public final int start;
@@ -477,5 +550,5 @@ public class Lexer {
 		public int end() {
 			return start + text.length() - 1;
 		}
-	}	
+	}
 }

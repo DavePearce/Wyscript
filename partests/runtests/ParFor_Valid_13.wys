@@ -1,0 +1,16 @@
+void main():
+	[int] a = 0..400
+	[int] b = 0..400
+	[int] c = 0..400
+	[int] d = 0..400
+	parFor i in 0..|a|:
+		int result = a[i]+b[i]+c[i]
+		result = result/3
+		c[i] = result
+	for i in 0..|a|:
+		if (d[i] == a[i]):
+
+		else:
+			print "fail"
+			return
+	print "success"

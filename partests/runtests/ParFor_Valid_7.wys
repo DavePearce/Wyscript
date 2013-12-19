@@ -1,0 +1,9 @@
+void main():
+	[int] x = [0,1,2,3,4,5,6]
+	[int] y = 0..|x|
+	parFor i in 0..|y|:
+		int xv = x[i]
+		int yv = y[i]
+		y[i] = xv*xv + yv*yv - (xv + yv)
+	for i in 0..|y|:
+		print y[i]

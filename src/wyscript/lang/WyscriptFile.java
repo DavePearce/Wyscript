@@ -25,7 +25,7 @@ import wyscript.util.Attribute;
 import wyscript.util.SyntacticElement;
 
 public class WyscriptFile {
-
+	
 	public final String filename;
 
 	public final ArrayList<Decl> declarations;

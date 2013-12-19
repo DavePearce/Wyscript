@@ -1,0 +1,5 @@
+void main():
+	[int] c = [0,0,0,0,0]
+	parFor i in 0..|c|:
+		int x = 3
+		c[i] = c[i] + x

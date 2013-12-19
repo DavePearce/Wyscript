@@ -1,3 +1,17 @@
-tests/valid/Switch_Valid_8.while:6: identifier expected
-    switch(c) {
-    ^^^^^^
+constant Red is 1
+constant Blue is 2
+constant Green is 3
+
+int f(int c):
+    switch(c):
+        case Red:
+            return 123
+        case Blue:
+            return 234
+        default:
+            return 456
+
+void main():
+    print "NUM: " ++ f(Red)
+    print "NUM: " ++ f(Green)
+    print "NUM: " ++ f(Blue)

@@ -1,0 +1,8 @@
+void main():
+    [int] v = [1,2,3,4]
+    parFor i in 0..|v|:
+        int x = v[i]
+        x = x + 1
+        v[i] = x
+    for i in 0..|v|:
+        print v[i]
