@@ -9,8 +9,12 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
 import org.junit.*;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 
@@ -18,7 +22,7 @@ public class JavaScriptValidTests {
 	/**
 	 * Path to test directory.
 	 */
-	private String testdir = "tests/valid/";
+	private static String testdir = "tests/valid/";
 
 	// ======================================================================
 	// Test Harness
@@ -34,26 +38,26 @@ public class JavaScriptValidTests {
 
 		// Classpath to project root
 		String classPath = "../../src";
-		
+
 		// First, we need to compile the given test into javascript
 		String errors = TestUtils.exec(classPath, testdir, "wyscript.Main", "-js", name + ".wys");
-		
+
 		if(!errors.equals("")) {
 			System.err.println(errors);
 			fail(errors);
 		}
-		
-		// Second, execute the generated JavaScript Program. 
+
+		// Second, execute the generated JavaScript Program.
 		String output = execJavaScript(generatedJavaScriptFile);
 
 		// Third, compare the output!
 		TestUtils.compare(output,sampleOutputFile);
 	}
-	
+
 	/**
 	 * Execute the main() method on a given (generated) Javascript file, and
 	 * capture the output.
-	 * 
+	 *
 	 * @param filename Filename of generated JavaScript source file.
 	 * @return
 	 */
@@ -70,6 +74,12 @@ public class JavaScriptValidTests {
 
 	      ScriptableObject.putConstProperty(scope, "sysout", sysout);
 	      ScriptableObject.putConstProperty(scope, "syserr", syserr);
+
+	      //Set up the library
+	      String lib = testdir + File.separatorChar + "$_.js";
+	      Reader library = new FileReader(new File(lib));
+	      cxt.evaluateReader(scope, library, lib, 1, null);
+
 	      cxt.evaluateReader(scope, file, filename, 1, null);
 	      cxt.evaluateString(scope, "main()", "main", 1, null);
 
@@ -84,7 +94,7 @@ public class JavaScriptValidTests {
 
 	    return null;
 	  }
-	
+
 	// ======================================================================
 	// Tests
 	// ======================================================================
