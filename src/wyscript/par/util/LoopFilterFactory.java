@@ -46,7 +46,7 @@ public class LoopFilterFactory {
 	 * @return
 	 */
 	public static Category classify(Stmt.ParFor loop) {
-		Category category = Category.GPU_NOTALOOP;
+		Category category = Category.GPU_IMPLICIT_NONNESTED;
 		if (loop.getBody().size() == 1) {
 			Stmt stmt = loop.getBody().get(0);
 			//this loop may be implicit

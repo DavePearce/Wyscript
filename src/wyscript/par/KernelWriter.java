@@ -21,6 +21,7 @@ import wyscript.par.loop.GPUSingleLoop;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
 import wyscript.par.util.LoopModule;
+import wyscript.par.util.WrappedIndex;
 import wyscript.util.SyntaxError.InternalFailure;
 
 
@@ -186,6 +187,9 @@ public class KernelWriter {
 				tokens.add(part);
 			}
 		}
+		String otherIndices = "int index_x = blockIdx.x * blockDim.x + threadIdx.x;\n"+
+				"int index_y = blockIdx.y * blockDim.y + threadIdx.y;";
+		tokens.add(otherIndices);
 	}
 	/**
 	 * Convert a single statement to its appropriate kernel form. The statement must
@@ -240,7 +244,7 @@ public class KernelWriter {
 	 * @requires expression is of an acceptable type and has appropriate parameters
 	 * @ensures the Cuda form of the expression is written to the token list
 	 */
-	private void write(Expr expression,List<String> tokens) {
+	public void write(Expr expression,List<String> tokens) {
 		if (expression instanceof Expr.ListConstructor) {
 			write((Expr.ListConstructor) expression,tokens);
 		}
@@ -478,49 +482,10 @@ public class KernelWriter {
 	 * @param outer
 	 */
 	private void write2DIndexOf(List<String> tokens, Expr.IndexOf indexOf) {
-		Expr indexSrc = indexOf.getSource();
-		Expr outerIndex = indexOf.getIndex();
-		if (indexSrc instanceof Expr.IndexOf) {
-			//the source is an index!
-			Expr innerSrc = ((Expr.IndexOf) indexOf).getSource();
-			//check if this indeed a nested indexof operation
-			if (innerSrc instanceof Expr.IndexOf) {
-				Expr innerInnerSrc = ((IndexOf) innerSrc).getSource();
-				Expr innerIndex = ((Expr.IndexOf) innerSrc).getIndex();
-				//the finally-indexed value must be a variable
-				if (innerInnerSrc instanceof Expr.Variable) {
-					Expr.Variable variable = (Variable) innerInnerSrc;
-					if (gpuLoop instanceof GPUNestedLoop) {
-						GPUNestedLoop nestedLoop = (GPUNestedLoop) gpuLoop;
-						//now tested whether investigating variables or not
-						if (outerIndex instanceof Expr.Variable && innerIndex
-								instanceof Expr.Variable) {
-							Expr.Variable outerIndexVar = (Variable) outerIndex;
-							Expr.Variable innerIndexVar = (Variable) innerIndex;
-							//compare these variables to those of the nested loop
-							if (outerIndexVar.getName().equals(((GPUNestedLoop) gpuLoop).getInnerIndexVar().getName())
-								&& innerIndexVar.getName().equals(((GPUNestedLoop) gpuLoop).getIndexVar().getName())){
-								//success! we can write the loop index we so desire
-								tokens.add(variable.getName());
-								tokens.add("[");
-								tokens.add(index2D());
-								tokens.add("]");
-							}
-						}else {
-							//no way this is indexof for implicit-nested
-							//therefore go ahead with writing expression
-						}
-					}else {
-						//the loop is not a nested one
-						//however it is still possible to support nested index-ofs
-					}
-				}else {
-					//this indexof isn't for a variable.
-				}
-			}else {
-				//no idea
-			}
-		}
+		WrappedIndex indexWrapped = new WrappedIndex(this,indexOf, gpuLoop);
+		//TODO index_x and index_y will fail if these are kernel arguments
+		List<String> out = indexWrapped.getTokens(index2D(), "index_x", "index_y");
+		tokens.addAll(out);
 	}
 
 	private String index2D() {
@@ -612,7 +577,7 @@ public class KernelWriter {
 		}
 		environment.put(decl.getName(), type);
 	}
-	private void write(Stmt.While whileloop) {
+	private void write(Stmt.While whileloop , List<String> tokens) {
 		tokens.add("while");
 		tokens.add("(");
 		write(whileloop.getCondition(),tokens);

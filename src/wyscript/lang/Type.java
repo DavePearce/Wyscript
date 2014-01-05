@@ -253,6 +253,10 @@ public interface Type extends SyntacticElement {
 
 			return element.equals(((Type.List)o).element);
 		}
+
+		public String toString() {
+			return "["+element.toString()+"]";
+		}
 	}
 
 	/**
