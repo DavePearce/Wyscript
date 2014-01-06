@@ -273,16 +273,9 @@ public class Interpreter {
 		return null;
 	}
 	private Object execute(Stmt.ParFor stmt, HashMap<String,Object> frame) {
-		if (stmt.getRunner() == null) { //the runner is not available, default
-			List src = (List) execute(stmt.getSource(), frame);
-			String index = stmt.getIndex().getName();
-			for (Object item : src) {
-				frame.put(index, item);
-				Object ret = execute(stmt.getBody(), frame);
-				if (ret != null) {
-					return ret;
-				}
-			}
+		if (stmt.getRunner() == null) { //the runner is not available, must fail
+			InternalFailure.internalFailure("Could not execute ParFor. " +
+					"KernelRunner was not found", file.filename, stmt);
 		}else {
 			Object out = stmt.getRunner().run(frame);
 			return out;
@@ -724,48 +717,48 @@ public class Interpreter {
 	 * @return
 	 */
 	private void boundCalculate(Stmt.BoundCalc calc , HashMap<String,Object> frame) {
-		Expr expr1 = calc.getOuter();
-		Expr expr2 = calc.getInner();
-		if (expr1 == null) {
+		Expr outer = calc.getOuter();
+		Expr inner = calc.getInner();
+		if (outer == null) {
 			calc.setLowX(-1);
 			calc.setHighX(-1);
 		}
-		else if (expr1 instanceof Expr.Binary) {
-			Expr.Binary binary = (Binary) expr1;
+		else if (outer instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) outer;
 			int left = (Integer) execute(binary.getLhs(), frame);
 			int right = (Integer) execute(binary.getRhs(), frame);
 			calc.setLowX(left);
 			calc.setHighX(right);
 		}else{
 			//expression must be a list
-			Object value = execute(expr1, frame);
+			Object value = execute(outer, frame);
 			if (value instanceof List<?>){
 				calc.setLowX(0);
 				calc.setHighX(((List<?>) value).size());
 			}else{
 				InternalFailure.internalFailure("Could not interpret loop expression",
-						file.filename, expr1);
+						file.filename, outer);
 			}
 		}
-		if (expr2 == null) {
+		if (inner == null) {
 			calc.setLowY(-1);
 			calc.setHighY(-1);
 		}
-		else if (expr2 instanceof Expr.Binary) {
-			Expr.Binary binary = (Binary) expr2;
+		else if (inner instanceof Expr.Binary) {
+			Expr.Binary binary = (Binary) inner;
 			int left = (Integer) execute(binary.getLhs(), frame);
 			int right = (Integer) execute(binary.getRhs(), frame);
 			calc.setLowY(left);
 			calc.setHighY(right);
 		}else{
 			//expression must be a list
-			Object value = execute(expr2, frame);
+			Object value = execute(inner, frame);
 			if (value instanceof List<?>){
 				calc.setLowY(0);
 				calc.setHighY(((List<?>) value).size());
 			}else{
 				InternalFailure.internalFailure("Could not interpret loop expression",
-						file.filename, expr2);
+						file.filename, inner);
 			}
 		}
 	}

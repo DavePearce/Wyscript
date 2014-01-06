@@ -17,7 +17,6 @@ import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
 import wyscript.par.loop.GPULoop;
-import wyscript.par.util.LoopFilterFactory;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import wyscript.util.TypeChecker;
@@ -84,9 +83,7 @@ public class KernelGenerator {
 			env = getEnvironment(statement, file , env);
 			if (statement instanceof Stmt.ParFor) {
 				Stmt.ParFor loop = (Stmt.ParFor) statement;
-				String indexName = loop.getIndex().getName();
 				HashMap<String,Type> newEnv = new HashMap<String,Type>(env);
-//				newEnv.put(indexName, new Type.Int());
 				String filename = funcname + Integer.toString(loopPosition);
 				KernelRunner runner = generateForKernel((Stmt.ParFor)statement
 						, newEnv , filename);
@@ -129,7 +126,7 @@ public class KernelGenerator {
 	public static KernelRunner generateForKernel(Stmt.ParFor loop ,
 			HashMap<String,Type> environment , String filename) {
 		//writer = new KernelWriter(id, environment, loop);
-		GPULoop gpuLoop = LoopFilterFactory.produceLoop(loop);
+		GPULoop gpuLoop = new GPULoop(loop);
 		gpuLoop.initialiseArguments(environment);
 		LoopModule module = new LoopModule(filename, environment, gpuLoop);
 		KernelWriter writer = new KernelWriter(module);

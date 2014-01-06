@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,24 +16,31 @@ import wyscript.lang.Expr.Binary;
 import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
 import wyscript.lang.Stmt;
+import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
-import wyscript.par.loop.GPUNestedLoop;
-import wyscript.par.loop.GPUSingleLoop;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
+import wyscript.par.util.Argument.Length2D;
 import wyscript.par.util.LoopModule;
-import wyscript.par.util.WrappedIndex;
 import wyscript.util.SyntaxError.InternalFailure;
 
 
 public class KernelWriter {
+	private String yIndexName = "index_y";
+	private String xIndexName = "index_x";
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
 	private String indexName1D = "i";
 	private String indexName2D = "j";
 	private String name;
-	private Map<String, Type> environment;
-	private List<String> tokens = new ArrayList<String>();
 
+	private Map<String, Type> environment;
+	/*
+	 * The indexVarMap
+	 */
+	private Map<String,String> indexvarMap = new HashMap<String,String>();
+	
+	private List<String> tokens = new ArrayList<String>();
+	private Stmt.ParFor loop;
 	private GPULoop gpuLoop;
 
 	private String ptxFileName;
@@ -43,6 +51,7 @@ public class KernelWriter {
 	 */
 	public KernelWriter(LoopModule module) {
 		this.gpuLoop = module.getGPULoop();
+		this.loop = gpuLoop.getLoop();
 		this.environment = module.getEnvironment();
 		this.name = module.getName();
 		writeAll();
@@ -138,13 +147,20 @@ public class KernelWriter {
 				if (needAnd) {
 					guard.add("&&");
 				}
-				guard.add(index2D());
+				Length2D height = (Length2D) arguments.get(a+1);
+				Length2D width = (Length2D) arguments.get(a+2);
+				if (width.isHeight) {
+					Length2D temp = width;
+					width = height;
+					height = temp;
+				}
+				guard.add(xIndexName);
 				guard.add("<");
-				Argument heightOrWidth1 = arguments.get(a+1);
-				Argument heightOrWidth2 = arguments.get(a+2);
-				guard.add("(*"+gpuLoop.kernelName(heightOrWidth1)+")");
-				guard.add("*");
-				guard.add("(*"+gpuLoop.kernelName(heightOrWidth2)+")");
+				guard.add("(*"+gpuLoop.kernelName(height)+")");
+				guard.add("&&");
+				guard.add(yIndexName);
+				guard.add("<");
+				guard.add("(*"+gpuLoop.kernelName(width)+")");
 				needAnd = true;
 			}
 		}
@@ -166,29 +182,12 @@ public class KernelWriter {
 		while (gpuLoop.isArgument(indexName2D)) {
 			indexName2D = "j"+Integer.toString(alias++);
 		}
-		if (gpuLoop instanceof GPUSingleLoop) { //simply write this since it works
-			tokens.add("int");
-			tokens.add(index1D());
-			tokens.add("=");
-			tokens.add("blockIdx.x");
-			tokens.add("*");
-			tokens.add("blockDim.x");
-			tokens.add("+");
-			tokens.add("threadIdx.x");
-			tokens.add(";");
-		}else {
-			//the 2D index
-			String formula = "threadIdx.x + ( blockDim.x * ( ( gridDim.x * blockIdx.y ) + blockIdx.x) ) ;";
-			String[] parts = formula.split("\\s+");
-			tokens.add("int");
-			tokens.add(index2D());
-			tokens.add("=");
-			for (String part : parts) {
-				tokens.add(part);
-			}
-		}
+		String firstIndex1D = "int "+indexName1D+" = blockIdx.x * blockDim.x * blockDim.y + threadIdx.y * blockDim.x + threadIdx.x;\n";
+		String firstIndex2D = "int "+indexName2D+" = (blockIdx.x + blockIdx.y * gridDim.x) * (blockDim.x * blockDim.y) + (threadIdx.y * blockDim.x) + threadIdx.x;\n";
 		String otherIndices = "int index_x = blockIdx.x * blockDim.x + threadIdx.x;\n"+
 				"int index_y = blockIdx.y * blockDim.y + threadIdx.y;";
+		tokens.add(firstIndex1D);
+		tokens.add(firstIndex2D);
 		tokens.add(otherIndices);
 	}
 	/**
@@ -213,8 +212,6 @@ public class KernelWriter {
 			write((Stmt.While)statement,tokens);
 		}else if (statement instanceof Stmt.For) {
 			write((Stmt.For)statement,tokens);
-//			InternalFailure.internalFailure("Encountered syntactic element not " +
-//					"supported in parFor loop", name, statement);
 		}
 		else {
 			InternalFailure.internalFailure("Encountered syntactic element not " +
@@ -247,11 +244,12 @@ public class KernelWriter {
 	public void write(Expr expression,List<String> tokens) {
 		if (expression instanceof Expr.ListConstructor) {
 			write((Expr.ListConstructor) expression,tokens);
+		}else if (expression instanceof Expr.Variable) {
+			//Have to write variable before expression
+			write((Expr.Variable) expression,tokens);
 		}
 		else if (expression instanceof Expr.LVal) {
 			write((Expr.LVal)expression,tokens);
-		}else if (expression instanceof Expr.Variable) {
-			write((Expr.Variable) expression,tokens);
 		}else if (expression instanceof Expr.Constant) {
 			write((Expr.Constant) expression,tokens);
 		}else if (expression instanceof Expr.IndexOf) {
@@ -284,16 +282,48 @@ public class KernelWriter {
 			Expr.Variable variable = (Expr.Variable) val;
 			//simply add the variable name
 			String name = variable.getName();
-			Variable loopVar = gpuLoop.getIndexVar();
-			if (name.equals(loopVar.getName())) {
-				tokens.add(index1D());
-			}else {
+			//check no assignment to loop indices is done
+			if (name.equals(loop.indexX.getName())) {
+				InternalFailure.internalFailure("Cannot assign first index to different value", ptxFileName, variable);
+			}else if (loop.indexY != null && name.equals(loop.indexY.getName())){
+				InternalFailure.internalFailure("Cannot assign second index to different value", ptxFileName, variable);
+			}
+			else if (loop.indexZ != null && name.equals(loop.indexZ.getName())) {
+				InternalFailure.internalFailure("Cannot assign third index to different value", ptxFileName, variable);
+			}
+			else {
 				tokens.add(name);
 			}
 		}else if (val instanceof Expr.IndexOf) {
 			write((Expr.IndexOf)val,tokens);
 		}
 
+	}
+	/**
+	 * Writes a single Expr.Variable to the kernel.
+	 * @param var
+	 *
+	 * @ensures A variable is written with the correct referencing
+	 * and referencing of pointers.
+	 */
+	private void write(Expr.Variable variable, List<String> tokens) {
+			//if this is a parameter, have to dereference the pointer
+			if (gpuLoop.isArgument((variable.getName()))) {
+				tokens.add("(");
+				tokens.add("*");
+				//simply add the variable name
+				tokens.add(variable.getName());
+				tokens.add(")");
+			}else if (variable.getName().equals(loop.indexX.getName())) {
+				//writing a variable that is equal to the x index.
+				//convert it to the x index form
+				tokens.add(xIndexName);
+			}else if  (loop.indexY !=null && variable.getName().equals(loop.indexY.getName())){
+				//writing the y index
+				tokens.add(yIndexName);
+			}else{
+				tokens.add(variable.getName());
+			}
 	}
 	/**
 	 * Here a nested loop is being written
@@ -470,7 +500,7 @@ public class KernelWriter {
 				InternalFailure.internalFailure("Can only perform indexof on list", name, indexOf);
 			}
 		}else if (src instanceof Expr.IndexOf) {
-			write2DIndexOf(tokens, indexOf);
+			writeNestedIndexOf(tokens, indexOf , (Expr.IndexOf)src);
 		}else {
 			InternalFailure.internalFailure("Expected source type to be of type list", name, indexOf.getSource());
 		}
@@ -478,14 +508,29 @@ public class KernelWriter {
 	/**
 	 *
 	 * @param tokens
-	 * @param indexOf
+	 * @param outerIndexOf
 	 * @param outer
 	 */
-	private void write2DIndexOf(List<String> tokens, Expr.IndexOf indexOf) {
-		WrappedIndex indexWrapped = new WrappedIndex(this,indexOf, gpuLoop);
-		//TODO index_x and index_y will fail if these are kernel arguments
-		List<String> out = indexWrapped.getTokens(index2D(), "index_x", "index_y");
-		tokens.addAll(out);
+	private void writeNestedIndexOf(List<String> tokens, Expr.IndexOf outerIndexOf , Expr.IndexOf innerIndexOf) {
+		List<String> out = new ArrayList<String>();
+		Expr innerIndex = innerIndexOf.getIndex();
+		if (innerIndexOf.getSource() instanceof Expr.Variable) {
+			Expr.Variable varSrc = (Variable) innerIndexOf.getSource();
+			tokens.add(varSrc.getName());
+			tokens.add("[");
+			tokens.add("(");
+			write(innerIndex,tokens);
+			tokens.add(")");
+			tokens.add("*(*");
+			tokens.add(gpuLoop.heightName(varSrc.getName()));
+			tokens.add(")");
+			tokens.add("+");
+			write(outerIndexOf.getIndex(), tokens);
+			tokens.add("]");
+		}else {
+			InternalFailure.internalFailure("Can only write nested IndexOf for list", ptxFileName,
+					innerIndexOf.getSource());
+		}
 	}
 
 	private String index2D() {
@@ -504,8 +549,12 @@ public class KernelWriter {
 			//the type is correct for a kernel, write it here
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
-				if (((Expr.Variable) indexVar).getName().equals(gpuLoop.getIndexVar().getName())) {
+				if (loop.indexX.getName().equals(((Expr.Variable) indexVar).getName())) {
 					tokens.add("["+index1D()+"]");
+				}else {
+					tokens.add("[");
+					write(indexVar,tokens);
+					tokens.add("]");
 				}
 			}else if (indexVar instanceof Expr.Constant) {
 				tokens.add("[");

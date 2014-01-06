@@ -22,6 +22,7 @@ import java.util.*;
 
 import wyscript.par.KernelRunner;
 import wyscript.util.*;
+import wyscript.util.SyntaxError.InternalFailure;
 
 /**
  * Represents a statement in the source code of a While program. Many standard
@@ -480,12 +481,19 @@ public interface Stmt extends SyntacticElement {
 		}
 	}
 	public static final class ParFor extends SyntacticElement.Impl implements Stmt {
-		private final Expr.Variable index;
-		private final Expr source;
-		private final ArrayList<Stmt> body;
+		private final List<Stmt> body;
 		private BoundCalc calc;
 		private KernelRunner runner;
-
+		//three indices, index2 and index3 may not be set
+		public final Expr.Variable indexX;
+		public final Expr.Variable indexY;
+		public final Expr.Variable indexZ;
+		//each src expression matches to one index
+		public final Expr srcX;
+		public final Expr srcY;
+		public final Expr srcZ;
+		//depth of the loop determined by number of 'and's that occur
+		public final int depth;
 		/**
 		 * Construct a for loop from a given index variable, source expression
 		 * and loop body.
@@ -498,51 +506,27 @@ public interface Stmt extends SyntacticElement {
 		 *            A list of zero or more statements, which may not be null.
 		 * @param attributes
 		 */
-		public ParFor(Expr.Variable index, Expr source, Collection<Stmt> body,
+		public ParFor(Expr.Variable index1, Expr.Variable index2, Expr.Variable index3,
+				Expr src1, Expr src2 , Expr src3, List<Stmt> body,
 				Attribute... attributes) {
-			super(attributes);
-			this.index = index;
-			this.source = source;
-			this.body = new ArrayList<Stmt>(body);
-			calc = new BoundCalc(this);
+			this.indexX = index1;
+			this.indexY = index2;
+			this.indexZ = index3;
+			this.srcX = src1;
+			this.srcY = src2;
+			this.srcZ = src3;
+			this.body = body;
+			if (src2 == null) depth = 1;
+			else if (src3 == null) depth = 2;
+			else depth = 3;
+			this.calc = new BoundCalc(this);
 		}
-		/**
-		 * Construct a parallel for loop from a given index variable, source expression
-		 * and loop body.
-		 *
-		 * @param index
-		 *            The index variable, which may not be null
-		 * @param source
-		 *            The source expression, which may not be null
-		 * @param body
-		 *            A list of zero or more statements, which may not be null.
-		 * @param attributes
-		 */
-
-		/**
-		 * Get the index variable for this loop.
-		 *
-		 * @return May not be null.
-		 */
-		public Expr.Variable getIndex() {
-			return index;
-		}
-
-		/**
-		 * Get the source expression for this loop.
-		 *
-		 * @return May not be null.
-		 */
-		public Expr getSource() {
-			return source;
-		}
-
 		/**
 		 * Get the loop body.
 		 *
 		 * @return May not be null.
 		 */
-		public ArrayList<Stmt> getBody() {
+		public List<Stmt> getBody() {
 			return body;
 		}
 		/**
@@ -974,12 +958,8 @@ public interface Stmt extends SyntacticElement {
 		private int highY = -1;
 
 		public BoundCalc(Stmt.ParFor loop) {
-			this.outer = loop.getSource();
-			for (Stmt stmt : loop.body) {
-				if (stmt instanceof Stmt.ParFor) {
-					this.inner = ((Stmt.ParFor) stmt).getSource();
-				}
-			}
+			this.outer = loop.srcX;
+			this.inner = loop.srcY;
 		}
 
 		public int getLowX() {

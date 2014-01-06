@@ -4,6 +4,7 @@ import static jcuda.driver.JCudaDriver.cuMemAlloc;
 import static jcuda.driver.JCudaDriver.cuMemcpyHtoD;
 import static jcuda.driver.JCudaDriver.cuMemcpyDtoH;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Map;
 

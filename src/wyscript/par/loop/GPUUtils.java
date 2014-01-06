@@ -2,12 +2,14 @@ package wyscript.par.loop;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
+import wyscript.lang.Stmt.ParFor;
 import wyscript.lang.Type;
 import wyscript.lang.Expr.IndexOf;
 import wyscript.lang.Expr.Variable;
@@ -16,6 +18,12 @@ import wyscript.util.SyntaxError.InternalFailure;
 
 public class GPUUtils {
 	private GPUUtils(){}
+
+	public static List<Argument> scanForFunctionParameters(ParFor loop,
+			List<String> parameters, Set<String> nonparameters,
+			HashMap<String, Type> env) {
+		return scanForFunctionParameters(loop.getBody(), parameters, nonparameters, env);
+	}
 
     /**
 	 * This method generates a string of function parameters and analyses the
@@ -49,9 +57,7 @@ public class GPUUtils {
 				scanForFunctionParameters(ifelse.getTrueBranch(),parameters,nonparameters,env);
 				scanForFunctionParameters(ifelse.getFalseBranch(),parameters,nonparameters,env);
 			}else if (statement instanceof Stmt.ParFor) {
-				Stmt.ParFor loop = (Stmt.ParFor) statement;
-				scanExpr(loop.getSource(),parameters,nonparameters);
-				scanForFunctionParameters(loop.getBody(),parameters,nonparameters,env);
+				InternalFailure.internalFailure("ParFor statement forbidden in ParFor body", "", statement);
 			}else if (statement instanceof Stmt.For) {
 				Stmt.For loop = (Stmt.For) statement;
 				scanExpr(loop.getSource(),parameters,nonparameters);
@@ -68,6 +74,13 @@ public class GPUUtils {
 		}
 		return convertToArgList(parameters,env);
 	}
+	/**
+	 * Takes a list of parameter names and the environment map and
+	 * returns a list of corresponding arguments
+	 * @param parameters
+	 * @param env
+	 * @return List of Argument-type
+	 */
 	private static List<Argument> convertToArgList(List<String> parameters, Map<String,Type> env) {
 		List<Argument> arguments = new ArrayList<Argument>();
 		for (int i = 0; i < parameters.size() ; i++) {
@@ -179,4 +192,5 @@ public class GPUUtils {
 					"variable which cannot match loop index", "", indexOf);
 		}
 	}
+
 }

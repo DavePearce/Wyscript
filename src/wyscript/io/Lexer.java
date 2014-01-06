@@ -451,6 +451,7 @@ public class Lexer {
 			put("type", Token.Kind.Type);
 			put("is", Token.Kind.Is);
 			put("in", Token.Kind.In);
+			put("and",Token.Kind.ParForAnd);
 		}
 	};
 
@@ -500,6 +501,7 @@ public class Lexer {
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
 			Colon { public String toString() { return ":"; }},
+			ParForAnd {public String toString() { return "and"; }},
 			VerticalBar { public String toString() { return "|"; }},
 			LeftBrace { public String toString() { return "("; }},
 			RightBrace { public String toString() { return ")"; }},

@@ -23,15 +23,14 @@ import wyscript.util.SyntaxError.InternalFailure;
  * @author Mate Antunovic
  *
  */
-public abstract class GPULoop {
+public class GPULoop {
 	private List<Argument> arguments;
 	private HashMap<Argument,String> nameMap = new HashMap<Argument,String>();
-	protected BoundCalc boundCalc;
 	protected final Stmt.ParFor loop;
+	private Expr source;
 
 	public GPULoop(Stmt.ParFor loop) {
 		this.loop = loop;
-		this.boundCalc = loop.getCalc();
 	}
 	/**
 	 * Initialises the argument list of this GPULoop, allowing them to be used
@@ -45,7 +44,7 @@ public abstract class GPULoop {
 		//now ensure there are no name clashes
 		if (!env.containsKey("i")) nonparameters.add("i");
 		if (!env.containsKey("j")) nonparameters.add("j");
-		List<Argument> arguments = GPUUtils.scanForFunctionParameters(loop.getBody(), parameters, nonparameters, env);
+		List<Argument> arguments = GPUUtils.scanForFunctionParameters(loop, parameters, nonparameters, env);
 		//now mangle name
 		for (Argument arg : arguments) {
 			int suffix = 0;
@@ -99,14 +98,7 @@ public abstract class GPULoop {
 	 * @return
 	 */
 	public int outerLowerBound(HashMap<String,Object> frame){
-		return boundCalc.getLowX();
-	}
-	/**
-	 * Return the outer loop's index variable. Guaranteed to be non-null.
-	 * @return
-	 */
-	public Expr.Variable getIndexVar() {
-		return loop.getIndex();
+		return loop.getCalc().getLowX();
 	}
 	/**
 	 * Returns the higher index bound for the outer loop.
@@ -114,21 +106,25 @@ public abstract class GPULoop {
 	 * @return
 	 */
 	public int outerUpperBound(HashMap<String,Object> frame){
-		return boundCalc.getHighX();
+		return loop.getCalc().getHighX();
 	}
 	/**
 	 * Returns -1 if this loop is flat
 	 * @param frame
 	 * @return
 	 */
-	public abstract int innerLowerBound(HashMap<String,Object> frame);
+	public int innerLowerBound(HashMap<String,Object> frame){
+		return loop.getCalc().getLowY();
+		}
 	/**
 	 * Returns -1 if this loop is flat
 	 * @param frame
 	 * @return
 	 */
-	public abstract int innerUpperBound(HashMap<String,Object> frame);
-
+	public int innerUpperBound(HashMap<String,Object> frame){
+		return loop.getCalc().getHighY();
+		}
+	//TODO Delete me
 	public static int upperBound(HashMap<String, Object> frame, Expr src,
 			Interpreter interpreter) {
 		if (src instanceof Expr.Binary) {
@@ -142,6 +138,7 @@ public abstract class GPULoop {
 		}
 		return 0;
 	}
+	//TODO Delete me
 	public static int lowerBound(HashMap<String, Object> frame, Expr src,
 			Interpreter interpreter) {
 		if (src instanceof Expr.Binary) {
@@ -195,6 +192,11 @@ public abstract class GPULoop {
 		}
 		throw new NoSuchElementException("Could not find width variable for "+name);
 	}
+	/**
+	 * Takes a matrix name and returns the name of its height variable
+	 * @param name
+	 * @return
+	 */
 	public String heightName(String name) {
 		for (Argument arg : arguments) {
 			if (name.equals(arg.name) && arg instanceof Argument.Length2D) {
@@ -202,5 +204,12 @@ public abstract class GPULoop {
 			}
 		}
 		throw new NoSuchElementException("Could not find height variable for "+name);
+	}
+	/**
+	 *
+	 * @return
+	 */
+	public Expr source() { //TODO Complete me
+		return source;
 	}
 }

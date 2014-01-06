@@ -1055,26 +1055,80 @@ public class Parser {
 		Expr.Variable var =  (valid) ? new Expr.Variable(id.text, sourceAttr(start,
 				index - 1))
 									 : null;
-
+		//remove in from follow set and add colon and add
 		if (!parentFollow.contains(In))
 			followSet.remove(In);
 		followSet.add(Colon);
+		followSet.add(ParForAnd);
 
 		Expr source = null;
 		if(match(errors, In, followSet) == null) {
 			valid = false;
-			if (tokens.get(index).kind != Colon)
+			if (tokens.get(index).kind != Colon && tokens.get(index).kind != ParForAnd)
 				return null;
 		}
 		else {
 			source = parseExpression(errors, followSet);
 			if (source == null) {
 				valid = false;
-				if (tokens.get(index).kind != Colon)
+				if (tokens.get(index).kind != Colon && tokens.get(index).kind != ParForAnd)
 					return null;
 			}
 		}
+		Expr.Variable[] vars = new Expr.Variable[3];
+		Expr[] srcs = new Expr[3];
+		vars[0] = var;
+		srcs[0] = source;
+		if (tryAndMatch(Colon)!=null) {
+			//want to parse block and return the for
+			int end = index;
+			matchEndLine(errors);
+			List<Stmt> blk = parseBlock(indent, errors, parentFollow);
+			if (blk == null)
+				return null;
+			//Need to return parFor if we get to here
+			return new Stmt.ParFor(var,null,null,source,null,null,blk);
+		}else {
+			int andCount = 0;
+			do {
+				match(errors, ParForAnd, parentFollow);
+				andCount++;
+				followSet.add(In);
 
+				Token id2 = match(errors, Identifier, followSet);
+				if (id2 == null) {
+					valid = false;
+					if (tokens.get(index).kind != In)
+						return null;
+				}
+
+				vars[andCount] =  (valid) ? new Expr.Variable(id2.text, sourceAttr(start,
+						index - 1))
+											 : null;
+				//remove in from follow set and add colon and add
+				if (!parentFollow.contains(In))
+					followSet.remove(In);
+				followSet.add(Colon);
+				followSet.add(ParForAnd);
+
+				Expr source2 = null;
+				if(match(errors, In, followSet) == null) {
+					valid = false;
+					if (tokens.get(index).kind != Colon && tokens.get(index).kind != ParForAnd)
+						return null;
+				}
+				else {
+					source2 = parseExpression(errors, followSet);
+					if (source2 == null) {
+						valid = false;
+						if (tokens.get(index).kind != Colon && tokens.get(index).kind != ParForAnd)
+							return null;
+					}
+					srcs[andCount] = source2;
+				}
+			}
+			while(andCount < 2 && tryAndMatch(ParForAnd) != null);
+		}
 		if (!parentFollow.contains(Colon))
 			followSet.remove(Colon);
 		followSet.add(NewLine);
@@ -1090,8 +1144,8 @@ public class Parser {
 		if (blk == null)
 			return null;
 
-		return (valid) ? new Stmt.ParFor(var, source, blk, sourceAttr(start, end - 1))
-					   : new Stmt.ParFor(null, null, new ArrayList<Stmt>());
+		return (valid) ? new Stmt.ParFor(vars[0],vars[1],vars[2],srcs[0],srcs[1],srcs[2],blk)
+					   : new Stmt.ParFor(null,null,null,null,null,null,null);
 	}
 
 	/**

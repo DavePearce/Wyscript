@@ -20,7 +20,6 @@ import wyscript.util.SyntaxError.InternalFailure;
 
 public class LoopModule {
 	private static final String NVCC_COMMAND = "/opt/cuda/bin/nvcc ";
-	private ArrayList<Stmt> body;
 	private Stmt.ParFor loop;
 
 	private List<String> tokens = new ArrayList<String>();
@@ -31,7 +30,6 @@ public class LoopModule {
 
 	private String indexName = "i";
 	private String fileName;
-	private String ptxFileName;
 	/**
 	 * Initialise a KernelWriter which takes <i>name<i/> as its file name and uses
 	 * the type mapping given in <i>environment</i> to generate the appropriate kernel
@@ -46,7 +44,7 @@ public class LoopModule {
 	public LoopModule(String filename , Map<String , Type> environment , Stmt.ParFor loop){
 		this.environment = environment;
 		this.fileName = filename;
-		this.body = loop.getBody();
+		loop.getBody();
 		this.loop = loop;
 		generateFunctionParameters(loop.getBody());
 		writeFunctionDeclaration(tokens);
@@ -95,8 +93,6 @@ public class LoopModule {
             endIndex = cuFileName.length()-1;
         }
         String ptxFileName = cuFileName.substring(0, endIndex+1)+"ptx";
-        this.ptxFileName = ptxFileName;
-
         File cuFile = new File(cuFileName);
         if (!cuFile.exists())
         {
@@ -139,9 +135,20 @@ public class LoopModule {
 	 */
 	private void generateFunctionParameters(Collection<Stmt> body) {
 		//scan the loop body, determine what must be added as parameter
-		//first exclude the loop index
-		nonParameterVars.add(loop.getIndex().getName());
-		scanExpr(loop.getSource());
+		//first exclude the loop indices where necessary.
+		//also scan the expression of each
+		if (loop.depth == 3) {
+			nonParameterVars.add(loop.indexZ.getName());
+			scanExpr(loop.srcZ);
+		}
+		if (loop.depth >= 2) {
+			nonParameterVars.add(loop.indexY.getName());
+			scanExpr(loop.srcY);
+		}
+		if (loop.depth >= 1) {
+			nonParameterVars.add(loop.indexX.getName());
+			scanExpr(loop.srcX);
+		}
 		for (Stmt statement : body) {
 		//check for mutabilities in assignment
 			if (statement instanceof Stmt.Assign) {
@@ -245,6 +252,13 @@ public class LoopModule {
 		tokens.add(")");
 		return tokens;
 	}
+	/**
+	 * Writes a list to the function declaration
+	 * @param tokens
+	 * @param name
+	 * @param type
+	 * @param list
+	 */
 	private void writeListToDecl(List<String> tokens, String name, Type type,
 			Type.List list) {
 		if (list.getElement() instanceof Type.Int) {
@@ -308,7 +322,10 @@ public class LoopModule {
 		Expr expression = indexOf.getSource();
 		if (expression instanceof Expr.Variable) {
 			Expr.Variable srcVar = (Expr.Variable)expression;
-			if (!srcVar.getName().equals(loop.getIndex().getName())) {
+			if (!srcVar.getName().equals(loop.indexX.getName())) {
+				//make sure this expression variable doesnt share name with other indices.
+				if (loop.indexY != null && loop.indexY.getName().equals(srcVar.getName())) return;
+				if (loop.indexZ != null && loop.indexZ.getName().equals(srcVar.getName())) return;
 				//parameters.add(srcVar.getName());
 				scanVariableParam(srcVar);
 			}
