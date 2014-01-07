@@ -1,39 +1,41 @@
 
+var $_ = {};
+
 //FLOAT CLASS/METHODS
-var $_Float_$ = function(i) {
+$_.Float = function(i) {
 	if (typeof i.num !== 'undefined') this.num = i.num;
 	else this.num = i;
-	this.type = 'real';
+	this.type = new $_.Type.Real();
 };
 
-$_Float_$.prototype.add = function(other) {
-	return new $_Float_$(this.num + other.num);
+$_.Float.prototype.add = function(other) {
+	return new $_.Float(this.num + other.num);
 };
 		
-$_Float_$.prototype.sub = function(other) {
-	return new $_Float_$(this.num - other.num);
+$_.Float.prototype.sub = function(other) {
+	return new $_.Float(this.num - other.num);
 };
 
-$_Float_$.prototype.mul = function(other) {
-	return new $_Float_$(this.num * other.num);
+$_.Float.prototype.mul = function(other) {
+	return new $_.Float(this.num * other.num);
 };
 
-$_Float_$.prototype.div = function(other) {
-	return new $_Float_$(this.num / other.num);
+$_.Float.prototype.div = function(other) {
+	return new $_.Float(this.num / other.num);
 };
 
-$_Float_$.prototype.rem = function(other) {
-	return new $_Float_$(this.num % other.num);
+$_.Float.prototype.rem = function(other) {
+	return new $_.Float(this.num % other.num);
 };
 		
-$_Float_$.prototype.cast = function(type) {
+$_.Float.prototype.cast = function(type) {
     if (type === 'real')
-      return new $_Float_$(this.num);
+      return new $_.Float(this.num);
 	
-    else return new $_Integer_$(this.num);
+    else return new $_.Integer(this.num);
 };
 
-$_Float_$.prototype.toString = function() {
+$_.Float.prototype.toString = function() {
     var tmp = this.num.toString();
     var abs = Math.abs(this.num);
     if (abs < 0.001 || abs >= 10000000)
@@ -43,64 +45,66 @@ $_Float_$.prototype.toString = function() {
 		    tmp = tmp.replace('E', '.0E');
 		else tmp += '.0';
 	}
-	return tmp;
+	return new $_.String(tmp);
 };
 
 //INTEGER CLASS/METHODS
-var $_Integer_$ = function(i) {
-	this.type = 'int';
+$_.Integer = function(i) {
+	this.type = new $_.Type.Int();
 	if (typeof i.num !== 'undefined') this.num = ~~(i.num);
 	else this.num = ~~i;
 };
 
-$_Integer_$.prototype.add = function(other) {
-	if (other instanceof $_Integer_$)
-		return new $_Integer_$(this.num + other.num);
+$_.Integer.prototype.add = function(other) {
+	if (other instanceof $_.Integer)
+		return new $_.Integer(this.num + other.num);
 	
-	else return new $_Float_$(this.num + other.num);
+	else return new $_.Float(this.num + other.num);
 };
 
-$_Integer_$.prototype.sub = function(other) {
-	if (other instanceof $_Integer_$)
-		return new $_Integer_$(this.num - other.num);
+$_.Integer.prototype.sub = function(other) {
+	if (other instanceof $_.Integer)
+		return new $_.Integer(this.num - other.num);
 		
-	else return new $_Float_$(this.num - other.num);
+	else return new $_.Float(this.num - other.num);
 };
 
-$_Integer_$.prototype.mul = function(other) {
-	if (other instanceof $_Integer_$)
-		return new $_Integer_$(this.num * other.num);
+$_.Integer.prototype.mul = function(other) {
+	if (other instanceof $_.Integer)
+		return new $_.Integer(this.num * other.num);
 		
-	else return new $_Float_$(this.num * other.num);
+	else return new $_.Float(this.num * other.num);
 };
 
-$_Integer_$.prototype.div = function(other) {
+$_.Integer.prototype.div = function(other) {
 	var tmp = this.num / other.num;
-	if (other instanceof $_Integer_$)
-		return new $_Integer_$(~~tmp);
+	if (other instanceof $_.Integer)
+		return new $_.Integer(~~tmp);
 		
-	else return new $_Float_$(this.num / other.num);
+	else return new $_.Float(this.num / other.num);
 };
 
-$_Integer_$.prototype.rem = function(other) {	
-	if (other instanceof $_Integer_$)
-		return new $_Integer_$(this.num % other.num);
+$_.Integer.prototype.rem = function(other) {	
+	if (other instanceof $_.Integer)
+		return new $_.Integer(this.num % other.num);
 		
-	else return new $_Float_$(this.num % other.num);
+	else return new $_.Float(this.num % other.num);
 };
 		
-$_Integer_$.prototype.cast = function(type) {
+$_.Integer.prototype.cast = function(type) {
 	if (type === 'int')
-	  return new $_Integer_$(this.num);
+	  return new $_.Integer(this.num);
 	  
-	else return new $_Float_$(this.num);
+	else return new $_.Float(this.num);
 };
-$_Integer_$.prototype.toString = function() {
-	return this.num.toFixed();
+$_.Integer.prototype.toString = function() {
+	return new $_.String(this.num.toFixed());
 };
 
 //BINARY METHODS
-function $_range_$(lower, upper) {
+
+//Creates a list of integers equivalent to the given range
+$_.range = function(lower, upper) {
   var low = lower;
   var up = upper;
   if (typeof low.num !== 'undefined') low = lower.num;
@@ -108,59 +112,60 @@ function $_range_$(lower, upper) {
   var result = [];
   var count = 0;
   for (var tmp = low; tmp < up; tmp++) {
-    result[count++] = new $_Integer_$(tmp);
+    result[count++] = new $_.Integer(tmp);
   }
   return result;
-}
+};
 
-function $_append_$(left, right) {
-  if (left instanceof String || typeof left === 'string')
-    return left.concat(right.toString());
-  else return left.append(right);
-}
-
-function $_equals_$(lhs, rhs, isEqual) {
+//Checks if two objects are equal (or not equal, based on the isEqual parameter)
+$_.equals = function(lhs, rhs, isEqual) {
   var left = lhs;
   if (typeof left.num !== 'undefined') left = left.num;
-  else if (left instanceof String) left = left.valueOf();
-  else if (left instanceof $_List_$) {
+  else if (left instanceof $_.String) left = left.text;
+  else if (left instanceof $_.Char) left = left.char;
+  else if (left instanceof $_.List) {
     if (isEqual) return left.equals(rhs);
     else return !(left.equals(rhs));
   }
   var right = rhs;
   if (typeof right.num !== 'undefined') right = right.num;
-  else if (right instanceof String) right = right.valueOf;
+  else if (right instanceof $_.String) right = right.text;
+  else if (right instanceof $_.Char) right = right.char;
+  
   if (isEqual) return left === right;
   else return left !== right;
-}
+};
 
-function $_lt_$(lhs, rhs, isEqual) {
+//Checks for less than and less than or equal to
+$_.lt = function(lhs, rhs, isEqual) {
   var left = lhs;
   if (typeof left.num !== 'undefined') left = left.num;
   var right = rhs;
   if (typeof right.num !== 'undefined') right = right.num;
   if (isEqual) return (left <= right);
   else return (left < right);
-}
+};
 
-function $_gt_$(lhs, rhs, isEqual) {
+//Checks for greater than and greater than or equal to
+$_.gt = function(lhs, rhs, isEqual) {
   var left = lhs;
   if (typeof left.num !== 'undefined') left = left.num;
   var right = rhs;
   if (typeof right.num !== 'undefined') right = right.num;
   if (isEqual) return (left >= right);
   else return (left > right);
-}
+};
 
 //RECORD CLASS/METHODS
-var $_Record_$ = function(listNames, listValues, type) {
+$_.Record = function(listNames, listValues, type) {
   this.names = listNames;
   this.values = listValues;
   this.type = type;
 };
 
-$_Record_$.prototype.getValue = function(name) {
-  var index = this.names.indexOf(name);
+//Gets the value associated with a given field
+$_.Record.prototype.getValue = function(name) {
+  var index = (name.text !== undefined) ? this.names.indexOf(name.text) : this.names.indexOf(name);
   if (index === -1 || index >= this.values.length)
     return null;
   else {
@@ -169,45 +174,52 @@ $_Record_$.prototype.getValue = function(name) {
   }
 };
 
-$_Record_$.prototype.hasKey = function(name) {
-  return (this.names.indexOf(name) !== -1);
+//Checks if a given field exists
+$_.Record.prototype.hasKey = function(name) {
+	
+  return (name.text !== undefined) ? (this.names.indexOf(name.text) !== -1) : (this.names.indexOf(name) !== -1);
 };
 
-$_Record_$.prototype.setValue = function(name, key) {
-  var index = this.names.indexOf(name);
+//Puts the given key into the field associated with the given name, overwriting any existing value
+$_.Record.prototype.setValue = function(name, key) {
+  var index = (name.text !== undefined) ?this.names.indexOf(name.text) : this.names.indexOf(name);
   if (index === -1 || index >= this.values.length)
     return;
   else this.values[index] = key;
 };
 
-$_Record_$.prototype.cast = function(name, fieldList, newType) {
+//Casts a record - uses fieldList to determine what field actually has its type changed
+$_.Record.prototype.cast = function(name, fieldList, newType) {
+	
   var result = this.clone();
   if (fieldList.length > 0) {
     var index = this.names.indexOf(fieldList[0]);
-    result.values[index] = this.values[index].cast(name, fieldList.slice(1));
+    var t = newType.getType(fieldList);
+    result.values[index] = this.values[index].cast(name.toString(), fieldList.slice(1), t);
   }
   else {
-    var index = this.names.indexOf(name);
+    var index = this.names.indexOf(name.toString());
     result.values[index] = this.values[index].cast();
   }
   result.type = newType;
   return result;
 };
 
-$_Record_$.prototype.clone = function() {
+//Deep-Clones the record to ensure pass-by-value holds
+$_.Record.prototype.clone = function() {
   var cnames = [];
   var cvalues = [];
   for (var i = 0; i < this.names.length; i++) {
     cnames[i] = this.names[i];
     var elem = this.values[i];
-    if (elem instanceof $_List_$ || elem instanceof $_Record_$)
+    if (elem instanceof $_.List || elem instanceof $_.Record)
       elem = elem.clone();
     cvalues[i] = elem;
   }
-  return new $_Record_$(cnames, cvalues, this.type);
+  return new $_.Record(cnames, cvalues, this.type);
 };
 
-$_Record_$.prototype.toString = function() {
+$_.Record.prototype.toString = function() {
   var str = '{';
   var tmpNames = [];
   for (var i = 0; i < this.names.length; i++) {
@@ -221,63 +233,75 @@ $_Record_$.prototype.toString = function() {
     first = false;
     str += tmpNames[i];
     str += ':';
-    str += this.values[this.names.indexOf(tmpNames[i])].toString();
+    var tmp = this.values[this.names.indexOf(tmpNames[i])];
+    str += (tmp === null) ? 'null' : tmp.toString().toString();
   }
   str += '}';
-  return str;
+  return new $_.String(str);
 };
 
-//LIST FUNCTION
-var $_List_$ = function(list, type) {
+//LIST CLASS/METHODS
+$_.List = function(list, type) {
   this.list = list;
   this.type = type;
 };
 
-$_List_$.prototype.getValue = function(index) {
+//Gets the value at a given index
+$_.List.prototype.getValue = function(index) {
   var idx = index;
   if (typeof index.num !== 'undefined') idx = index.num;
   return this.list[idx];
 };
 
-$_List_$.prototype.setValue = function(index, value) {
+//Sets the value at the given index to the given value
+$_.List.prototype.setValue = function(index, value) {
   var idx = index;
   if (typeof index.num !== 'undefined') idx = index.num;
   this.list[idx] = value;
 };
 
-$_List_$.prototype.length = function() {
-  return new $_Integer_$(this.list.length);
+$_.List.prototype.length = function() {
+  return new $_.Integer(this.list.length);
 };
 
-$_List_$.prototype.append = function(other) {
+//Appends another list to this list (must be of same type)
+$_.List.prototype.append = function(other) {
   var result = [];
   var count = 0;
   for (var i = 0; i < this.list.length; i++)
     result[count++] = this.list[i];
   for (var i = 0; i < other.list.length; i++)
     result[count++] = other.list[i];
-  return new $_List_$(result);
+  return new $_.List(result, this.type);
 };
 
-$_List_$.prototype.cast = function(name, fieldList, newType) {
+//Casts the list - requires knowledge of a fieldList in case this list contains records
+$_.List.prototype.cast = function(name, fieldList, newType) {
   var tmp = [];
-  for (var i = 0; i < this.list.length; i++)
+  for (var i = 0; i < this.list.length; i++) {
+    if (fieldList !== undefined && fieldList !== null && fieldList.length > 0) {
+      var t = newType.getType(fieldList);
+      tmp[i] = this.list[i].cast(name, fieldList, t);
+    }
     tmp[i] = this.list[i].cast(name, fieldList);
-  return new $_List_$(tmp, newType);
+    
+  }
+  return new $_.List(tmp, newType);
 };
 
-$_List_$.prototype.clone = function() {
+//Deep-Clones the list to ensure pass-by-value
+$_.List.prototype.clone = function() {
   var clist = [];
   for (var i = 0; i < this.list.length; i++) {
     var elem = this.list[i];
-    if (elem instanceof $_List_$ || elem instanceof $_Record_$)
+    if (elem instanceof $_.List || elem instanceof $_.Record)
       elem = elem.clone();
     clist[i] = elem;
   }
-  return new $_List_$(clist, this.type);
+  return new $_.List(clist, this.type);
 };
 
-$_List_$.prototype.toString = function() {
+$_.List.prototype.toString = function() {
   var str = '[';
   var first = true;
   for (var i = 0; i < this.list.length; i++) {
@@ -285,78 +309,260 @@ $_List_$.prototype.toString = function() {
       str += ', ';
     
     first = false;
-    str += this.list[i];
+    str += (this.list[i] === null) ? 'null' : (this.list[i].toString().toString());
   }
   str += ']';
-  return str;
+  return new $_.String(str);
 };
 
-$_List_$.prototype.equals = function(other) {
-  if (!other instanceof $_List_$ || typeof other === 'undefined')
+$_.List.prototype.equals = function(other) {
+  if (!(other instanceof $_.List) || typeof other === 'undefined')
     return false;
   if (this.length().num !== other.length().num) return false;
   for (var i = 0; i < this.list.length; i++) {
-    if (!($_equals_$(this.list[i], other.list[i], true)))
+    if (!($_.equals(this.list[i], other.list[i], true)))
       return false;
   }
   return true;
 };
 
-function $_stringIndexReplace_$(str, index, c) {
-  var num = index;
-  if (typeof index.num !== 'undefined')
-    num = index.num;
-  var tmp = str.split('');
-  tmp[num] = c;
-  return tmp.join('');
+//TYPE CLASSES AND METHODS
+$_.Type = function() {};
+
+$_.Type.Void = function() {};
+$_.Type.Void.prototype = new $_.Type();
+$_.Type.Void.prototype.subtype = function(superType) {
+  //Void is a subtype of all types
+  return true;
+};
+
+$_.Type.Null = function() {};
+$_.Type.Null.prototype = new $_.Type();
+$_.Type.Null.prototype.subtype = function(superType) {
+  if (superType instanceof $_.Type.Null)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.Bool = function() {};
+$_.Type.Bool.prototype = new $_.Type();
+$_.Type.Bool.prototype.subtype = function(superType) {
+  if (superType instanceof $_.Type.Bool)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.Int = function() {};
+$_.Type.Int.prototype = new $_.Type();
+$_.Type.Int.prototype.subtype = function(superType) {
+  //Ints are a subtype of reals
+  if (superType instanceof $_.Type.Int || superType instanceof $_.Type.Real)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.Real = function() {};
+$_.Type.Real.prototype = new $_.Type();
+$_.Type.Real.prototype.subtype = function(superType) {
+  if (superType instanceof $_.Type.Real)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.Char = function() {};
+$_.Type.Char.prototype = new $_.Type();
+$_.Type.Char.prototype.subtype = function(superType) {
+  if (superType instanceof $_.Type.Char)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.String = function() {};
+$_.Type.String.prototype = new $_.Type();
+$_.Type.String.prototype.subtype = function(superType) {
+ if (superType instanceof $_.Type.String)
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+$_.Type.List = function(elem) {this.elem = elem;};
+$_.Type.List.prototype = new $_.Type();
+$_.Type.List.prototype.subtype = function(superType) {
+  //A list is a subtype of a list if its element type is a subtype of the supertypes element type
+  if (superType instanceof $_.Type.List && this.elem.subtype(superType.elem))
+    return true;
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+//Used for determining the type when casting nested records - for a list, just return the element type
+$_.Type.List.prototype.getType = function(fieldList) {
+  return this.elem;
 }
 
-function $_indexOf_$(obj, index) {
-  if (obj instanceof String || typeof obj === 'string')
-    return obj.charAt(index);
-  else return obj.getValue(index);
+$_.Type.Record = function(names, types) {
+  this.names = names;
+  this.types = types;
+};
+$_.Type.Record.prototype = new $_.Type();
+$_.Type.Record.prototype.subtype = function(superType) {
+  //Uses depth subtyping, but not width subtyping (field names and numbers must match, must be subtypes)
+  if (superType instanceof $_.Type.Record) {
+    if (this.types.length === superType.types.length) {
+      var valid = true;
+      for (var i = 0; i < this.types.length; i++) {
+	if (!(this.names[i] === superType.names[i] && this.types[i].subtype(superType.types[i]))) {
+	  valid = false;
+	  break;
+	}
+      }
+      return valid;
+    }
+    return false;
+  }
+  else return (superType instanceof $_.Type.Union && superType.unionSupertype(this));
+};
+
+//Used to determine the type of nested casted records - return the type of the field
+//corresponding to the first element of fieldList (which is always non-empty)
+$_.Type.Record.prototype.getType = function(fieldList) {
+  for (var i = 0; i < this.types.length; i++) {
+    if (this.names[i] === fieldList[0])
+      return this.types[i];
+  }
+  return undefined; //Shouldn't happen
 }
 
-function $_length_$(obj) {
-  if (obj instanceof String || typeof obj === 'string')
-    return new $_Integer_$(obj.length);
-  else return obj.length();
+$_.Type.Union = function(bounds) {this.bounds = bounds};
+$_.Type.Union.prototype = new $_.Type();
+$_.Type.Union.prototype.subtype = function(superType) {
+  //A union is a subtype of any type if all its bounds are subtypes of that type
+  for (var i = 0; i < this.bounds.length; i++) {
+    if (!(this.bounds[i].subtype(superType)))
+      return false;
+  }
+  return true;
+};
+
+$_.Type.Union.prototype.unionSupertype = function(bound) {
+  //A union is a supertype of a type if any of its bounds are supertypes of the type
+  //Note records containing union types have already been extracted into union types, so this is safe
+  for (var i = 0; i < this.bounds.length; i++) {
+    if (bound.subtype(this.bounds[i])) {
+      return true;
+    }
+  }
+  return false;
+};
+
+//CHARACTER AND STRING TYPES
+$_.Char = function(c) { this.char = c.toString(); this.type = new $_.Type.Char();};
+
+$_.Char.prototype.toString = function() {
+  return new $_.String(this.char);
 }
 
-function $_print_$(obj) {
+$_.String = function(text) {
+	this.text = text.toString();
+	this.type = new $_.Type.String();
+};
+
+//Allows you access the index'th character of a string
+$_.String.prototype.getValue = function(index) {
+	if (index.num !== undefined)
+		index = index.num;
+	
+  return new $_.Char(this.text.charAt(index));
+}
+
+//Allows you to mutate the index'th character of a string to the given char
+$_.String.prototype.assign = function(index, char) {
+  if (index.num !== undefined)
+    index = index.num;
+  
+  var tmp = this.text.split('');
+  tmp[index] = char.toString().toString();
+  return new $_.String(tmp.join(''));
+}
+
+$_.String.prototype.length = function() {
+  return new $_.Integer(this.text.length);
+}
+
+$_.String.prototype.append = function(other) {
+	return new $_.String(this.text.concat(other.toString().toString()));
+}
+
+$_.String.prototype.toString = function() {
+  return this.text;
+}
+
+//prints to System.out
+$_.print = function(obj) {
   if (obj === null)
     sysout.println('null');
-  else sysout.println(obj.toString());
-}
+  else sysout.println(obj.toString().toString());
+};
 
-function $_is_$(obj, type) {
-  if (type === 'void')
-      return true;
+//Subtyping operator - checks if obj's type is a subtype of the given type
+$_.is = function(obj, type) {
+  
+  //Check primitive/simple types first
+  if (type instanceof $_.Type.Null) {
+      if (obj === null)
+      	return true;
+      	
+      return false;
+  }
       
-  else if (type === 'null')
-      return (obj === null);
+  if (type instanceof $_.Type.Bool) {
+      if (obj instanceof Boolean || typeof obj === 'boolean')
+      	return true;
+      	
+      return false;
+  }
       
-  else if (type === 'bool')
-      return (obj instanceof Boolean || typeof obj === 'boolean');
+  else if (type instanceof $_.Type.String) {
+      return (obj instanceof $_.String);
+  }
       
-  else if (type === 'string')
-      return (obj instanceof String || typeof obj === 'string');
-      
-  else if (type === 'char') {
-      if (!(obj instanceof String || typeof obj === 'string'))
-	  return false;
-      else return (obj.length === 1);
+  else if (type instanceof $_.Type.Char) {
+      return (obj instanceof $_.Char);
   }
   
-  else if (type === 'real')
-      return (obj instanceof $_Float_$);
+  else if (type instanceof $_.Type.Real) {
+      if (obj instanceof $_.Float || obj instanceof $_.Integer)
+      	return true;
+      	
+      return false;
+  }
       
-  else if (type === 'int')
-      return (obj instanceof $_Integer_$);
+  else if (type instanceof $_.Type.Int) {
+      if (obj instanceof $_.Integer)
+      	return true;
+      	
+      return false;
+  }
       
-  else if (obj instanceof $_List_$ || obj instanceof $_Record_$)
-      return (obj.type == type);
-      
-  else return false; //Unknown type
+  else if (type instanceof $_.Type.List) {
+  	  return (obj instanceof $_.List && obj.type.subtype(type));
+  }
   
-}
+  else if (type instanceof $_.Type.Record) {
+  		return (obj instanceof $_.Record && obj.type.subtype(type));
+  }
+  
+  else if (type instanceof $_.Type.Union) {
+  		return $_.getType(obj).subtype(type);
+  }
+  else return false; //obj is not a subtype of type/type unknown
+  
+};
+
+//Gets the type of the given object
+$_.getType = function(obj) {
+	if (obj === null)
+		return new $_.Type.Null();
+	else if (obj instanceof Boolean || typeof obj === 'boolean')
+		return new $_.Type.Bool();
+	else return obj.type;
+};

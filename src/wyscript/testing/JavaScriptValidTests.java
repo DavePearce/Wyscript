@@ -62,6 +62,7 @@ public class JavaScriptValidTests {
 	 * @return
 	 */
 	private static String execJavaScript(String filename) {
+
 	    try {
 	      Reader file = new FileReader(new File(filename));
 	      Context cxt = Context.enter();
@@ -172,6 +173,16 @@ public class JavaScriptValidTests {
 	@Test
 	public void Cast_Valid_4() {
 		runTest("Cast_Valid_4");
+	}
+
+	@Test
+	public void Cast_Valid_5() {
+		runTest("Cast_Valid_5");
+	}
+
+	@Test
+	public void Cast_Valid_6() {
+		runTest("Cast_Valid_6");
 	}
 
 	@Test
