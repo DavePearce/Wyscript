@@ -61,6 +61,10 @@ public interface Type extends SyntacticElement {
 		public boolean equals(Object o) {
 			return o instanceof Type.Void;
 		}
+
+		public String toString() {
+			return "void";
+		}
 	}
 
 	/**
@@ -79,6 +83,10 @@ public interface Type extends SyntacticElement {
 
 		public boolean equals(Object o) {
 			return o instanceof Type.Null;
+		}
+
+		public String toString() {
+			return "null";
 		}
 	}
 
@@ -100,6 +108,10 @@ public interface Type extends SyntacticElement {
 			return o instanceof Type.Bool;
 		}
 
+		public String toString() {
+			return "bool";
+		}
+
 	}
 
 	/**
@@ -118,6 +130,10 @@ public interface Type extends SyntacticElement {
 
 		public boolean equals(Object o) {
 			return o instanceof Type.Int;
+		}
+
+		public String toString() {
+			return "int";
 		}
 	}
 
@@ -138,6 +154,10 @@ public interface Type extends SyntacticElement {
 
 		public boolean equals(Object o) {
 			return o instanceof Type.Real;
+		}
+
+		public String toString() {
+			return "real";
 		}
 	}
 
@@ -160,6 +180,10 @@ public interface Type extends SyntacticElement {
 		public boolean equals(Object o) {
 			return o instanceof Type.Char;
 		}
+
+		public String toString() {
+			return "char";
+		}
 	}
 
 	/**
@@ -177,6 +201,10 @@ public interface Type extends SyntacticElement {
 
 		public boolean equals(Object o) {
 			return o instanceof Type.Strung;
+		}
+
+		public String toString() {
+			return "string";
 		}
 	}
 
@@ -253,6 +281,10 @@ public interface Type extends SyntacticElement {
 
 			return element.equals(((Type.List)o).element);
 		}
+
+		public String toString() {
+			return "[" + element.toString() + "]";
+		}
 	}
 
 	/**
@@ -294,6 +326,22 @@ public interface Type extends SyntacticElement {
 
 			Type.Record r = (Type.Record)o;
 			return fields.equals(r.getFields());
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder("{");
+			boolean first = true;
+			ArrayList<String> names = new ArrayList<String>(fields.keySet());
+			Collections.sort(names);
+			for (String s : names) {
+				if (!first)
+					sb.append(", ");
+				first = false;
+				sb.append(fields.get(s).toString());
+				sb.append(" " + s);
+			}
+			sb.append("}");
+			return sb.toString();
 		}
 	}
 
@@ -337,6 +385,18 @@ public interface Type extends SyntacticElement {
 
 			return new HashSet<Type>(bounds).equals
 					(new HashSet<Type>(((Type.Union)o).bounds));
+		}
+
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			boolean first = true;
+			for (Type t : bounds) {
+				if (!first)
+					sb.append(" | ");
+				first = false;
+				sb.append(t.toString());
+			}
+			return sb.toString();
 		}
 	}
 }

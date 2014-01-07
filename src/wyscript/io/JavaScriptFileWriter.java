@@ -4,23 +4,25 @@ import static wyscript.util.SyntaxError.internalFailure;
 
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import wyscript.Interpreter;
+
 import wyscript.lang.*;
 import wyscript.util.*;
 
 /**
  * An extended interpreter - instead of outputting directly to the
  * console, converts a given WyScriptFile into an equivalent JavaScript
- * one - doing so requires partial interpretation of some WyScript code.
+ * file.
  *
  */
 public class JavaScriptFileWriter {
 	private PrintStream out;
 	private WyscriptFile file;
 	private HashMap<String, Type> userTypes;
+	private int switchCount = 0;	//Used to prevent issues with nested switch statements
 
 	public JavaScriptFileWriter(File file) throws IOException {
 		this.out = new PrintStream(new FileOutputStream(file));
@@ -30,12 +32,12 @@ public class JavaScriptFileWriter {
 		out.close();
 	}
 
+	/**
+	 * Writes a Wyscript File into a Javascript file
+	 */
 	public void write(WyscriptFile wf) {
 		this.file = wf;
 		userTypes = new HashMap<String, Type>();
-
-		//Need to create additional helper functions
-		setupFunctions();
 
 		//Next, sort out constants and named types
 		for (WyscriptFile.Decl declaration : wf.declarations) {
@@ -43,6 +45,7 @@ public class JavaScriptFileWriter {
 				write((WyscriptFile.ConstDecl)declaration);
 			}
 
+			//Don't write type declarations, just store them so we can find the type later
 			else if (declaration instanceof WyscriptFile.TypeDecl) {
 				WyscriptFile.TypeDecl td = (WyscriptFile.TypeDecl)declaration;
 				userTypes.put(td.name(), td.type);
@@ -57,225 +60,20 @@ public class JavaScriptFileWriter {
 	}
 
 	/**
-	 * Sets up any additional functions necessary to properly
-	 * convert from WyScript to JavaScript
+	 * Writes a constant declaration -
+	 * this declares a global variable
 	 */
-	private void setupFunctions() {
-
-		setUpPrintFunctions();
-		setUpCastFunctions();
-		setUpNumberFunctions();
-		setUpBinaryFunctions();
-	}
-
-	private void setUpBinaryFunctions() {
-		//First, the range function
-		StringBuilder sb = new StringBuilder("function $_range_$(lower, upper) {\n");
-		sb.append("var $_result_$ = [];\n");
-		sb.append("var $_count_$ = 0;\n");
-		sb.append("for (var $_tmp_$ = lower; $_tmp_$ < upper; $_tmp_$++) {\n");
-		sb.append("$_result_$[$_count_$] = new $_Integer_$($_tmp_$);\n");
-		sb.append("$_count_$++;\n}\n");
-		sb.append("return $_result_$;\n}\n");
-
-		out.print(sb.toString());
-
-		//Next, the 3 comparison functions - =/!=, >/>= and </<=
-		sb = new StringBuilder("function $_equals_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left === right);\n");
-		sb.append("else return (left !== right);\n}\n");
-
-		out.print(sb.toString());
-
-		sb = new StringBuilder("function $_lt_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left <= right);\n");
-		sb.append("else return (left < right);\n}\n");
-
-		out.print(sb.toString());
-
-		sb = new StringBuilder("function $_gt_$(lhs, rhs, isEqual) {\n");
-		sb.append("var left = lhs;\n");
-		sb.append("if (typeof left.num !== 'undefined') left = left.num;\n");
-		sb.append("var right = rhs;\n");
-		sb.append("if (typeof right.num !== 'undefined') right = right.num;\n");
-		sb.append("if (isEqual) return (left >= right);\n");
-		sb.append("else return (left > right);\n}\n");
-
-		out.print(sb.toString());
-	}
-
-	private void setUpPrintFunctions() {
-
-		// First off, create a general print method for the more specific
-		// methods to reference
-		StringBuilder sb = new StringBuilder();
-		sb.append("function $_print_$(obj, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("if (obj instanceof Array)\n");
-		sb.append("$_printList_$(obj, endLine);\n");
-		sb.append("else if(obj instanceof $_Float_$) {\n");
-		sb.append("if (endLine)\n");
-		sb.append("sysout.println(obj.num);\n");
-		sb.append("else sysout.print(obj.num);\n}\n");
-		sb.append("else if(obj instanceof $_Integer_$)\n");
-		sb.append("sysout.print(obj.num.toFixed() + end);\n");
-		sb.append("else if(obj instanceof Object)\n");
-		sb.append("$_printRecord_$(obj, endLine);\n");
-		sb.append("else if(typeof obj === 'number')\n");
-		sb.append("$_printNumber_$(obj, endLine);\n");
-		sb.append("else sysout.print(obj + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-		//Simple number printer
-		sb = new StringBuilder("function $_printNumber_$(obj, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("if (String(obj)[String(obj).length-2] !== '.')\n");
-		sb.append("sysout.print(obj.toFixed() + end);\n");
-		sb.append("else {\n");
-		sb.append("if (endLine)\n");
-		sb.append("sysout.println(obj);\n");
-		sb.append("else sysout.print(obj);\n}\n}\n");
-
-		out.print(sb.toString());
-
-		// $_printList_$ method necessary to print WyScript's List type
-		sb = new StringBuilder();
-		sb.append("function $_printList_$(list, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("sysout.print(\"[\");\n");
-		sb.append("var first = true;\n");
-		sb.append("for (var i = 0; i < list.length; i++) {\n");
-		sb.append("if(!first)\n");
-		sb.append("sysout.print(\", \");\n");
-		sb.append("var elem = list[i];\n");
-		sb.append("first = false;\n");
-		sb.append("$_print_$(elem, false);\n");
-		sb.append("}\n");
-		sb.append("sysout.print(\"]\" + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-		// Now the $_printRecord_$ method
-		sb = new StringBuilder("function $_printRecord_$(record, endLine) {\n");
-		sb.append("var end = (endLine) ? \"\\n\" : \"\";\n");
-		sb.append("sysout.print(\"{\");\n");
-		sb.append("var first = true;\n");
-		sb.append("var keys = Object.keys(record);\n");
-		sb.append("keys.sort();\n");
-		sb.append("for (var i = 0; i < keys.length; i++) {\n");
-		sb.append("var key = keys[i];\n");
-		sb.append("if (!first)\n");
-		sb.append("sysout.print(\",\");\n");
-		sb.append("first = false;\n");
-		sb.append("sysout.print(key + \":\");\n");
-		sb.append("var value = record[key];\n");
-		sb.append("$_print_$(value, false);\n");
-		sb.append("}\n");
-		sb.append("sysout.print(\"}\" + end);\n");
-		sb.append("}\n");
-
-		out.print(sb.toString());
-
-	}
-
-	private void setUpCastFunctions() {
-
-		//Set up list-casting method
-		StringBuilder sb = new StringBuilder("function $_castList_$(list, typeList) {\n");
-		sb.append("for (var i = 0; i < list.length; i++) {\n");
-		sb.append("if (list[i] instanceof Array)\n");
-		sb.append("list[i] = $_castList_$(list[i]);\n");
-		sb.append("else if (!(list[i] instanceof $_Float_$ || list[i] instanceof $_Integer_$)");
-		sb.append(" && list[i] instanceof Object)\n");
-		sb.append("list[i] = $_castRecord_$(list[i], typeList[0], typeList.slice(1));\n");
-		sb.append("else list[i] = list[i].cast();\n}\n");
-		sb.append("return list;\n}\n");
-
-		out.print(sb.toString());
-
-		sb = new StringBuilder("function $_castRecord_$(record, name, list) {\n");
-		sb.append("if (list.length > 0)\n");
-		sb.append("record[list[0]] = $_castRecord_$(record[list[0]], name, list.slice(1));\n");
-		sb.append("else record[name] = record[name].cast();\n");
-		sb.append("return record;\n}\n");
-
-		out.print(sb.toString());
-	}
-
-	private void setUpNumberFunctions() {
-
-		// Create a Float function to represent a WyScript Real
-		StringBuilder sb = new StringBuilder("function $_Float_$(i) {\n");
-		sb.append("if (typeof i.num !== 'undefined') this.num = i.num;\n");
-		sb.append("else this.num = i;\n}\n\n");
-		sb.append("$_Float_$.prototype.add = function(other) {\n");
-		sb.append("return new $_Float_$(this.num + other.num);\n}\n");
-		sb.append("$_Float_$.prototype.sub = function(other) {\n");
-		sb.append("return new $_Float_$(this.num - other.num);\n}\n");
-		sb.append("$_Float_$.prototype.mul = function(other) {\n");
-		sb.append("return new $_Float_$(this.num * other.num);\n}\n");
-		sb.append("$_Float_$.prototype.div = function(other) {\n");
-		sb.append("return new $_Float_$(this.num / other.num);\n}\n");
-		sb.append("$_Float_$.prototype.rem = function(other) {\n");
-		sb.append("return new $_Float_$(this.num % other.num);\n}\n");
-		sb.append("$_Float_$.prototype.cast = function() {\n");
-		sb.append("return new $_Integer_$(this.num);\n}\n");
-
-		out.print(sb.toString());
-
-		// And an Integer function for a WyScript int
-		sb = new StringBuilder("function $_Integer_$(i) {\n");
-		sb.append("if (typeof i.num !== 'undefined') this.num = ~~(i.num);\n");
-		sb.append("else this.num = ~~i;\n}\n\n");
-		sb.append("$_Integer_$.prototype.add = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num + other.num);\n");
-		sb.append("else return new $_Float_$(this.num + other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.sub = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num - other.num);\n");
-		sb.append("else return new $_Float_$(this.num - other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.mul = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num * other.num);\n");
-		sb.append("else return new $_Float_$(this.num * other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.div = function(other) {\n");
-		sb.append("var tmp = this.num / other.num;\n");
-		sb.append("if (other instanceof $_Integer_$) {\n");
-		sb.append("return new $_Integer_$(~~tmp);\n}\n");
-		sb.append("else return new $_Float_$(this.num / other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.rem = function(other) {\n");
-		sb.append("if (other instanceof $_Integer_$)\n");
-		sb.append("return new $_Integer_$(this.num % other.num);\n");
-		sb.append("else return new $_Float_$(this.num % other.num);\n}\n");
-		sb.append("$_Integer_$.prototype.cast = function() {\n");
-		sb.append("return new $_Float_$(this.num);\n}\n");
-
-		out.print(sb.toString());
-	}
-
 	public void write(WyscriptFile.ConstDecl cd) {
 		Type t = cd.constant.attribute(Attribute.Type.class).type;
 		out.print("var "+ cd.name() + " = ");
 
 		if (t instanceof Type.Real) {
-			out.print("new $_Float_$(");
+			out.print("new $_.Float(");
 			write(cd.constant);
 			out.print(")");
 		}
 		else if (t instanceof Type.Int) {
-			out.print("new $_Integer_$(");
+			out.print("new $_.Integer(");
 			write(cd.constant);
 			out.print(")");
 		}
@@ -284,6 +82,10 @@ public class JavaScriptFileWriter {
 		out.println(";");
 	}
 
+	/**
+	 * Writes a function - this writes an equivalent
+	 * javascript function
+	 */
 	public void write(WyscriptFile.FunDecl fd) {
 		out.print("function " + fd.name + "(");
 		boolean firstTime = true;
@@ -296,51 +98,89 @@ public class JavaScriptFileWriter {
 			out.print(p.name);
 		}
 		out.println(") {");
-		write(fd.statements, 1);
+		write(fd.statements, 1, null);
 		out.println("}");
 	}
 
-	public void write(List<Stmt> statements, int indent) {
+	public void write(List<Stmt> statements, int indent, Expr expr) {
 		for(Stmt s : statements) {
-			write(s, indent);
+			write(s, indent, expr);
 		}
 	}
 
-	public void write(Stmt stmt, int indent) {
+	public void write(Stmt stmt, int indent, Expr expr) {
+
 		if(stmt instanceof Stmt.Atom) {
 			indent(indent);
 			writeAtom((Stmt.Atom) stmt);
 			out.println(";");
 		} else if(stmt instanceof Stmt.IfElse) {
-			write((Stmt.IfElse) stmt, indent);
+			write((Stmt.IfElse) stmt, indent, expr);
 		} else if(stmt instanceof Stmt.OldFor) {
-			write((Stmt.OldFor) stmt, indent);
+			write((Stmt.OldFor) stmt, indent, expr);
 		} else if(stmt instanceof Stmt.While) {
-			write((Stmt.While) stmt, indent);
+			write((Stmt.While) stmt, indent, expr);
 		} else if (stmt instanceof Stmt.For) {
-			write((Stmt.For) stmt, indent);
+			write((Stmt.For) stmt, indent, expr);
+		} else if (stmt instanceof Expr.Invoke) {
+			indent(indent);
+			write((Expr.Invoke)stmt);
+			out.println(";");
+		} else if (stmt instanceof Stmt.Switch) {
+			write((Stmt.Switch)stmt, indent);
+		}
+
+		//Handle the next statement, which just sets the control variable
+		//and then causes the switch's enclosing loop to repeat
+		else if (stmt instanceof Stmt.Next) {
+			indent(indent);
+			out.print("$_.labels.var" + (switchCount-1) + " = ");
+
+			if (expr == null)
+				out.print("'$_default'");
+
+			else
+				write(expr);
+
+			out.println(";");
+			indent(indent);
+			out.println("continue label" + (switchCount-1) + ";");
 		}
 		else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
 		}
 	}
 
-	public void write(Stmt.IfElse stmt, int indent) {
+	public void write(Stmt.IfElse stmt, int indent, Expr expr) {
 		indent(indent);
 		out.print("if(");
 		write(stmt.getCondition());
 		out.println(") {");
-		write(stmt.getTrueBranch(),indent+1);
-		if(stmt.getFalseBranch().size() > 0) {
-			indent(indent);
-			out.println("} else {");
-			write(stmt.getFalseBranch(),indent+1);
-		}
+		write(stmt.getTrueBranch(),indent+1, expr);
 		indent(indent);
 		out.println("}");
+
+		for (Expr e : stmt.getAltExpressions()) {
+			indent(indent);
+			out.print("else if(");
+			write(e);
+			out.println(") {");
+			write(stmt.getAltBranch(e), indent+1, expr);
+			indent(indent);
+			out.println("}");
+		}
+
+		if(stmt.getFalseBranch().size() > 0) {
+			indent(indent);
+			out.println("else {");
+			write(stmt.getFalseBranch(),indent+1, expr);
+			indent(indent);
+			out.println("}");
+		}
+
 	}
 
-	public void write(Stmt.OldFor stmt, int indent) {
+	public void write(Stmt.OldFor stmt, int indent, Expr expr) {
 		indent(indent);
 		out.print("for(");
 		writeAtom(stmt.getDeclaration());
@@ -349,43 +189,148 @@ public class JavaScriptFileWriter {
 		out.print(";");
 		writeAtom(stmt.getIncrement());
 		out.println(") {");
-		write(stmt.getBody(),indent+1);
+		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
 	}
 
 	/**
-	 * Writes a for each loop. Only consideration is
-	 * if dealing with a range, must convert that to a list first
+	 * Writes a for each loop. This is converted to a classical for loop,
+	 * with extra variables stored inside an object inside the helper
+	 * $_.funcs object.
 	 *
 	 */
-	public void write(Stmt.For stmt, int indent) {
+	public void write(Stmt.For stmt, int indent, Expr expr) {
 
-		//After being dealt with by write, $$__tmp__$$ will be a list
+		//First, create a new object inside $_.funcs to hold all necessary variables
+		String name = "$_.funcs." + stmt.getIndex().getName();
 		indent(indent);
-		out.print("var $$__tmp__$$ = ");
+		out.println(name + " = {};");
+		indent(indent);
+		out.print(name + ".list = ");
 		write(stmt.getSource());
+		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
+		else {
+			//Must be accessing a $_.List, by either a constructor or variable
+			//so we want to access the array in that $_.List
+			out.print(".list");
+		}
 		out.println(";");
 		indent(indent);
+		out.println(name + ".count = 0;");
+		indent(indent);
 
-		//Simulate a foreach loop by iterating over the list, and defining the index value to be equal
+		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
-		out.print("for(var $_tmp_$ = 0; $_tmp_$ < $$__tmp__$$.length; $_tmp_$++) {\n");
+		out.print("for(" + name + ".count = 0; ");
+		out.print(name + ".count < " + name + ".list.length; ");
+		out.println(name + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = $$__tmp__$$[$_tmp_$];");
-		write(stmt.getBody(),indent+1);
+		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
+		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
+
+		//Finally, delete the property to help save memory in the longer-term
+		indent(indent);
+		out.println("delete " + name + ";");
 	}
 
-	public void write(Stmt.While stmt, int indent) {
+	public void write(Stmt.While stmt, int indent, Expr expr) {
 		indent(indent);
 		out.print("while(");
 		write(stmt.getCondition());
 		out.println(") {");
-		write(stmt.getBody(),indent+1);
+		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
+	}
+
+	public void write(Stmt.Switch stmt, int indent) {
+		indent(indent);
+		//Need to make a labeled loop surrounding switch to simulate explicit fallthrough
+		out.print("$_.labels.var" + switchCount + " = ");
+		write(stmt.getExpr());
+		out.println(";");
+		indent(indent);
+		out.println("label" + switchCount++ + ": while(true) {");
+
+		//Now write the actual switch body
+		writeSwitchStatements(stmt.cases(), indent+1);
+		indent(indent);
+		out.println("}");
+
+		//Reset the nested switch count
+		switchCount--;
+	}
+
+	/**
+	 * Writes a WyScript switch statement as a series of else if statements, with
+	 * the default providing the role of the optional else block.
+	 */
+	private void writeSwitchStatements(List<Stmt.SwitchStmt> block, int indent) {
+		boolean first = true;
+		boolean hasDef = false;
+		int defIndex = -1;
+
+		for (int i = 0; i < block.size(); i++) {
+
+			Stmt.SwitchStmt stmt = block.get(i);
+
+			if (stmt instanceof Stmt.Case) {
+				indent(indent);
+
+				if (!first) {
+					out.print("else ");
+				}
+
+				first = false;
+
+				Stmt.Case c = (Stmt.Case)stmt;
+
+				out.print("if($_.equals($_.labels.var" + (switchCount-1) + ", ");
+				write(c.getConstant());
+				out.println(", true)) {");
+			}
+			else {
+				hasDef = true;
+				defIndex = i;
+				continue;
+			}
+
+			//Need to find what the next element is for fallthrough
+			Expr expr = null;
+			if ( i < block.size() -1) {
+				Stmt.SwitchStmt next = block.get(i+1);
+				if (next instanceof Stmt.Case)
+					expr = ((Stmt.Case)next).getConstant();
+				else expr = null;
+			}
+
+			if (stmt instanceof Stmt.Case)
+				write(((Stmt.Case)stmt).getStmts(), indent+1, expr);
+
+			//Finally, break the switch - if a next was used it will be evaluated before this is reached
+			indent(indent+1);
+			out.println("break label" + (switchCount-1) + ";");
+			indent(indent);
+			out.println("}\n");
+		}
+
+		//Add a default statement that breaks if one doesn't exist
+		indent(indent);
+		out.println("else {");
+		if (hasDef) {
+			Expr defExpr = null;
+			if (defIndex < block.size() -1)
+				defExpr = (((Stmt.Case)block.get(defIndex+1)).getConstant());
+			write(((Stmt.Default)block.get(defIndex)).getStmts(), indent+1, defExpr);
+		}
+		indent(indent+1);
+		out.println("break label" + (switchCount-1) + ";");
+		indent(indent);
+		out.println("}\n");
+
 	}
 
 	public void writeAtom(Stmt stmt) {
@@ -403,16 +348,53 @@ public class JavaScriptFileWriter {
 	}
 
 	public void write(Stmt.Assign stmt) {
-		write(stmt.getLhs());
-		out.print(" = ");
-		write(stmt.getRhs());
+		Type t = stmt.getLhs().attribute(Attribute.Type.class).type;
+
+		//Special case for mutating a string, which is illegal in javascript
+		if (t instanceof Type.Char && stmt.getLhs() instanceof Expr.IndexOf) {
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(" = ");
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(".assign(");
+			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
+			out.print(", ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		//Must use the library function to mutate a list
+		else if (stmt.getLhs() instanceof Expr.IndexOf) {
+			write(((Expr.IndexOf)stmt.getLhs()).getSource());
+			out.print(".setValue(");
+			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
+			out.print(", ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		//Must use a library function to mutate a record
+		else if (stmt.getLhs() instanceof Expr.RecordAccess) {
+			write(((Expr.RecordAccess)stmt.getLhs()).getSource());
+			out.print(".setValue('");
+			out.print(((Expr.RecordAccess)stmt.getLhs()).getName());
+			out.print("', ");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+		else {
+			write(stmt.getLhs());
+			out.print(" = ");
+			write(stmt.getRhs());
+
+			//Handle pass by value
+			if (t instanceof Type.List || t instanceof Type.Record)
+				out.print(".clone()");
+		}
 	}
 
 
 	public void write(Stmt.Print stmt) {
-		out.print("$_print_$(");
+		out.print("$_.print(");
 		write(stmt.getExpr());
-		out.print(", true)");
+		out.print(")");
 	}
 
 	public void write(Stmt.Return stmt) {
@@ -427,9 +409,13 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.VariableDeclaration stmt) {
 		Expr init = stmt.getExpr();
 		out.print("var " + stmt.getName());
+
 		if(init != null) {
+			Type t = init.attribute(Attribute.Type.class).type;
 			out.print(" = ");
 			write(init);
+			if (t instanceof Type.List || t instanceof Type.Record || t instanceof Type.Union)
+				out.print(".clone()");
 		}
 	}
 
@@ -454,30 +440,64 @@ public class JavaScriptFileWriter {
 			write((Expr.Unary) expr);
 		} else if(expr instanceof Expr.Variable) {
 			write((Expr.Variable) expr);
-		} else {
+		} else if(expr instanceof Expr.Is) {
+			write((Expr.Is)expr);
+		}
+		else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 		}
 	}
 
 	public void write(Expr.Binary expr) {
 
-		//Must convert a range expression
-		if (expr.getOp() == Expr.BOp.RANGE) {
-			out.print("($_range_$(");
-			write(expr.getLhs());
-			out.print(".num, ");
-			write(expr.getRhs());
-			out.print(".num))");
-			return;
-		}
-
 		//Have to handle the case where
 		//Working with numbers - must call the method on the JavaScript object
+
+		//Need to handle the nasty left recursive case for maths operators
+		Expr.BOp op = expr.getOp();
+		if (expr.getRhs() instanceof Expr.Binary && (
+				   op == Expr.BOp.ADD || op == Expr.BOp.SUB
+				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
+				|| op == Expr.BOp.REM)) {
+
+			Expr.Binary bin = (Expr.Binary) expr.getRhs();
+			Expr.BOp otherOp = bin.getOp();
+
+			switch(otherOp) {
+
+			case ADD:
+			case DIV:
+			case MUL:
+			case REM:
+			case SUB:
+				Expr.Binary lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+				Expr.Binary newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+				write(newExpr);
+				return;
+
+			default:
+				break;
+			}
+		}
 		switch (expr.getOp()) {
+
+		case APPEND:
+			write(expr.getLhs());
+			out.print(".append(");
+			write(expr.getRhs());
+			out.print(")");
+			return;
+
+		case RANGE:
+			out.print("($_.range(");
+			write(expr.getLhs());
+			out.print(", ");
+			write(expr.getRhs());
+			out.print("))");
+			return;
 
 		case AND:
 		case OR:
-		case APPEND:
 			out.print("(");
 			write(expr.getLhs());
 			break;
@@ -499,8 +519,6 @@ public class JavaScriptFileWriter {
 			return;
 
 		case MUL:
-			out.print("(");
-			write(expr.getLhs());
 			out.print("(");
 			write(expr.getLhs());
 			out.print(".mul(");
@@ -526,7 +544,7 @@ public class JavaScriptFileWriter {
 
 		case GTEQ:
 		case GT:
-			out.print("($_gt_$(");
+			out.print("($_.gt(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -539,7 +557,7 @@ public class JavaScriptFileWriter {
 
 		case LT:
 		case LTEQ:
-			out.print("($_lt_$(");
+			out.print("($_.lt(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -551,14 +569,14 @@ public class JavaScriptFileWriter {
 			return;
 
 		case NEQ:
-			out.print("($_equals_$(");
+			out.print("($_.equals(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
 			out.print(", false))");
 			return;
 		case EQ:
-			out.print("($_equals_$(");
+			out.print("($_.equals(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -576,214 +594,210 @@ public class JavaScriptFileWriter {
 		//We need to check for the case where casting one of the number types
 		//to the other number type, as this affects how we print the number
 		Type t = expr.getType();
-		if (t instanceof Type.Record) {
-			castRecord(expr.getSource(), (Type.Record) t);
-		}
-		else if (t instanceof Type.List) {
-			castList(expr.getSource(), (Type.List)t);
-		}
-		else if (t instanceof Type.Real) {
-			out.print("(new $_Float_$(");
+		t = convertNamedType(t);
+
+		Type actual = expr.getSource().attribute(Attribute.Type.class).type;
+		actual = convertNamedType(actual);
+
+		//Pointless cast
+		if (t.equals(actual)) {
 			write(expr.getSource());
-			out.print("))");
 			return;
 		}
-		else if (t instanceof Type.Int) {
-			out.print("(new $_Integer_$(");
+
+		//Casting a union has no impact on the underlying object. So can ignore it
+		else if (actual instanceof Type.Union) {
 			write(expr.getSource());
-			out.print("))");
 			return;
 		}
+
+		//Can call the cast method of a record or list or union
+		else if (t instanceof Type.Record || t instanceof Type.List) {
+
+			write(expr.getSource());
+			out.print(".cast(");
+
+			List<String> typeList = getRecordTypeList(actual, expr.getType());
+
+			if (typeList.isEmpty()) {
+				out.print("'', [],");
+				write(t);
+				out.print(")");
+			}
+			else {
+				out.print("'" + typeList.get(0) +"', [");
+				boolean first = true;
+				for (int i = 1; i < typeList.size(); i++) {
+					if(!first)
+						out.print(", ");
+					first = false;
+					out.print("'" + typeList.get(i) + "'");
+				}
+				out.print("],");
+				write(t);
+				out.print(")");
+			}
+		}
+		else if (t instanceof Type.Real || t instanceof Type.Int) {
+			write(expr.getSource());
+			out.print(".cast('" + t.toString() + "')");
+		}
+
+		//This cast has no impact on the program (and has already been type checked)
 		else write(expr.getSource());
 	}
 
 	/**
-	 * Helper method used to determine whether or not we
-	 * need to take extra care casting a list - as is the
-	 * case when the list contains a number type to cast.
+	 * Removes any references to named types in a given type, and returns the actual type
 	 */
-	private void castList(Expr source, Type.List type) {
+	private Type convertNamedType(Type t) {
+		Type current = t;
+		while(current instanceof Type.Named)
+			current = userTypes.get(current.toString());
 
-		Type t = type.getElement();
-		Type actual = source.attribute(Attribute.Type.class).type;
-
-		while (t instanceof Type.List) {
-			t = ((Type.List)t).getElement();
-			actual = ((Type.List)actual).getElement();
+		//Clone the list, and replace any named types in the list's element type
+		if (current instanceof Type.List) {
+			return new Type.List(convertNamedType(((Type.List) current).getElement()));
 		}
-		List<String> typeList = new ArrayList<String>();
 
-		if (t instanceof Type.Record && !t.equals(actual))
-			typeList = getRecordTypeList((Type.Record)actual, (Type.Record)t);
-
-		if (!t.equals(actual)) {
-			out.print("($_castList_$(");
-			write(source);
-			out.print(",");
-			StringBuilder list = new StringBuilder("[");
-			boolean first = true;
-			for (String s : typeList) {
-				if (!first)
-					list.append(", ");
-				first = false;
-				list.append(s);
+		//Clone the record and step through its fields, replacing any named types found
+		else if (current instanceof Type.Record) {
+			HashMap<String, Type> fields = new HashMap<String, Type>(((Type.Record)current).getFields());
+			for (String s : fields.keySet()) {
+				fields.put(s, convertNamedType(fields.get(s)));
 			}
-			list.append("]");
-			out.print(list.toString() + "))");
+			return new Type.Record(fields);
 		}
-		else write(source);
+
+		//Clone the union and step through its bounds, replacing any named types found
+		else if (current instanceof Type.Union) {
+			List<Type> newBounds = new ArrayList<Type>();
+			for (Type type : ((Type.Union)current).getBounds()) {
+				newBounds.add(convertNamedType(type));
+			}
+			return new Type.Union(newBounds);
+		}
+
+		else return current;
 	}
 
-	private List<String> getRecordTypeList(Type.Record actual, Type.Record type) {
-		Type.Record current = type;
+	/**
+	 * Gets the list of fields changed in a cast affecting a record type - the first element
+	 * will be the name of the field changed, and the subsequent elements form a list of the fields
+	 * that must be traversed to reach the changed field.
+	 */
+	private List<String> getRecordTypeList(Type actual, Type castType) {
+
+		if (actual.equals(castType))
+			return new ArrayList<String>();
+
+		Type current = castType;
+		current = convertNamedType(castType);
+
+		Type temp = convertNamedType(actual);
+
 		String castedName = "";
 		Type casted = null;
 		List<String> fieldList = new ArrayList<String>();
 
-		while (casted == null) {
-			for (String s : actual.getFields().keySet()) {
-				if (actual.getFields().get(s).equals(current.getFields().get(s)))
-					continue;
-				else {
-					Type t = current.getFields().get(s);
-					if (t instanceof Type.Record) {
-						fieldList.add(s);
-						current = (Type.Record)t;
-						actual = (Type.Record)actual.getFields().get(s);
-					}
+		outer: while (casted == null) {
+			if (temp instanceof Type.List) {
+				temp = ((Type.List)temp).getElement();
+				current = ((Type.List)current).getElement();
+			}
+			else if (temp instanceof Type.Record) {
+				Type.Record actualRecord = (Type.Record)temp;
+				Type.Record currentRecord = (Type.Record)current;
+				for (String s : actualRecord.getFields().keySet()) {
+					if (actualRecord.getFields().get(s).equals(currentRecord.getFields().get(s)))
+						continue;
 					else {
-						casted = t;
-						castedName = s;
+						current = currentRecord.getFields().get(s);
+						temp = actualRecord.getFields().get(s);
+						if (current instanceof Type.Record || current instanceof Type.List) {
+							fieldList.add(s);
+							continue outer;
+						}
+						else {
+							casted = temp;
+							castedName = s;
+							break outer;
+						}
 					}
 				}
+				break; //Signals a 'pointless' cast
 			}
-			break; //Signals a 'pointless' cast
+			else return new ArrayList<String>(); //Should be dead code
+
 		}
 		if (casted == null)
-			return null; //pointless cast, no difference in types
+			return new ArrayList<String>(); //pointless cast, no difference in types
 		else {
 			fieldList.add(0, castedName);
 			return fieldList;
 		}
 	}
 
-	private void castRecord(Expr source, Type.Record type) {
-		Type src = source.attribute(Attribute.Type.class).type;
-		if (src instanceof Type.Named)
-			src = userTypes.get(((Type.Named)src).getName());
-		Type.Record actual = (Type.Record) src;
-		Type.Record current = type;
-		String castedName = "";
-		Type casted = null;
-		List<String> fieldList = new ArrayList<String>();
-
-		while (casted == null) {
-			for (String s : actual.getFields().keySet()) {
-				if (actual.getFields().get(s).equals(current.getFields().get(s)))
-					continue;
-				else {
-					Type t = current.getFields().get(s);
-					if (t instanceof Type.Record) {
-						fieldList.add(s);
-						current = (Type.Record)t;
-						actual = (Type.Record)actual.getFields().get(s);
-					}
-					else {
-						casted = t;
-						castedName = s;
-					}
-				}
-			}
-			break; //Signals a 'pointless' cast
-		}
-		if (casted == null) {
-			write(source);
-		}
-		else {
-			if (casted instanceof Type.Int || casted instanceof Type.Real) {
-				out.print("($_castRecord_$(");
-				write(source);
-				StringBuilder list = new StringBuilder("[");
-				boolean first = true;
-				for (String s : fieldList) {
-					if (!first)
-						list.append(", ");
-					first = false;
-					list.append(s);
-				}
-				list.append("]");
-				out.print(", \""+ castedName + "\", " + list.toString() + "))");
-			}
-			else if (casted instanceof Type.List) {
-				while (casted instanceof Type.List) {
-					casted = ((Type.List)casted).getElement();
-				}
-				if (casted instanceof Type.Int || casted instanceof Type.Real) {
-					out.print("($_castRecord_$(");
-					write(source);
-					out.print(",");
-					StringBuilder list = new StringBuilder("[");
-					boolean first = true;
-					for (String s : fieldList) {
-						if (!first)
-							list.append(", ");
-						first = false;
-						list.append(s);
-					}
-					list.append("]");
-					out.print(", "+ castedName + ", " + list.toString() + "))");
-				}
-				else
-					write(source);
-			}
-			else
-				write(source);
-		}
-	}
-
 	public void write(Expr.Constant expr) {
 
-		Type t = expr.attribute(Attribute.Type.class).type;
+		Type t = (expr.attribute(Attribute.Type.class) != null) ? expr.attribute(Attribute.Type.class).type
+				: null;
+
 		Object val = expr.getValue();
 
 		if (t instanceof Type.Real) {
-			out.print("new $_Float_$(");
+			out.print("new $_.Float(");
 			out.print(val + ")");
 		}
 		else if (t instanceof Type.Int) {
-			out.print("new $_Integer_$(");
+			out.print("new $_.Integer(");
 			out.print(val + ")");
 		}
 		else if (val instanceof StringBuffer) {
 			String s = ((StringBuffer) val).toString();
-			out.print("\"");
+			out.print("new $_.String('");
 			out.print(s);
-			out.print("\"");
-		} else
+			out.print("')");
+		}
+		else if (val instanceof Character) {
+			out.print("new $_.Char('");
+			out.print(val);
+			out.print("')");
+		}
+		else
 			out.print(val);
 	}
 
 	public void write(Expr.IndexOf expr) {
 		write(expr.getSource());
-		out.print("[");
+		out.print(".getValue(");
 		write(expr.getIndex());
-		out.print(".num]");
+		out.print(")");
 	}
 
 	public void write(Expr.Invoke expr) {
 		out.print(expr.getName() + "(");
 		boolean firstTime=true;
 		for(Expr arg : expr.getArguments()) {
+			Type t = arg.attribute(Attribute.Type.class).type;
 			if(!firstTime) {
 				out.print(",");
 			}
 			firstTime=false;
 			write(arg);
+			if (t instanceof Type.List || t instanceof Type.Record)
+				out.print(".clone()");
 		}
 		out.print(")");
 	}
 
 	public void write(Expr.ListConstructor expr) {
+
+		Type t = expr.attribute(Attribute.Type.class).type;
+		t = convertNamedType(t);
+
+		//Create a list object, and pass it its type
+		out.print("new $_.List(");
 		out.print("[");
 		boolean firstTime=true;
 		for(Expr arg : expr.getArguments()) {
@@ -793,26 +807,45 @@ public class JavaScriptFileWriter {
 			firstTime=false;
 			write(arg);
 		}
-		out.print("]");
+		out.print("], ");
+		write(t);
+		out.print(")");
 	}
 
 	public void write(Expr.RecordAccess expr) {
 		write(expr.getSource());
-		out.print("." + expr.getName());
+		out.print(".getValue('" + expr.getName() + "')");
 	}
 
 	public void write(Expr.RecordConstructor expr) {
-		out.print("({");
+
+		Type t = expr.attribute(Attribute.Type.class).type;
+		t = convertNamedType(t);
+
+		//Create a record object, passing it two ordered arrays, the first of the names of its fields,
+		//the second of the values of those fields
+		out.print("new $_.Record(");
+		out.print("[");
 		boolean firstTime=true;
 		for(Pair<String,Expr> p : expr.getFields()) {
 			if(!firstTime) {
 				out.print(",");
 			}
 			firstTime=false;
-			out.print(p.first() + ": ");
+			out.print("'" + p.first() + "'");
+		}
+		out.print("], [");
+		firstTime=true;
+		for(Pair<String,Expr> p : expr.getFields()) {
+			if(!firstTime) {
+				out.print(",");
+			}
+			firstTime=false;
 			write(p.second());
 		}
-		out.print("})");
+		out.print("], ");
+		write(t);
+		out.print(")");
 	}
 
 	public void write(Expr.Unary expr) {
@@ -825,22 +858,135 @@ public class JavaScriptFileWriter {
 		case NEG:
 			Type t = expr.getExpr().attribute(Attribute.Type.class).type;
 			if (t instanceof Type.Int)
-				out.print("new $_Integer_$(");
+				out.print("new $_.Integer(");
 			else
-				out.print("new $_Float_$(");
+				out.print("new $_.Float(");
 			out.print(expr.getOp() + "(");
 			write(expr.getExpr());
-			out.print(".num)");
+			out.print(".num))");
 			break;
 		case LENGTHOF:
 			write(expr.getExpr());
-			out.print(".length");
+			out.print(".length()");
 		}
 		out.print(")");
 	}
 
 	public void write(Expr.Variable expr) {
 		out.print(expr.getName());
+	}
+
+	public void write(Expr.Is expr) {
+
+		Type t = expr.getRhs();
+		t = convertNamedType(t);
+
+		out.print("$_.is(");
+		write(expr.getLhs());
+		out.print(", ");
+		write(t);
+		out.print(")");
+	}
+
+	/**
+	 * Writes a type - necessary for Record and List objects
+	 */
+	public void write(Type t) {
+		t = convertNamedType(t);
+		if (t instanceof Type.Null)
+			write((Type.Null)t);
+		else if (t instanceof Type.Void)
+			write((Type.Void)t);
+		else if (t instanceof Type.Bool)
+			write((Type.Bool)t);
+		else if (t instanceof Type.Int)
+			write((Type.Int)t);
+		else if (t instanceof Type.Real)
+			write((Type.Real)t);
+		else if (t instanceof Type.Char)
+			write((Type.Char)t);
+		else if (t instanceof Type.Strung)
+			write((Type.Strung)t);
+		else if (t instanceof Type.List)
+			write((Type.List)t);
+		else if (t instanceof Type.Record)
+			write((Type.Record)t);
+		else if (t instanceof Type.Union)
+			write((Type.Union)t);
+		else internalFailure("Unknown type encountered: " + t, file.filename, t);
+	}
+
+	public void write(Type.Null t) {
+		out.print("new $_.Type.Null()");
+	}
+
+	public void write(Type.Void t) {
+		out.print("new $_.Type.Void()");
+	}
+
+	public void write(Type.Bool t) {
+		out.print("new $_.Type.Bool()");
+	}
+
+	public void write(Type.Int t) {
+		out.print("new $_.Type.Int()");
+	}
+
+	public void write(Type.Real t) {
+		out.print("new $_.Type.Real()");
+	}
+
+	public void write(Type.Char t) {
+		out.print("new $_.Type.Char()");
+	}
+
+	public void write(Type.Strung t) {
+		out.print("new $_.Type.String()");
+	}
+
+	public void write(Type.List t) {
+		out.print("new $_.Type.List(");
+		write(t.getElement());
+		out.print(")");
+	}
+
+	public void write(Type.Record t) {
+		out.print("new $_.Type.Record([");
+		List<String> names = new ArrayList<String>(t.getFields().keySet());
+		Collections.sort(names);
+
+		boolean first = true;
+		for (String s : names) {
+			if (!first)
+				out.print(", ");
+
+			first = false;
+			out.print("'" + s + "'");
+		}
+		out.print("], [");
+		first = true;
+		for (String s : names) {
+			if (!first)
+				out.print(", ");
+
+			first = false;
+			write(t.getFields().get(s));
+		}
+		out.print("])");
+	}
+
+	public void write(Type.Union t) {
+		out.print("new $_.Type.Union([");
+		boolean first = true;
+
+		for (Type b : t.getBounds()) {
+			if (!first)
+				out.print(", ");
+
+			first = false;
+			write(b);
+		}
+		out.print("])");
 	}
 
 	public void indent(int indent) {

@@ -9,8 +9,12 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+
 import org.junit.*;
 import org.mozilla.javascript.Context;
+import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 
@@ -18,7 +22,7 @@ public class JavaScriptValidTests {
 	/**
 	 * Path to test directory.
 	 */
-	private String testdir = "tests/valid/";
+	private static String testdir = "tests/valid/";
 
 	// ======================================================================
 	// Test Harness
@@ -34,48 +38,56 @@ public class JavaScriptValidTests {
 
 		// Classpath to project root
 		String classPath = "../../src";
-		
+
 		// First, we need to compile the given test into javascript
 		String errors = TestUtils.exec(classPath, testdir, "wyscript.Main", "-js", name + ".wys");
-		
+
 		if(!errors.equals("")) {
 			System.err.println(errors);
 			fail(errors);
 		}
-		
-		// Second, execute the generated JavaScript Program. 
+
+		// Second, execute the generated JavaScript Program.
 		String output = execJavaScript(generatedJavaScriptFile);
 
 		// Third, compare the output!
 		TestUtils.compare(output,sampleOutputFile);
 	}
-	
+
 	/**
 	 * Execute the main() method on a given (generated) Javascript file, and
 	 * capture the output.
-	 * 
+	 *
 	 * @param filename Filename of generated JavaScript source file.
 	 * @return
 	 */
 	private static String execJavaScript(String filename) {
+		OutputStream out = new ByteArrayOutputStream();
 	    try {
 	      Reader file = new FileReader(new File(filename));
 	      Context cxt = Context.enter();
 	      Scriptable scope = cxt.initStandardObjects();
 
-	      OutputStream out = new ByteArrayOutputStream();
+
 	      Object sysout = Context.javaToJS(new PrintStream(out), scope);
 	      OutputStream err = new ByteArrayOutputStream();
 	      Object syserr = Context.javaToJS(new PrintStream(err), scope);
 
 	      ScriptableObject.putConstProperty(scope, "sysout", sysout);
 	      ScriptableObject.putConstProperty(scope, "syserr", syserr);
+
+	      //Set up the library
+	      String lib = testdir + File.separatorChar + "$_.js";
+	      Reader library = new FileReader(new File(lib));
+	      cxt.evaluateReader(scope, library, lib, 1, null);
+
 	      cxt.evaluateReader(scope, file, filename, 1, null);
 	      cxt.evaluateString(scope, "main()", "main", 1, null);
 
 	      System.err.println(err);
 	      return out.toString();
 	    } catch (Exception ex) {
+	      System.err.print(out);
 	      ex.printStackTrace();
 	      fail("Problem running compiled test");
 	    } finally {
@@ -84,10 +96,15 @@ public class JavaScriptValidTests {
 
 	    return null;
 	  }
-	
+
 	// ======================================================================
 	// Tests
 	// ======================================================================
+
+	@Test
+	public void Benchmark_Conways() {
+		runTest("Benchmark_Conways");
+	}
 
 	@Test
 	public void BoolAssign_Valid_1() {
@@ -162,6 +179,16 @@ public class JavaScriptValidTests {
 	@Test
 	public void Cast_Valid_4() {
 		runTest("Cast_Valid_4");
+	}
+
+	@Test
+	public void Cast_Valid_5() {
+		runTest("Cast_Valid_5");
+	}
+
+	@Test
+	public void Cast_Valid_6() {
+		runTest("Cast_Valid_6");
 	}
 
 	@Test

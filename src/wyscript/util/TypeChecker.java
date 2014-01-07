@@ -353,6 +353,9 @@ public class TypeChecker {
 
 	public Type check(Expr.Is expr, Map<String,Type> environment) {
 		//Like == or !=, there's no way to have a 'bad' is expression
+		//However, we still want to annotate the expression with its type
+
+		check(expr.getLhs(), environment);
 		return new Type.Bool();
 	}
 
