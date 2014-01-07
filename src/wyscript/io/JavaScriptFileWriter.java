@@ -22,6 +22,7 @@ public class JavaScriptFileWriter {
 	private PrintStream out;
 	private WyscriptFile file;
 	private HashMap<String, Type> userTypes;
+	private int switchCount = 0;	//Used to prevent issues with nested switch statements
 
 	public JavaScriptFileWriter(File file) throws IOException {
 		this.out = new PrintStream(new FileOutputStream(file));
@@ -128,21 +129,22 @@ public class JavaScriptFileWriter {
 		} else if (stmt instanceof Stmt.Switch) {
 			write((Stmt.Switch)stmt, indent);
 		}
+
 		//Handle the next statement, which just sets the control variable
 		//and then causes the switch's enclosing loop to repeat
 		else if (stmt instanceof Stmt.Next) {
 			indent(indent);
-			out.print("$_label_$ = ");
+			out.print("$_.labels.var" + (switchCount-1) + " = ");
 
 			if (expr == null)
-				out.print("$_default_$");
+				out.print("'$_default'");
 
 			else
 				write(expr);
 
 			out.println(";");
 			indent(indent);
-			out.println("continue $_loop_$;");
+			out.println("continue label" + (switchCount-1) + ";");
 		}
 		else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
@@ -193,27 +195,45 @@ public class JavaScriptFileWriter {
 	}
 
 	/**
-	 * Writes a for each loop. Only consideration is
-	 * if dealing with a range, must convert that to a list first
+	 * Writes a for each loop. This is converted to a classical for loop,
+	 * with extra variables stored inside an object inside the helper
+	 * $_.funcs object.
 	 *
 	 */
 	public void write(Stmt.For stmt, int indent, Expr expr) {
 
-		//After being dealt with by write, $$__tmp__$$ will be a list
+		//First, create a new object inside $_.funcs to hold all necessary variables
+		String name = "$_.funcs." + stmt.getIndex().getName();
 		indent(indent);
-		out.print("var $$__tmp__$$ = ");
+		out.println(name + " = {};");
+		indent(indent);
+		out.print(name + ".list = ");
 		write(stmt.getSource());
+		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
+		else {
+			//Must be accessing a $_.List, by either a constructor or variable
+			//so we want to access the array in that $_.List
+			out.print(".list");
+		}
 		out.println(";");
+		indent(indent);
+		out.println(name + ".count = 0;");
 		indent(indent);
 
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
-		out.print("for(var $_tmp_$ = 0; $_tmp_$ < $$__tmp__$$.length; $_tmp_$++) {\n");
+		out.print("for(" + name + ".count = 0; ");
+		out.print(name + ".count < " + name + ".list.length; ");
+		out.println(name + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = $$__tmp__$$[$_tmp_$];");
+		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
+
+		//Finally, delete the property to help save memory in the longer-term
+		indent(indent);
+		out.println("delete " + name + ";");
 	}
 
 	public void write(Stmt.While stmt, int indent, Expr expr) {
@@ -229,16 +249,19 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.Switch stmt, int indent) {
 		indent(indent);
 		//Need to make a labeled loop surrounding switch to simulate explicit fallthrough
-		out.print("var $_label_$ = ");
+		out.print("$_.labels.var" + switchCount + " = ");
 		write(stmt.getExpr());
 		out.println(";");
 		indent(indent);
-		out.println("$_loop_$: while(true) {");
+		out.println("label" + switchCount++ + ": while(true) {");
 
 		//Now write the actual switch body
 		writeSwitchStatements(stmt.cases(), indent+1);
 		indent(indent);
 		out.println("}");
+
+		//Reset the nested switch count
+		switchCount--;
 	}
 
 	/**
@@ -265,7 +288,7 @@ public class JavaScriptFileWriter {
 
 				Stmt.Case c = (Stmt.Case)stmt;
 
-				out.print("if($_.equals($_label_$, ");
+				out.print("if($_.equals($_.labels.var" + (switchCount-1) + ", ");
 				write(c.getConstant());
 				out.println(", true)) {");
 			}
@@ -289,7 +312,7 @@ public class JavaScriptFileWriter {
 
 			//Finally, break the switch - if a next was used it will be evaluated before this is reached
 			indent(indent+1);
-			out.println("break $_loop_$;");
+			out.println("break label" + (switchCount-1) + ";");
 			indent(indent);
 			out.println("}\n");
 		}
@@ -304,7 +327,7 @@ public class JavaScriptFileWriter {
 			write(((Stmt.Default)block.get(defIndex)).getStmts(), indent+1, defExpr);
 		}
 		indent(indent+1);
-		out.println("break $_loop_$;");
+		out.println("break label" + (switchCount-1) + ";");
 		indent(indent);
 		out.println("}\n");
 

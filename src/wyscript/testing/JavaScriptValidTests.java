@@ -62,13 +62,13 @@ public class JavaScriptValidTests {
 	 * @return
 	 */
 	private static String execJavaScript(String filename) {
-
+		OutputStream out = new ByteArrayOutputStream();
 	    try {
 	      Reader file = new FileReader(new File(filename));
 	      Context cxt = Context.enter();
 	      Scriptable scope = cxt.initStandardObjects();
 
-	      OutputStream out = new ByteArrayOutputStream();
+
 	      Object sysout = Context.javaToJS(new PrintStream(out), scope);
 	      OutputStream err = new ByteArrayOutputStream();
 	      Object syserr = Context.javaToJS(new PrintStream(err), scope);
@@ -87,6 +87,7 @@ public class JavaScriptValidTests {
 	      System.err.println(err);
 	      return out.toString();
 	    } catch (Exception ex) {
+	      System.err.print(out);
 	      ex.printStackTrace();
 	      fail("Problem running compiled test");
 	    } finally {
@@ -99,6 +100,11 @@ public class JavaScriptValidTests {
 	// ======================================================================
 	// Tests
 	// ======================================================================
+
+	@Test
+	public void Benchmark_Conways() {
+		runTest("Benchmark_Conways");
+	}
 
 	@Test
 	public void BoolAssign_Valid_1() {
