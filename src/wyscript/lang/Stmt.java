@@ -489,9 +489,9 @@ public interface Stmt extends SyntacticElement {
 		public final Expr.Variable indexY;
 		public final Expr.Variable indexZ;
 		//each src expression matches to one index
-		public final Expr srcX;
-		public final Expr srcY;
-		public final Expr srcZ;
+		public Expr srcX;
+		public Expr srcY;
+		public Expr srcZ;
 		//depth of the loop determined by number of 'and's that occur
 		public final int depth;
 		/**

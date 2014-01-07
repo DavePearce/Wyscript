@@ -99,7 +99,7 @@ public class TypeChecker {
 		} else if(stmt instanceof Stmt.OldFor) {
 			check((Stmt.OldFor) stmt, environment);
 		} else if (stmt instanceof Stmt.ParFor) {
-			//check((Stmt.ParFor) stmt, environment);
+			check((Stmt.ParFor) stmt, environment);
 		} else if(stmt instanceof Stmt.For) {
 			check((Stmt.For) stmt, environment);
 		} else if(stmt instanceof Stmt.While) {
@@ -499,6 +499,39 @@ public class TypeChecker {
 					file.filename, expr);
 		}
 		return type;
+	}
+	public void check(Stmt.ParFor parfor, Map<String, Type> environment) {
+		if (parfor.indexX != null) {
+			Type t = check(parfor.srcX, environment);
+			if (!(t instanceof Type.List)) {
+				syntaxError("ParFor loop source expression must evaluate to a list type", file.filename, t);
+			}else{
+				Type.List listType = (Type.List) t;
+				environment.put(parfor.indexX.getName(), listType.getElement());
+			}
+		}
+		if (parfor.indexY != null) {
+			Type t = check(parfor.srcY, environment);
+			if (!(t instanceof Type.List)) {
+				syntaxError("ParFor loop source expression must evaluate to a list type", file.filename, t);
+			}else{
+				Type.List listType = (Type.List) t;
+				environment.put(parfor.indexY.getName(), listType.getElement());
+			}
+		}
+		if (parfor.indexZ != null) {
+			Type t = check(parfor.srcZ, environment);
+			if (!(t instanceof Type.List)) {
+				syntaxError("ParFor loop source expression must evaluate to a list type", file.filename, t);
+			}else{
+				Type.List listType = (Type.List) t;
+				environment.put(parfor.indexZ.getName(), listType.getElement());
+			}
+		}
+		if (parfor.srcX != null) check(parfor.srcX,environment);
+		if (parfor.srcY != null) check(parfor.srcY,environment);
+		if (parfor.srcZ != null) check(parfor.srcZ,environment);
+		check(parfor.getBody(),environment);
 	}
 
 	/**

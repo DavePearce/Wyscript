@@ -66,8 +66,8 @@ public class KernelGenerator {
 		}
 	}
 	/**
-	 * Scans the function body and identifies parallel for loops. Recursively scans
-	 * blocked statements
+	 * Scans the function body and identifies ParFor loops. Recursively scans
+	 * block statements.
 	 * @param function
 	 * @param funcname
 	 * @param environment

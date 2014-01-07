@@ -116,7 +116,7 @@ public class KernelWriter {
 	private String getFunctionName() {
 		return name;
 	}
-	public List<String> writeBody(GPULoop loop , List<String> tokens ,
+	private List<String> writeBody(GPULoop loop , List<String> tokens ,
 			Map<String,Type> environment) {
 		this.environment = environment;
 		writeThreadIndex(tokens);
@@ -126,6 +126,56 @@ public class KernelWriter {
 		}
 		return tokens;
 	}
+
+	private void writeLists(List<String> tokens) {
+		if (loop.srcX instanceof Expr.Variable ){
+			Expr.Variable srcVar = (Variable) loop.srcX;
+			Expr.Variable indexVar = loop.indexX;
+			Type type = environment.get(srcVar.getName());
+			if (type instanceof Type.List) {
+				type = ((Type.List) type).getElement();
+			}else {
+				//should never happen
+			}
+			String cType = "";
+			if (type instanceof Type.Int) {
+				cType = "int";
+			}else if (type instanceof Type.Real) {
+				cType = "double";
+			}else {
+				InternalFailure.internalFailure("Cannot convert type "+type+" to equivilent C type", ptxFileName, type);
+			}
+			if (loop.srcY == null) {
+				environment.put(indexVar.getName(), type);
+				tokens.add(cType);
+				tokens.add(indexVar.getName());
+				tokens.add("=");
+				tokens.add(srcVar.getName());
+				tokens.add("[");
+				tokens.add(index1D());
+				tokens.add("]");
+			}else if (loop.srcZ == null) {
+				environment.put(indexVar.getName(), type);
+				tokens.add(cType);
+				tokens.add(indexVar.getName());
+				tokens.add("[");
+				tokens.add("(");
+				tokens.add("index_y");
+				tokens.add(")");
+				tokens.add("*(*");
+				tokens.add(gpuLoop.heightName(srcVar.getName()));
+				tokens.add(")");
+				tokens.add("+");
+				tokens.add("index_x");
+				tokens.add("]");
+			}
+		}
+	}
+	/**
+	 * Writes code that terminates the kernel if any of its indices
+	 * are out of bounds
+	 * @param tokens
+	 */
 	private void writeThreadGuard(List<String> tokens) {
 		List<String> guard = new ArrayList<String>();
  		guard.add("if");
@@ -174,6 +224,10 @@ public class KernelWriter {
 		guard.add("}");
 		if (needAnd) tokens.addAll(guard);
 	}
+	/**
+	 * Writes the thread indices to the kernel
+	 * @param tokens
+	 */
 	private void writeThreadIndex(List<String> tokens) {
 		//the 1D index
 		int alias = 0;
@@ -503,7 +557,7 @@ public class KernelWriter {
 			//indexVar is an instance of [int]
 			//source expression must be of type...
 			if (src instanceof Expr.Variable) {
-				write1DIndexOf(tokens, (Expr.Variable) src, indexVar);
+				writeIndexOf(tokens, (Expr.Variable) src, indexVar);
 			}
 			else {
 				InternalFailure.internalFailure("Can only perform indexof on list", name, indexOf);
@@ -565,7 +619,7 @@ public class KernelWriter {
 	 * @param src
 	 * @param indexVar
 	 */
-	private void write1DIndexOf(List<String> tokens, Expr.Variable src, Expr indexVar) {
+	private void writeIndexOf(List<String> tokens, Expr.Variable src, Expr indexVar) {
 		Type typeOfVar = environment.get(src.getName());
 		Type listType = ((Type.List)typeOfVar).getElement();
 		if (listTypeSupported(listType)) {
