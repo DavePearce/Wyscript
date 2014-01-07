@@ -33,12 +33,14 @@ public class KernelWriter {
 	private String indexName2D = "j";
 	private String name;
 
+	int indent = 0;
+
 	private Map<String, Type> environment;
 	/*
 	 * The indexVarMap
 	 */
 	private Map<String,String> indexvarMap = new HashMap<String,String>();
-	
+
 	private List<String> tokens = new ArrayList<String>();
 	private Stmt.ParFor loop;
 	private GPULoop gpuLoop;
@@ -217,6 +219,7 @@ public class KernelWriter {
 			InternalFailure.internalFailure("Encountered syntactic element not " +
 					"supported in parFor loop", name, statement);
 		}
+		tokens.add(indent(indent));
 		return tokens;
 	}
 	/**
@@ -260,9 +263,12 @@ public class KernelWriter {
 			write((Expr.Unary)expression,tokens);
 		}else if ((expression instanceof Expr.ListConstructor)) {
 			write((Expr.ListConstructor)expression,tokens);
+		}else if ((expression instanceof Expr.Cast)) {
+			write((Expr.Cast)expression,tokens);
 		}
 		else{
-			InternalFailure.internalFailure("Could not write expression to kernel. Unknown expresion type", name, expression);
+			InternalFailure.internalFailure("Could not write expression to kernel." +
+					" Unknown expresion type "+expression.getClass().getSimpleName(), name, expression);
 		}
 	}
 	/**
@@ -460,7 +466,10 @@ public class KernelWriter {
 		Object val = constant.getValue();
 		if (val instanceof Integer) {
 			tokens.add(Integer.toString((Integer)val));
-		}else {
+		}else if (val instanceof Double) {
+			tokens.add(Double.toString((Double) val));
+		}
+		 else {
 			InternalFailure.internalFailure("Cannot write this constant: "+val,
 					name, constant);
 		}
@@ -505,6 +514,20 @@ public class KernelWriter {
 			InternalFailure.internalFailure("Expected source type to be of type list", name, indexOf.getSource());
 		}
 	}
+	private void write(Expr.Cast cast , List<String> tokens) {
+		Expr src = cast.getSource();
+		Type type = cast.getType();
+		String castString = "";
+		if (type instanceof Type.Real) {
+			castString = "(double)";
+		}else if (type instanceof Type.Int) {
+			castString = "(int)";
+		}else {
+			InternalFailure.internalFailure("Cast to type "+type.toString()+" not supported.", "", type);
+		}
+		tokens.add(castString);
+		write(src, tokens);
+	}
 	/**
 	 *
 	 * @param tokens
@@ -545,7 +568,7 @@ public class KernelWriter {
 	private void write1DIndexOf(List<String> tokens, Expr.Variable src, Expr indexVar) {
 		Type typeOfVar = environment.get(src.getName());
 		Type listType = ((Type.List)typeOfVar).getElement();
-		if (listType instanceof Type.Int) {
+		if (listTypeSupported(listType)) {
 			//the type is correct for a kernel, write it here
 			tokens.add(src.getName());
 			if (indexVar instanceof Expr.Variable) {
@@ -565,8 +588,11 @@ public class KernelWriter {
 			}
 		}
 		else{
-			InternalFailure.internalFailure("List type should be int for kernel conversion", name, src);
+			InternalFailure.internalFailure("List type "+listType+"not supported for kernel conversion", name, src);
 		}
+	}
+	private boolean listTypeSupported(Type listType) {
+		return listType instanceof Type.Int || listType instanceof Type.Real;
 	}
 	/**
 	 * Writes a classical conditional statement to the kernel
@@ -584,13 +610,17 @@ public class KernelWriter {
 		//branches may be empty
 		for (Stmt s : statement.getTrueBranch()) {
 			write(s,tokens); //write the single statement
+			indent++;
 		}
+		indent--;
 		tokens.add("}");
 		tokens.add("else");
 		tokens.add("{");
+		indent++;
 		for (Stmt s : statement.getFalseBranch()) {
 			write(s,tokens); //write the single statement
 		}
+		indent--;
 		tokens.add("}");
 	}
 	/**
@@ -619,6 +649,13 @@ public class KernelWriter {
 			}else {
 				InternalFailure.internalFailure("Can only write explicit list of integers",name,decl);
 			}
+		}else if (type instanceof Type.Real) {
+			tokens.add("double");
+			tokens.add(decl.getName());
+			tokens.add("=");
+			//now write the expression
+			write(decl.getExpr(),tokens);
+			tokens.add(";");
 		}
 		else {
 			InternalFailure.internalFailure("Cannot write variable declaration for the given type",name,decl);
@@ -689,5 +726,13 @@ public class KernelWriter {
 //	}
 	public File getPtxFile() {
 		return new File(ptxFileName);
+	}
+	private static String indent(int indent) {
+		StringBuilder out = new StringBuilder();
+		while (indent > 0) {
+			out.append("\t");
+			indent--;
+		}
+		return out.toString();
 	}
 }

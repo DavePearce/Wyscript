@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import jcuda.*;
 import jcuda.driver.*;
+import jcuda.runtime.cudaDeviceProp;
 import static jcuda.driver.JCudaDriver.*;
 import wyscript.par.loop.GPULoop;
 import wyscript.par.util.Argument;
@@ -38,6 +39,7 @@ public class KernelRunner {
 	private int gridDimX = 10;
 	private int gridDimY = 10;
 	private int gridDimZ = 1;
+	private cudaDeviceProp prop;
 
 	public KernelRunner(File ptxFile , LoopModule module) {
 		this.module = module;
@@ -45,6 +47,8 @@ public class KernelRunner {
 		file = ptxFile;
 		devicePointers = new ArrayList<CUdeviceptr>();
 		initialise();
+		this.prop = new cudaDeviceProp();
+		
 	}
 
 	/**

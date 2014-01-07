@@ -107,9 +107,17 @@ public class GPUUtils {
 						arguments.add(new Argument.Length2D(name,true));
 						arguments.add(new Argument.Length2D(name,false));
 					}
-				}else {
+				}else if (elementType instanceof Type.Real) {
+					arg = new Argument.DoubleList1D(name);
+					arguments.add(arg);
+					arguments.add(new Argument.Length1D(name));
+				}
+				else {
 					throw new IllegalArgumentException("Unknown type cannot be converted to kernel argument");
 				}
+			}else if (type instanceof Type.Real) {
+				arg = new Argument.SingleDouble(name);
+				arguments.add(arg);
 			}
 		}
 		return arguments;
@@ -143,6 +151,8 @@ public class GPUUtils {
 			scanIndexOf((Expr.IndexOf)expr,parameters,nonparameters);
 		}else if (expr instanceof Expr.Unary) {
 			scanExpr(((Expr.Unary) expr).getExpr(), parameters, nonparameters);
+		}else if (expr instanceof Expr.Cast) {
+			scanExpr(((Expr.Cast) expr).getSource(),parameters,nonparameters);
 		}
 		else {
 			//should not have to worry, this expr won't need params

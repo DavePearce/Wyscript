@@ -135,7 +135,34 @@ public abstract class Argument {
 		public String getCType() {
 			return "int*";
 		}
-
+	}
+	public static class SingleDouble extends Argument {
+		public SingleDouble(String name) {
+			super(name);
+		}
+		@Override
+		public void write(Map<String, Object> env, CUdeviceptr ptr) {
+			Object val = env.get(name);
+			if (val instanceof Integer) {
+				val = (double) ((Integer)val).intValue();
+			}
+			double[] value = new double[] { (Double) val };
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, Sizeof.DOUBLE);
+				hasAllocated = true;
+			}
+			cuMemcpyHtoD(ptr, Pointer.to(value), Sizeof.DOUBLE);
+		}
+		@Override
+		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
+			double[] value = new double []{0};
+			cuMemcpyDtoH(Pointer.to(value),ptr, Sizeof.DOUBLE);
+			frame.put(name, value[0]);
+		}
+		@Override
+		public String getCType() {
+			return "double*";
+		}
 	}
 	public static class List1D extends Argument {
 		int cachedSize;
@@ -174,6 +201,58 @@ public abstract class Argument {
 		@Override
 		public String getCType() {
 			return "int*";
+		}
+
+	}
+	/**
+	 * Represents an argument that is a list of doubles.
+	 * The write method currently checks each element and
+	 * this computation could be removed where it is garanteed
+	 * that double-list elements are doubles (as opposed to the
+	 * possibility of being an int).
+	 * @author antunomate
+	 *
+	 */
+	public static class DoubleList1D extends Argument {
+		int cachedSize;
+		public DoubleList1D(String name) {
+			super(name);
+		}
+		@Override
+		public void write(Map<String, Object> env, CUdeviceptr ptr) {
+			ArrayList<?> list = (ArrayList<?>) env.get(name);
+			int length = list.size();
+			//if the length of the list changes must change the length
+			//of the array on gpu
+			if (length != cachedSize) {
+				cachedSize = length;
+				hasAllocated = false;
+			}
+			double[] values = new double[length];
+			for (int i = 0; i < length ; i++) {
+				Object val = list.get(i);
+				values[i] = (Double)val;
+			}
+			if (!hasAllocated) {
+				cuMemAlloc(ptr, cachedSize*Sizeof.DOUBLE);
+				hasAllocated = true;
+			}
+			cuMemcpyHtoD(ptr, Pointer.to(values), length*Sizeof.DOUBLE);
+		}
+		@Override
+		public void read(Map<String, Object> frame, CUdeviceptr ptr) {
+			ArrayList<Double> list = (ArrayList<Double>) frame.get(name);
+			ArrayList<Double> newlist = new ArrayList<Double>();
+			double[] value = new double [list.size()];
+			cuMemcpyDtoH(Pointer.to(value),ptr, Sizeof.DOUBLE*list.size());
+			for (double v : value) {
+				newlist.add(v);
+			}
+			frame.put(name, newlist);
+		}
+		@Override
+		public String getCType() {
+			return "double*";
 		}
 
 	}
