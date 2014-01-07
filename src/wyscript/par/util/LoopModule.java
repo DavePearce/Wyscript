@@ -1,18 +1,9 @@
 package wyscript.par.util;
 
-import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import wyscript.lang.Expr;
-import wyscript.lang.Stmt;
 import wyscript.lang.Type;
-import wyscript.par.KernelRunner;
-import wyscript.par.KernelWriter;
-import wyscript.par.loop.GPULoop;
-import wyscript.util.SyntaxError.InternalFailure;
 
 public class LoopModule {
 	private Map<String , Type> environment; //passed to kernel writer at runtime

@@ -1,8 +1,5 @@
 void main():
-	[[int]] a = [[0,1],[2,3],[4,5]]
-	parFor i in 0..|a|:
-		parFor j in 0..2:
+	[[int]] a = [[1,2,3,4],[5,6,7,8],[9,10,11,12],[13,14,15,16]]
+	parFor i in 0..3 and j in 0..4:
 			a[i][j] = a[i][j] + 1
-	for i in 0..|a|:
-		for j in 0..|a[i]|:
-			print a[i][j]
+	print a

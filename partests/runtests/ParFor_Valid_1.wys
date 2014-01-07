@@ -1,7 +1,7 @@
 void main():
     [int] a = [1, 2 , 3, 4]
     [int] b = [0,0,0,0]
-    parFor i in 0..|a|:
+    parFor i in 0..3:
         b[i] = a[i]
     for i in 0..|b|:
         print b[i]

@@ -1,0 +1,8 @@
+void main():
+	[[int]] matrix = [[0,0,0],[0,0,0],[0,0,0]]
+	int n = 0
+	parFor i in 0..|matrix| and j in 0..|matrix|:
+			while (n < 3):
+				matrix[i][j] = matrix[i][j] + 1
+				n = n + 1
+	print matrix
