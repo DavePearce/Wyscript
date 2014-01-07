@@ -1,5 +1,4 @@
 void main():
-	//BTW I worked from 8.00am to 5.30pm on Monday
 	int iterations = 50
 	int gridX = 300
 	int gridY = 300

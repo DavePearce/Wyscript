@@ -323,6 +323,10 @@ public class Interpreter {
 		}
 		// We need to perform a deep clone here to ensure the value
 		// semantics used in While are preserved.
+		value = deepClone(value);
+		if (stmt.getType() instanceof Type.Real && value instanceof Integer) {
+			value = (double)((Integer)value).intValue();
+		}
 		frame.put(stmt.getName(), deepClone(value));
 		return null;
 	}
