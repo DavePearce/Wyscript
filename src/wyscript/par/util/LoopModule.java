@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import wyscript.lang.Type;
-import wyscript.par.loop.GPULoop;
 
 public class LoopModule {
 	private Map<String , Type> environment; //passed to kernel writer at runtime

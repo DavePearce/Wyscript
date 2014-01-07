@@ -17,7 +17,7 @@ import wyscript.lang.Type;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.FunDecl;
 import wyscript.lang.WyscriptFile.Parameter;
-import wyscript.par.loop.GPULoop;
+import wyscript.par.util.GPULoop;
 import wyscript.par.util.LoopModule;
 import wyscript.util.SyntaxError.InternalFailure;
 import wyscript.util.TypeChecker;
