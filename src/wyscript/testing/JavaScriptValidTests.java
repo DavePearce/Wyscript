@@ -107,6 +107,21 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Benchmark_TicTacToe() {
+		runTest("Benchmark_TicTacToe");
+	}
+
+	@Test
+	public void Benchmark_Fibonacci() {
+		runTest("Benchmark_Fibonacci");
+	}
+
+	@Test
+	public void Benchmark_Queens() {
+		runTest("Benchmark_Queens");
+	}
+
+	@Test
 	public void BoolAssign_Valid_1() {
 		runTest("BoolAssign_Valid_1");
 	}
@@ -514,6 +529,16 @@ public class JavaScriptValidTests {
 	@Test
 	public void RecordDefine_Valid_1() {
 		runTest("RecordDefine_Valid_1");
+	}
+
+	@Test
+	public void Recursion_Valid_1() {
+		runTest("Recursion_Valid_1");
+	}
+
+	@Test
+	public void Recursion_Valid_2() {
+		runTest("Recursion_Valid_2");
 	}
 
 	@Test

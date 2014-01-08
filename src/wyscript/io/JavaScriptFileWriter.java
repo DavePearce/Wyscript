@@ -203,11 +203,25 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.For stmt, int indent, Expr expr) {
 
 		//First, create a new object inside $_.funcs to hold all necessary variables
+		//Need to take extra care that recursive calls do not overwrite this data
 		String name = "$_.funcs." + stmt.getIndex().getName();
 		indent(indent);
+		out.println("if (" + name +" === undefined) {");
+		indent(indent+1);
 		out.println(name + " = {};");
+		indent(indent+1);
+		out.println(name + ".depth = 0;"); //Keep track of the recursive depth of this for loop
 		indent(indent);
-		out.print(name + ".list = ");
+		out.println("}");
+		indent(indent);
+		out.println("else " + name + ".depth++;");
+
+		//Need to move into specialised scope for this depth
+		String scope = name + "['tmp' + " + name + ".depth]";
+		indent(indent);
+		out.println("$_.defProperty(" + name + ", 'tmp' + " + name + ".depth, {});"); //Define an object for the local scope
+		indent(indent);
+		out.print(scope + ".list = ");
 		write(stmt.getSource());
 		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
 		else {
@@ -217,22 +231,27 @@ public class JavaScriptFileWriter {
 		}
 		out.println(";");
 		indent(indent);
-		out.println(name + ".count = 0;");
+		out.println(scope + ".count = 0;");
 		indent(indent);
 
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
-		out.print("for(" + name + ".count = 0; ");
-		out.print(name + ".count < " + name + ".list.length; ");
-		out.println(name + ".count++) {");
+		out.print("for(" + scope + ".count = 0; ");
+		out.print(scope + ".count < " + scope + ".list.length; ");
+		out.println(scope + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
+		out.println("var " + stmt.getIndex().getName() + " = " + scope + ".list[" + scope + ".count];");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
 
-		//Finally, delete the property to help save memory in the longer-term
+		//Finally, decrement the depth, and if the count falls below 0,
+		//delete the entire object (including all the subscopes made)
 		indent(indent);
+		out.println(name + ".depth--;");
+		indent(indent);
+		out.println("if (" + name + ".depth < 0)");
+		indent(indent+1);
 		out.println("delete " + name + ";");
 	}
 
@@ -260,8 +279,10 @@ public class JavaScriptFileWriter {
 		indent(indent);
 		out.println("}");
 
-		//Reset the nested switch count
+		//Reset the nested switch count, and delete the property
 		switchCount--;
+		indent(indent);
+		out.println("delete $_.labels.var" + switchCount);
 	}
 
 	/**

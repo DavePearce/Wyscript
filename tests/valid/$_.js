@@ -683,3 +683,14 @@ $_.getType = function(obj) {
 	}
 	return obj.type;
 };
+
+//Assigns a property with the given name and value to
+//the given object - used to deal with recursive for-each
+//loop variable storage
+$_.defProperty = function(obj, name, val) {
+	Object.defineProperty(obj, name, {
+		value: val,
+		writable: true,
+		configurable: true,
+		enumerable: true});
+};
