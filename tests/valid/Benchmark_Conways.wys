@@ -1,7 +1,7 @@
 void main():
         int iterations = 50
-        int gridX = 300
-        int gridY = 300
+        int gridX = 50
+        int gridY = 50
         [[int]] grid1 = conway_cpu(iterations,gridX,gridY)
         [[int]] grid2 = conway_cpu(iterations,gridX,gridY)
         if (grid1 == grid2):
@@ -31,14 +31,9 @@ void main():
                                         if (grid[y-1][x] == 1):
                                                 count = count + 1
                                 if (y+1<gridY):
-                                        print "Got Here"
-                                        [int] tmp = grid[y+1]
-                                        print tmp
-                                        print tmp[x]
-                                        if (tmp[x] == 1):
+                                        if (grid[y+1][x] == 1):
                                                 count = count + 1
                                 if (x+1<gridX):
-                                        print "Also got Here"
                                         if (grid[y][x+1]==1):
                                                         count = count + 1
                                         if (y+1 < gridY):
@@ -61,7 +56,6 @@ void main():
                 grid = newgrid
                 newgrid = tempgrid
                 n = n + 1
-                print "Made It Here"
         return grid
 
 [[int]] generate_grid(int x , int y):

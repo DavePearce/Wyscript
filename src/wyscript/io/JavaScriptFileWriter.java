@@ -740,16 +740,13 @@ public class JavaScriptFileWriter {
 
 	public void write(Expr.Constant expr) {
 
-		Type t = (expr.attribute(Attribute.Type.class) != null) ? expr.attribute(Attribute.Type.class).type
-				: null;
-
 		Object val = expr.getValue();
 
-		if (t instanceof Type.Real) {
+		if (val instanceof Double) {
 			out.print("new $_.Float(");
 			out.print(val + ")");
 		}
-		else if (t instanceof Type.Int) {
+		else if (val instanceof Integer) {
 			out.print("new $_.Integer(");
 			out.print(val + ")");
 		}

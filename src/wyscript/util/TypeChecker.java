@@ -303,6 +303,8 @@ public class TypeChecker {
 
 		case EQ:
 		case NEQ:
+			check(expr.getLhs(), environment);
+			check(expr.getRhs(), environment);
 			return new Type.Bool();
 
 		case GT:
