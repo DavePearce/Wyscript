@@ -865,8 +865,7 @@ public interface Stmt extends SyntacticElement {
 			return sb.toString();
 		}
 	}
-	public static final class Next extends SyntacticElement.Impl implements
-	Atom {
+	public static final class Next extends SyntacticElement.Impl implements Stmt{
 
 		public Next(Attribute...attributes) {
 			super(attributes);

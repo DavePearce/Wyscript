@@ -577,6 +577,16 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Switch_Valid_9() {
+		runTest("Switch_Valid_9");
+	}
+
+	@Test
+	public void Switch_Valid_10() {
+		runTest("Switch_Valid_10");
+	}
+
+	@Test
 	public void TypeEquals_Valid_1_RuntimeTest() {
 		runTest("TypeEquals_Valid_1");
 	}

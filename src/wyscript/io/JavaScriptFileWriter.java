@@ -319,7 +319,11 @@ public class JavaScriptFileWriter {
 
 		//Add a default statement that breaks if one doesn't exist
 		indent(indent);
-		out.println("else {");
+
+		//Need to check for the case where the switch is empty/only contains a default - in that case
+		//we omit the surrounding else block
+		if (block.size() > 1)
+			out.println("else {");
 		if (hasDef) {
 			Expr defExpr = null;
 			if (defIndex < block.size() -1)
@@ -328,8 +332,11 @@ public class JavaScriptFileWriter {
 		}
 		indent(indent+1);
 		out.println("break label" + (switchCount-1) + ";");
-		indent(indent);
-		out.println("}\n");
+
+		if (block.size() > 1) {
+			indent(indent);
+			out.println("}\n");
+		}
 
 	}
 
