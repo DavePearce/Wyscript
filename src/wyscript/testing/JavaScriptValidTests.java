@@ -127,6 +127,11 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void BoolChain_Valid_1() {
+		runTest("BoolChain_Valid_1");
+	}
+
+	@Test
 	public void BoolIfElse_Valid_1() {
 		runTest("BoolIfElse_Valid_1");
 	}

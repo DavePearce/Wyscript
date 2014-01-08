@@ -749,7 +749,6 @@ public class Parser {
 				}
 
 			}
-			// TODO: support "else if" chaining.
 			if (match(errors, Colon, followSet) == null) {
 				if (tokens.get(index).kind != NewLine);
 				return null;
