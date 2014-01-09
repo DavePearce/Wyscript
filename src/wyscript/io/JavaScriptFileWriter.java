@@ -470,8 +470,7 @@ public class JavaScriptFileWriter {
 			write((Expr.Variable) expr);
 		} else if(expr instanceof Expr.Is) {
 			write((Expr.Is)expr);
-		}
-		else {
+		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 		}
 	}
@@ -486,25 +485,53 @@ public class JavaScriptFileWriter {
 		if (expr.getRhs() instanceof Expr.Binary && (
 				   op == Expr.BOp.ADD || op == Expr.BOp.SUB
 				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
-				|| op == Expr.BOp.REM)) {
+				|| op == Expr.BOp.REM || op == Expr.BOp.AND
+				|| op == Expr.BOp.OR)) {
 
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
 			Expr.BOp otherOp = bin.getOp();
+			Expr.Binary lhsExpr;
+			Expr.Binary newExpr;
 
-			switch(otherOp) {
+			//Check for parentheses
+			if (bin.attribute(Attribute.Parentheses.class) == null) {
 
-			case ADD:
-			case DIV:
-			case MUL:
-			case REM:
-			case SUB:
-				Expr.Binary lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
-				Expr.Binary newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
-				write(newExpr);
-				return;
+				switch(otherOp) {
 
-			default:
-				break;
+				case AND:
+					if (op != Expr.BOp.AND)
+						break;
+				case OR:
+					if (!(op == Expr.BOp.AND || op == Expr.BOp.OR))
+						break;
+					lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+					write(newExpr);
+					return;
+
+				case DIV:
+				case MUL:
+				case REM:
+					//Logic and maths operators shouldn't mix
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					//In this case, the RHS operator has higher precedence, so do nothing
+					if (op == Expr.BOp.ADD || op == Expr.BOp.SUB)
+						break;
+
+				case ADD:
+				case SUB:
+					//Logic and maths operators shouldn't mix
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+					write(newExpr);
+					return;
+
+				default:
+					break;
+				}
 			}
 		}
 		switch (expr.getOp()) {

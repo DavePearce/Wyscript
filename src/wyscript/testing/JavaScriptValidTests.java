@@ -122,6 +122,16 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Benchmark_MatrixMult() {
+		runTest("Benchmark_MatrixMult");
+	}
+
+	@Test
+	public void Bracketed_Valid_1() {
+		runTest("Bracketed_Valid_1");
+	}
+
+	@Test
 	public void BoolAssign_Valid_1() {
 		runTest("BoolAssign_Valid_1");
 	}
@@ -454,6 +464,32 @@ public class JavaScriptValidTests {
 	@Test
 	public void MultiLineComment_Valid_2() {
 		runTest("MultiLineComment_Valid_2");
+	}
+
+	@Test
+	public void Normalize_Valid_1() {
+		runTest("Normalize_Valid_1");
+	}
+
+	@Test
+	public void Normalize_Valid_2() {
+		runTest("Normalize_Valid_2");
+	}
+
+	@Test
+	public void Normalize_Valid_3() {
+		runTest("Normalize_Valid_3");
+	}
+
+
+	@Test
+	public void Precedence_Valid_1() {
+		runTest("Precedence_Valid_1");
+	}
+
+	@Test
+	public void Precedence_Valid_2() {
+		runTest("Precedence_Valid_2");
 	}
 
 	@Test

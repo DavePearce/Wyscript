@@ -1467,6 +1467,7 @@ public class Parser {
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
+				e.attributes().add(new Attribute.Parentheses());
 				return e;
 			}
 
@@ -1478,6 +1479,8 @@ public class Parser {
 						index - 1));
 			}
 		case Null:
+			System.out.print
+			("");
 			return new Expr.Constant(null, sourceAttr(start, index - 1));
 		case True:
 			return new Expr.Constant(true, sourceAttr(start, index - 1));

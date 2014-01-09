@@ -34,12 +34,17 @@ public interface Attribute {
       return "@" + start + ":" + end;
     }
   }
-  
+
   public static class Type implements Attribute {
 	  public final wyscript.lang.Type type;
-	  
+
 	  public Type(wyscript.lang.Type type) {
 		  this.type = type;
 	  }
   }
+
+  /**
+   * Used to store whether an expression was originally in parentheses
+   */
+  public static class Parentheses implements Attribute {}
 }
