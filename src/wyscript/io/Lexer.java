@@ -97,7 +97,6 @@ public class Lexer {
 					pos = pos+2;
 					while (pos < input.length()) {
 						if (input.charAt(pos) == '\n') {
-							pos++;
 							continue outer;
 						}
 						pos++;

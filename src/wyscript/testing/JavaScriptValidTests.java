@@ -127,6 +127,11 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Benchmark_TrafficLights() {
+		runTest("Benchmark_TrafficLights");
+	}
+
+	@Test
 	public void Bracketed_Valid_1() {
 		runTest("Bracketed_Valid_1");
 	}
