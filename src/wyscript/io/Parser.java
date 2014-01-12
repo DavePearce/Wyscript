@@ -113,6 +113,11 @@ public class Parser {
 	private FunDecl parseFunctionDeclaration(List<ParserErrorData> errors) {
 		int start = index;
 		boolean valid = true;
+		boolean isNative = false;
+
+		if (tryAndMatch(Native) != null) {
+			isNative = true;
+		}
 
 		Token.Kind follow = Identifier;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
@@ -170,6 +175,15 @@ public class Parser {
 					index - 1)));
 		}
 
+		//If parsing a native function, stop here
+		if (isNative) {
+			if (!matchEndLine(errors))
+				valid = false;
+
+			return (valid) ? new FunDecl(name.text, ret, paramTypes, true, new ArrayList<Stmt>(), sourceAttr(start, index-1)) :
+							 new FunDecl("", new Type.Void(), new ArrayList<Parameter>(), true, new ArrayList<Stmt>());
+		}
+
 		follow = NewLine;
 		if (match(errors, Colon, follow) == null)
 			valid = false;
@@ -183,9 +197,9 @@ public class Parser {
 			valid = false;
 		}
 
-		return (valid) ? new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
+		return (valid) ? new FunDecl(name.text, ret, paramTypes, false, stmts, sourceAttr(start,
 				index - 1))
-					   : new FunDecl("", new Type.Void(), new ArrayList<Parameter>(), new ArrayList<Stmt>());
+					   : new FunDecl("", new Type.Void(), new ArrayList<Parameter>(), false, new ArrayList<Stmt>());
 	}
 
 	private Decl parseTypeDeclaration(List<ParserErrorData> errors) {
@@ -1472,7 +1486,7 @@ public class Parser {
 			}
 
 		case Identifier:
-			if (tryAndMatch(LeftBrace) != null) {
+			if (tryAndMatchOnLine(LeftBrace) != null) {
 				return parseInvokeExpr(start,token, errors, parentFollow);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,

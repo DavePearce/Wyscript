@@ -85,6 +85,11 @@ public class Interpreter {
 	 */
 	private Object execute(WyscriptFile.FunDecl function, Object... arguments) {
 
+		//If the function is native, throw an exception - can't execute native functions in the interpreter
+		if (function.Native) {
+			throw new RuntimeException("Can't execute native function " + function.name + " - must be run as JavaScript (-js)");
+		}
+
 		// First, sanity check the number of arguments
 		if(function.parameters.size() != arguments.length){
 			throw new RuntimeException(

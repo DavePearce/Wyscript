@@ -449,6 +449,7 @@ public class Lexer {
 			put("type", Token.Kind.Type);
 			put("is", Token.Kind.Is);
 			put("in", Token.Kind.In);
+			put("native", Token.Kind.Native);
 		}
 	};
 
@@ -462,6 +463,7 @@ public class Lexer {
 
 		public enum Kind {
 			Identifier,
+
 			// Keywords
 			True { public String toString() { return "true"; }},
 			False { public String toString() { return "true"; }},
@@ -487,12 +489,15 @@ public class Lexer {
 			Return { public String toString() { return "return"; }},
 			Constant { public String toString() { return "constant"; }},
 			Type { public String toString() { return "type"; }},
+			Native { public String toString() { return "native"; }},
+
 			// Constants (Given a toString for error handling purposes)
 			RealValue { public String toString() { return "real"; }},
 			IntValue { public String toString() { return "int"; }},
 			CharValue { public String toString() { return "char"; }},
 			StringValue { public String toString() { return "string"; }},
 			ConstantType {public String toString() { return "int or string constant"; }},
+
 			// Symbols
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
@@ -523,6 +528,7 @@ public class Lexer {
 			GreaterEquals { public String toString() { return ">="; }},
 			LogicalAnd { public String toString() { return "&&"; }},
 			LogicalOr { public String toString() { return "||"; }},
+
 			// Other
 			NewLine { public String toString() { return "\\n"; }},
 			Indent,

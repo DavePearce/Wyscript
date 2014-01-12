@@ -87,6 +87,11 @@ public class JavaScriptFileWriter {
 	 * javascript function
 	 */
 	public void write(WyscriptFile.FunDecl fd) {
+
+		//Don't need to write native functions, they will be (or should be) already declared
+		if (fd.Native)
+			return;
+
 		out.print("function " + fd.name + "(");
 		boolean firstTime = true;
 
