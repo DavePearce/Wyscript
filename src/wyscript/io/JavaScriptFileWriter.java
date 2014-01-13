@@ -87,6 +87,11 @@ public class JavaScriptFileWriter {
 	 * javascript function
 	 */
 	public void write(WyscriptFile.FunDecl fd) {
+
+		//Don't need to write native functions, they will be (or should be) already declared
+		if (fd.Native)
+			return;
+
 		out.print("function " + fd.name + "(");
 		boolean firstTime = true;
 
@@ -203,11 +208,25 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.For stmt, int indent, Expr expr) {
 
 		//First, create a new object inside $_.funcs to hold all necessary variables
+		//Need to take extra care that recursive calls do not overwrite this data
 		String name = "$_.funcs." + stmt.getIndex().getName();
 		indent(indent);
+		out.println("if (" + name +" === undefined) {");
+		indent(indent+1);
 		out.println(name + " = {};");
+		indent(indent+1);
+		out.println(name + ".depth = 0;"); //Keep track of the recursive depth of this for loop
 		indent(indent);
-		out.print(name + ".list = ");
+		out.println("}");
+		indent(indent);
+		out.println("else " + name + ".depth++;");
+
+		//Need to move into specialised scope for this depth
+		String scope = name + "['tmp' + " + name + ".depth]";
+		indent(indent);
+		out.println("$_.defProperty(" + name + ", 'tmp' + " + name + ".depth, {});"); //Define an object for the local scope
+		indent(indent);
+		out.print(scope + ".list = ");
 		write(stmt.getSource());
 		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
 		else {
@@ -217,22 +236,27 @@ public class JavaScriptFileWriter {
 		}
 		out.println(";");
 		indent(indent);
-		out.println(name + ".count = 0;");
+		out.println(scope + ".count = 0;");
 		indent(indent);
 
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
-		out.print("for(" + name + ".count = 0; ");
-		out.print(name + ".count < " + name + ".list.length; ");
-		out.println(name + ".count++) {");
+		out.print("for(" + scope + ".count = 0; ");
+		out.print(scope + ".count < " + scope + ".list.length; ");
+		out.println(scope + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
+		out.println("var " + stmt.getIndex().getName() + " = " + scope + ".list[" + scope + ".count];");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
 
-		//Finally, delete the property to help save memory in the longer-term
+		//Finally, decrement the depth, and if the count falls below 0,
+		//delete the entire object (including all the subscopes made)
 		indent(indent);
+		out.println(name + ".depth--;");
+		indent(indent);
+		out.println("if (" + name + ".depth < 0)");
+		indent(indent+1);
 		out.println("delete " + name + ";");
 	}
 
@@ -260,8 +284,10 @@ public class JavaScriptFileWriter {
 		indent(indent);
 		out.println("}");
 
-		//Reset the nested switch count
+		//Reset the nested switch count, and delete the property
 		switchCount--;
+		indent(indent);
+		out.println("delete $_.labels.var" + switchCount);
 	}
 
 	/**
@@ -319,7 +345,11 @@ public class JavaScriptFileWriter {
 
 		//Add a default statement that breaks if one doesn't exist
 		indent(indent);
-		out.println("else {");
+
+		//Need to check for the case where the switch is empty/only contains a default - in that case
+		//we omit the surrounding else block
+		if (block.size() > 1)
+			out.println("else {");
 		if (hasDef) {
 			Expr defExpr = null;
 			if (defIndex < block.size() -1)
@@ -328,8 +358,11 @@ public class JavaScriptFileWriter {
 		}
 		indent(indent+1);
 		out.println("break label" + (switchCount-1) + ";");
-		indent(indent);
-		out.println("}\n");
+
+		if (block.size() > 1) {
+			indent(indent);
+			out.println("}\n");
+		}
 
 	}
 
@@ -442,8 +475,7 @@ public class JavaScriptFileWriter {
 			write((Expr.Variable) expr);
 		} else if(expr instanceof Expr.Is) {
 			write((Expr.Is)expr);
-		}
-		else {
+		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 		}
 	}
@@ -458,25 +490,53 @@ public class JavaScriptFileWriter {
 		if (expr.getRhs() instanceof Expr.Binary && (
 				   op == Expr.BOp.ADD || op == Expr.BOp.SUB
 				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
-				|| op == Expr.BOp.REM)) {
+				|| op == Expr.BOp.REM || op == Expr.BOp.AND
+				|| op == Expr.BOp.OR)) {
 
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
 			Expr.BOp otherOp = bin.getOp();
+			Expr.Binary lhsExpr;
+			Expr.Binary newExpr;
 
-			switch(otherOp) {
+			//Check for parentheses
+			if (bin.attribute(Attribute.Parentheses.class) == null) {
 
-			case ADD:
-			case DIV:
-			case MUL:
-			case REM:
-			case SUB:
-				Expr.Binary lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
-				Expr.Binary newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
-				write(newExpr);
-				return;
+				switch(otherOp) {
 
-			default:
-				break;
+				case AND:
+					if (op != Expr.BOp.AND)
+						break;
+				case OR:
+					if (!(op == Expr.BOp.AND || op == Expr.BOp.OR))
+						break;
+					lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+					write(newExpr);
+					return;
+
+				case DIV:
+				case MUL:
+				case REM:
+					//Logic and maths operators shouldn't mix
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					//In this case, the RHS operator has higher precedence, so do nothing
+					if (op == Expr.BOp.ADD || op == Expr.BOp.SUB)
+						break;
+
+				case ADD:
+				case SUB:
+					//Logic and maths operators shouldn't mix
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					lhsExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					newExpr = new Expr.Binary(otherOp, lhsExpr, bin.getRhs());
+					write(newExpr);
+					return;
+
+				default:
+					break;
+				}
 			}
 		}
 		switch (expr.getOp()) {
@@ -740,16 +800,13 @@ public class JavaScriptFileWriter {
 
 	public void write(Expr.Constant expr) {
 
-		Type t = (expr.attribute(Attribute.Type.class) != null) ? expr.attribute(Attribute.Type.class).type
-				: null;
-
 		Object val = expr.getValue();
 
-		if (t instanceof Type.Real) {
+		if (val instanceof Double) {
 			out.print("new $_.Float(");
 			out.print(val + ")");
 		}
-		else if (t instanceof Type.Int) {
+		else if (val instanceof Integer) {
 			out.print("new $_.Integer(");
 			out.print(val + ")");
 		}

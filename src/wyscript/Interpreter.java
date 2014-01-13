@@ -21,6 +21,7 @@ package wyscript;
 import java.util.*;
 
 import wyscript.lang.*;
+import wyscript.util.Attribute;
 import wyscript.util.Pair;
 import wyscript.util.SyntacticElement;
 import static wyscript.util.SyntaxError.*;
@@ -83,6 +84,11 @@ public class Interpreter {
 	 *            Array of argument values.
 	 */
 	private Object execute(WyscriptFile.FunDecl function, Object... arguments) {
+
+		//If the function is native, throw an exception - can't execute native functions in the interpreter
+		if (function.Native) {
+			throw new RuntimeException("Can't execute native function " + function.name + " - must be run as JavaScript (-js)");
+		}
 
 		// First, sanity check the number of arguments
 		if(function.parameters.size() != arguments.length){
@@ -366,44 +372,80 @@ public class Interpreter {
 		// First, deal with the short-circuiting operators first
 		Object lhs = execute(expr.getLhs(), frame);
 
-		switch (expr.getOp()) {
-		case AND:
-			return ((Boolean)lhs) && ((Boolean)execute(expr.getRhs(), frame));
-		case OR:
-			return ((Boolean)lhs) || ((Boolean)execute(expr.getRhs(), frame));
-		}
+
 
 		// Second, deal the rest.
 		Object rhs = execute(expr.getRhs(), frame);
+
 		Expr.BOp op = expr.getOp();
 
-		//Need to handle the nasty left recursive case for maths operators
+		//Need to handle the nasty left recursive case for maths and logical operators
+		//Making sure to account for parenthesis and precedence
 		if (expr.getRhs() instanceof Expr.Binary && (
 				op == Expr.BOp.ADD || op == Expr.BOp.SUB
 				|| op == Expr.BOp.MUL || op == Expr.BOp.DIV
-				|| op == Expr.BOp.REM)) {
+				|| op == Expr.BOp.REM || op == Expr.BOp.AND
+				|| op == Expr.BOp.OR)) {
 
 			Expr.Binary bin = (Expr.Binary) expr.getRhs();
-			Expr.BOp otherOp = bin.getOp();
 
-			switch(otherOp) {
+			//Check for parentheses
+			if (bin.attribute(Attribute.Parentheses.class) == null) {
 
-			case ADD:
-			case DIV:
-			case MUL:
-			case REM:
-			case SUB:
-				Expr.Binary newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
-				lhs = execute(newExpr, frame);
-				rhs = execute(bin.getRhs(), frame);
-				op = otherOp;
+				Expr.BOp otherOp = bin.getOp();
+				Expr.Binary newExpr;
 
-			default:
-				break;
+				switch(otherOp) {
+				case AND:
+					//Other operator has higher precedence, do nothing
+					if (op != Expr.BOp.AND)
+						break;
+
+				case OR:
+					//Mixing maths and logic operators
+					if (!(op == Expr.BOp.AND || op == Expr.BOp.OR))
+						break;
+					newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					lhs = execute(newExpr, frame);
+					rhs = execute(bin.getRhs(), frame);
+					op = otherOp;
+					break;
+
+				case DIV:
+				case MUL:
+				case REM:
+					//Mixing mathematical and logical operators - do nothing
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					//In this case, the RHS operator has higher precedence, so do nothing
+					if (op == Expr.BOp.ADD || op == Expr.BOp.SUB) {
+						break;
+					}
+
+				case ADD:
+				case SUB:
+					//Mixing mathematical and logical operators - do nothing
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					//Modify the expression so that it properly evaluates left to right
+					newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
+					lhs = execute(newExpr, frame);
+					rhs = execute(bin.getRhs(), frame);
+					op = otherOp;
+
+				default:
+					break;
+				}
 			}
 		}
 
 		switch (op) {
+		case AND:
+			return ((Boolean) lhs && (Boolean) rhs);
+
+		case OR:
+			return ((Boolean) lhs || (Boolean) rhs);
+
 		case ADD:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);

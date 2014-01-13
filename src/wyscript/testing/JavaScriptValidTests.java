@@ -107,6 +107,36 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Benchmark_TicTacToe() {
+		runTest("Benchmark_TicTacToe");
+	}
+
+	@Test
+	public void Benchmark_Fibonacci() {
+		runTest("Benchmark_Fibonacci");
+	}
+
+	@Test
+	public void Benchmark_Queens() {
+		runTest("Benchmark_Queens");
+	}
+
+	@Test
+	public void Benchmark_MatrixMult() {
+		runTest("Benchmark_MatrixMult");
+	}
+
+	@Test
+	public void Benchmark_TrafficLights() {
+		runTest("Benchmark_TrafficLights");
+	}
+
+	@Test
+	public void Bracketed_Valid_1() {
+		runTest("Bracketed_Valid_1");
+	}
+
+	@Test
 	public void BoolAssign_Valid_1() {
 		runTest("BoolAssign_Valid_1");
 	}
@@ -124,6 +154,11 @@ public class JavaScriptValidTests {
 	@Test
 	public void BoolAssign_Valid_4() {
 		runTest("BoolAssign_Valid_4");
+	}
+
+	@Test
+	public void BoolChain_Valid_1() {
+		runTest("BoolChain_Valid_1");
 	}
 
 	@Test
@@ -437,6 +472,32 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Normalize_Valid_1() {
+		runTest("Normalize_Valid_1");
+	}
+
+	@Test
+	public void Normalize_Valid_2() {
+		runTest("Normalize_Valid_2");
+	}
+
+	@Test
+	public void Normalize_Valid_3() {
+		runTest("Normalize_Valid_3");
+	}
+
+
+	@Test
+	public void Precedence_Valid_1() {
+		runTest("Precedence_Valid_1");
+	}
+
+	@Test
+	public void Precedence_Valid_2() {
+		runTest("Precedence_Valid_2");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runTest("RealDiv_Valid_1");
 	}
@@ -512,6 +573,16 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Recursion_Valid_1() {
+		runTest("Recursion_Valid_1");
+	}
+
+	@Test
+	public void Recursion_Valid_2() {
+		runTest("Recursion_Valid_2");
+	}
+
+	@Test
 	public void Remainder_Valid_1() {
 		runTest("Remainder_Valid_1");
 	}
@@ -574,6 +645,16 @@ public class JavaScriptValidTests {
 	@Test
 	public void Switch_Valid_8() {
 		runTest("Switch_Valid_8");
+	}
+
+	@Test
+	public void Switch_Valid_9() {
+		runTest("Switch_Valid_9");
+	}
+
+	@Test
+	public void Switch_Valid_10() {
+		runTest("Switch_Valid_10");
 	}
 
 	@Test

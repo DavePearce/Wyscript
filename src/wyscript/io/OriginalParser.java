@@ -97,7 +97,7 @@ public class OriginalParser {
 
 		match(")");
 		List<Stmt> stmts = parseBlock();
-		return new FunDecl(name.text, ret, paramTypes, stmts, sourceAttr(start,
+		return new FunDecl(name.text, ret, paramTypes, false, stmts, sourceAttr(start,
 				index - 1));
 	}
 

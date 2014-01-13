@@ -144,12 +144,14 @@ public class WyscriptFile {
 
 		public final String name;
 		public final Type ret;
+		public final boolean Native;
+
 		public final ArrayList<Parameter> parameters;
 		public final ArrayList<Stmt> statements;
 
 		/**
 		 * Construct an object representing a Whiley function.
-		 * 
+		 *
 		 * @param name
 		 *            - The name of the function.
 		 * @param ret
@@ -161,10 +163,11 @@ public class WyscriptFile {
 		 *            - The Statements making up the function body.
 		 */
 		public FunDecl(String name, Type ret, List<Parameter> parameters,
-				List<Stmt> statements, Attribute... attributes) {
+				boolean Native, List<Stmt> statements, Attribute... attributes) {
 			super(attributes);
 			this.name = name;
 			this.ret = ret;
+			this.Native = Native;
 			this.parameters = new ArrayList<Parameter>(parameters);
 			this.statements = new ArrayList<Stmt>(statements);
 		}
