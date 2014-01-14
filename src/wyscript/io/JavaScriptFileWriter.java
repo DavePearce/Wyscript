@@ -68,12 +68,12 @@ public class JavaScriptFileWriter {
 		out.print("var "+ cd.name() + " = ");
 
 		if (t instanceof Type.Real) {
-			out.print("new $_.Float(");
+			out.print("new Wyscript.Float(");
 			write(cd.constant);
 			out.print(")");
 		}
 		else if (t instanceof Type.Int) {
-			out.print("new $_.Integer(");
+			out.print("new Wyscript.Integer(");
 			write(cd.constant);
 			out.print(")");
 		}
@@ -139,10 +139,10 @@ public class JavaScriptFileWriter {
 		//and then causes the switch's enclosing loop to repeat
 		else if (stmt instanceof Stmt.Next) {
 			indent(indent);
-			out.print("$_.labels.var" + (switchCount-1) + " = ");
+			out.print("Wyscript.labels.var" + (switchCount-1) + " = ");
 
 			if (expr == null)
-				out.print("'$_default'");
+				out.print("'Wyscriptdefault'");
 
 			else
 				write(expr);
@@ -202,14 +202,14 @@ public class JavaScriptFileWriter {
 	/**
 	 * Writes a for each loop. This is converted to a classical for loop,
 	 * with extra variables stored inside an object inside the helper
-	 * $_.funcs object.
+	 * Wyscript.funcs object.
 	 *
 	 */
 	public void write(Stmt.For stmt, int indent, Expr expr) {
 
-		//First, create a new object inside $_.funcs to hold all necessary variables
+		//First, create a new object inside Wyscript.funcs to hold all necessary variables
 		//Need to take extra care that recursive calls do not overwrite this data
-		String name = "$_.funcs." + stmt.getIndex().getName();
+		String name = "Wyscript.funcs." + stmt.getIndex().getName();
 		indent(indent);
 		out.println("if (" + name +" === undefined) {");
 		indent(indent+1);
@@ -224,14 +224,14 @@ public class JavaScriptFileWriter {
 		//Need to move into specialised scope for this depth
 		String scope = name + "['tmp' + " + name + ".depth]";
 		indent(indent);
-		out.println("$_.defProperty(" + name + ", 'tmp' + " + name + ".depth, {});"); //Define an object for the local scope
+		out.println("Wyscript.defProperty(" + name + ", 'tmp' + " + name + ".depth, {});"); //Define an object for the local scope
 		indent(indent);
 		out.print(scope + ".list = ");
 		write(stmt.getSource());
 		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
 		else {
-			//Must be accessing a $_.List, by either a constructor or variable
-			//so we want to access the array in that $_.List
+			//Must be accessing a Wyscript.List, by either a constructor or variable
+			//so we want to access the array in that Wyscript.List
 			out.print(".list");
 		}
 		out.println(";");
@@ -273,7 +273,7 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.Switch stmt, int indent) {
 		indent(indent);
 		//Need to make a labeled loop surrounding switch to simulate explicit fallthrough
-		out.print("$_.labels.var" + switchCount + " = ");
+		out.print("Wyscript.labels.var" + switchCount + " = ");
 		write(stmt.getExpr());
 		out.println(";");
 		indent(indent);
@@ -287,7 +287,7 @@ public class JavaScriptFileWriter {
 		//Reset the nested switch count, and delete the property
 		switchCount--;
 		indent(indent);
-		out.println("delete $_.labels.var" + switchCount);
+		out.println("delete Wyscript.labels.var" + switchCount);
 	}
 
 	/**
@@ -314,7 +314,7 @@ public class JavaScriptFileWriter {
 
 				Stmt.Case c = (Stmt.Case)stmt;
 
-				out.print("if($_.equals($_.labels.var" + (switchCount-1) + ", ");
+				out.print("if(Wyscript.equals(Wyscript.labels.var" + (switchCount-1) + ", ");
 				write(c.getConstant());
 				out.println(", true)) {");
 			}
@@ -425,7 +425,7 @@ public class JavaScriptFileWriter {
 
 
 	public void write(Stmt.Print stmt) {
-		out.print("$_.print(");
+		out.print("Wyscript.print(");
 		write(stmt.getExpr());
 		out.print(")");
 	}
@@ -549,7 +549,7 @@ public class JavaScriptFileWriter {
 			return;
 
 		case RANGE:
-			out.print("($_.range(");
+			out.print("(Wyscript.range(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -604,7 +604,7 @@ public class JavaScriptFileWriter {
 
 		case GTEQ:
 		case GT:
-			out.print("($_.gt(");
+			out.print("(Wyscript.gt(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -617,7 +617,7 @@ public class JavaScriptFileWriter {
 
 		case LT:
 		case LTEQ:
-			out.print("($_.lt(");
+			out.print("(Wyscript.lt(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -629,14 +629,14 @@ public class JavaScriptFileWriter {
 			return;
 
 		case NEQ:
-			out.print("($_.equals(");
+			out.print("(Wyscript.equals(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
 			out.print(", false))");
 			return;
 		case EQ:
-			out.print("($_.equals(");
+			out.print("(Wyscript.equals(");
 			write(expr.getLhs());
 			out.print(", ");
 			write(expr.getRhs());
@@ -803,21 +803,21 @@ public class JavaScriptFileWriter {
 		Object val = expr.getValue();
 
 		if (val instanceof Double) {
-			out.print("new $_.Float(");
+			out.print("new Wyscript.Float(");
 			out.print(val + ")");
 		}
 		else if (val instanceof Integer) {
-			out.print("new $_.Integer(");
+			out.print("new Wyscript.Integer(");
 			out.print(val + ")");
 		}
 		else if (val instanceof StringBuffer) {
 			String s = ((StringBuffer) val).toString();
-			out.print("new $_.String('");
+			out.print("new Wyscript.String('");
 			out.print(s);
 			out.print("')");
 		}
 		else if (val instanceof Character) {
-			out.print("new $_.Char('");
+			out.print("new Wyscript.Char('");
 			out.print(val);
 			out.print("')");
 		}
@@ -854,7 +854,7 @@ public class JavaScriptFileWriter {
 		t = convertNamedType(t);
 
 		//Create a list object, and pass it its type
-		out.print("new $_.List(");
+		out.print("new Wyscript.List(");
 		out.print("[");
 		boolean firstTime=true;
 		for(Expr arg : expr.getArguments()) {
@@ -881,7 +881,7 @@ public class JavaScriptFileWriter {
 
 		//Create a record object, passing it two ordered arrays, the first of the names of its fields,
 		//the second of the values of those fields
-		out.print("new $_.Record(");
+		out.print("new Wyscript.Record(");
 		out.print("[");
 		boolean firstTime=true;
 		for(Pair<String,Expr> p : expr.getFields()) {
@@ -915,9 +915,9 @@ public class JavaScriptFileWriter {
 		case NEG:
 			Type t = expr.getExpr().attribute(Attribute.Type.class).type;
 			if (t instanceof Type.Int)
-				out.print("new $_.Integer(");
+				out.print("new Wyscript.Integer(");
 			else
-				out.print("new $_.Float(");
+				out.print("new Wyscript.Float(");
 			out.print(expr.getOp() + "(");
 			write(expr.getExpr());
 			out.print(".num))");
@@ -938,7 +938,7 @@ public class JavaScriptFileWriter {
 		Type t = expr.getRhs();
 		t = convertNamedType(t);
 
-		out.print("$_.is(");
+		out.print("Wyscript.is(");
 		write(expr.getLhs());
 		out.print(", ");
 		write(t);
@@ -974,41 +974,41 @@ public class JavaScriptFileWriter {
 	}
 
 	public void write(Type.Null t) {
-		out.print("new $_.Type.Null()");
+		out.print("new Wyscript.Type.Null()");
 	}
 
 	public void write(Type.Void t) {
-		out.print("new $_.Type.Void()");
+		out.print("new Wyscript.Type.Void()");
 	}
 
 	public void write(Type.Bool t) {
-		out.print("new $_.Type.Bool()");
+		out.print("new Wyscript.Type.Bool()");
 	}
 
 	public void write(Type.Int t) {
-		out.print("new $_.Type.Int()");
+		out.print("new Wyscript.Type.Int()");
 	}
 
 	public void write(Type.Real t) {
-		out.print("new $_.Type.Real()");
+		out.print("new Wyscript.Type.Real()");
 	}
 
 	public void write(Type.Char t) {
-		out.print("new $_.Type.Char()");
+		out.print("new Wyscript.Type.Char()");
 	}
 
 	public void write(Type.Strung t) {
-		out.print("new $_.Type.String()");
+		out.print("new Wyscript.Type.String()");
 	}
 
 	public void write(Type.List t) {
-		out.print("new $_.Type.List(");
+		out.print("new Wyscript.Type.List(");
 		write(t.getElement());
 		out.print(")");
 	}
 
 	public void write(Type.Record t) {
-		out.print("new $_.Type.Record([");
+		out.print("new Wyscript.Type.Record([");
 		List<String> names = new ArrayList<String>(t.getFields().keySet());
 		Collections.sort(names);
 
@@ -1033,7 +1033,7 @@ public class JavaScriptFileWriter {
 	}
 
 	public void write(Type.Union t) {
-		out.print("new $_.Type.Union([");
+		out.print("new Wyscript.Type.Union([");
 		boolean first = true;
 
 		for (Type b : t.getBounds()) {

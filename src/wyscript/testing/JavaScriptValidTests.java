@@ -77,7 +77,7 @@ public class JavaScriptValidTests {
 	      ScriptableObject.putConstProperty(scope, "syserr", syserr);
 
 	      //Set up the library
-	      String lib = testdir + File.separatorChar + "$_.js";
+	      String lib = testdir + File.separatorChar + "Wyscript.js";
 	      Reader library = new FileReader(new File(lib));
 	      cxt.evaluateReader(scope, library, lib, 1, null);
 
