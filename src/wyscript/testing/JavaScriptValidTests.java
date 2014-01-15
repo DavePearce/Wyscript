@@ -102,36 +102,6 @@ public class JavaScriptValidTests {
 	// ======================================================================
 
 	@Test
-	public void Benchmark_Conways() {
-		runTest("Benchmark_Conways");
-	}
-
-	@Test
-	public void Benchmark_TicTacToe() {
-		runTest("Benchmark_TicTacToe");
-	}
-
-	@Test
-	public void Benchmark_Fibonacci() {
-		runTest("Benchmark_Fibonacci");
-	}
-
-	@Test
-	public void Benchmark_Queens() {
-		runTest("Benchmark_Queens");
-	}
-
-	@Test
-	public void Benchmark_MatrixMult() {
-		runTest("Benchmark_MatrixMult");
-	}
-
-	@Test
-	public void Benchmark_TrafficLights() {
-		runTest("Benchmark_TrafficLights");
-	}
-
-	@Test
 	public void Bracketed_Valid_1() {
 		runTest("Bracketed_Valid_1");
 	}

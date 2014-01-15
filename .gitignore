@@ -2,3 +2,5 @@
 .DS_Store
 build/*
 tests/*/*.js
+benchmarks/*.js
+.classpath

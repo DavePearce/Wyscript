@@ -1,0 +1,318 @@
+type Block is {int kind, int rotation, int x, int y} //Note x and y always track the leftmost and topmost piece of the block
+
+type Board is [[bool]]
+
+type Game is {Block current, Block nextBlock, Board board}
+
+native void setGame(Game g)
+native Game getGame()
+native int rand()
+native void gameOver()
+native void addScore(int score)
+
+void init():
+    Game g = {current:makeBlock(), nextBlock:makeBlock(), board:makeBoard()}
+    setGame(g)
+
+Block makeBlock():
+    int rotation = 0
+    int x = 4
+    int y = 0
+    int kind = rand()
+    
+    if (kind == 2 || kind == 4):
+            x = 3
+    return {kind:kind, rotation:rotation, x:x, y:y}
+
+Board makeBoard():
+    Board board = []
+    [bool] col = []
+    
+    for i in 0..10:
+        col = []
+        for j in 0..20:
+            col = col ++ [false]
+        board = board ++ [col]
+    return board
+
+//Called every 'tick' of gameplay, or when the player holds down space - moves the block down one and handles any collisions that occur
+void update():
+    Game g = getGame()
+    Board board = g.board
+    Block block = g.current
+    
+    block.y = block.y+1
+    bool valid = true
+    if hasCollided(board, block, true):
+        valid = false
+        g = getGame() //Need to refresh game, as board state may have changed
+        g.current = g.nextBlock
+        g.nextBlock = makeBlock()
+        if hasCollided(g.board, g.current, false):  //there is no room for the new block, so gameover
+            gameOver()
+            return
+    if (valid):
+        g.current = block
+    setGame(g)
+
+void moveLeft():
+    Game g = getGame()
+    Block b = g.current
+    b.x = b.x-1
+    if (b.x < 0 || hasCollided(g.board, b, false)):
+        b.x = b.x+1
+    g.current = b
+    setGame(g)
+
+void moveRight():
+    Game g = getGame()
+    Block b = g.current
+    b.x = b.x+1
+    if (b.x > 9 || hasCollided(g.board, b, false)):
+        b.x = b.x-1
+    g.current = b
+    setGame(g)
+
+void rotateLeft():
+    Game g = getGame()
+    Block b = g.current
+    [[bool]] oldPieces = calculatePieces(b)
+    int oldX = b.x
+    int oldY = b.y
+    b.rotation = b.rotation - 90
+    if b.rotation < 0:
+        b.rotation = 360 + b.rotation
+    b = changePos(b, oldPieces, calculatePieces(b))
+    if (b.kind == 1):
+        if (b.rotation == 0 || b.rotation == 180):
+            b.x = b.x + 1
+            b.y = b.y - 2
+        else:
+            b.x = b.x - 1
+            b.y = b.y + 2
+    if (b.x < 0 || b.x > 9 || hasCollided(g.board, b, false)):
+        b.x = oldX
+        b.y = oldY
+        b.rotation = b.rotation + 90
+        if b.rotation >= 360:
+            b.rotation = b.rotation - 360
+    g.current = b
+    setGame(g)
+
+void rotateRight():
+    Game g = getGame()
+    Block b = g.current
+    [[bool]] oldPieces = calculatePieces(b)
+    int oldX = b.x
+    int oldY = b.y
+    b.rotation = b.rotation + 90
+    if b.rotation >= 360:
+        b.rotation = b.rotation - 360
+    b = changePos(b, oldPieces, calculatePieces(b))
+    if (b.kind == 1):
+        if (b.rotation == 0 || b.rotation == 180):
+            b.x = b.x - 1
+            b.y = b.y + 2
+        else:
+            b.x = b.x + 1
+            b.y = b.y - 2
+    if (b.x < 0 || b.x > 9 || hasCollided(g.board, b, false)):
+        b.x = oldX
+        b.y = oldY
+        b.rotation = b.rotation - 90
+        if b.rotation < 0:
+            b.rotation = 360 + b.rotation
+    g.current = b
+    setGame(g)
+
+//Calculates the piece matrix for a given block - this is a 4x4 list of booleans, where true indicates that cell is occupied
+[[bool]] calculatePieces(Block b):
+    [[bool]] pieces = []
+    switch (b.kind):
+        case 0:
+            pieces = pieces ++ [[true, true, false, false]]
+            pieces = pieces ++ [[true, true, false, false]]
+            pieces = pieces ++ [[false, false, false, false]]
+            pieces = pieces ++ [[false, false, false, false]]
+        case 1:
+            if(b.rotation == 0 || b.rotation == 180):
+                pieces = pieces ++ [[true, true, true, true]]
+                pieces = pieces ++ [[false, false, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+            else:
+                pieces = pieces ++ [[true, false, false, false]]
+                pieces = pieces ++ [[true, false, false, false]]
+                pieces = pieces ++ [[true, false, false, false]]
+                pieces = pieces ++ [[true, false, false, false]]
+        case 2:
+            switch (b.rotation):
+                case 0:
+                    pieces = pieces ++ [[false, false, true, false]]
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 90:
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 180:
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 270:
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+        case 3:
+            switch (b.rotation):
+                case 0:
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[false, false, true, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 90:
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 180:
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 270:
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+        case 4:
+            switch (b.rotation):
+                case 0:
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[true, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 90:
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 180:
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[true, true, false, false]]
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                case 270:
+                    pieces = pieces ++ [[true, true, true, false]]
+                    pieces = pieces ++ [[false, true, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+                    pieces = pieces ++ [[false, false, false, false]]
+        case 5:
+            if (b.rotation == 0 || b.rotation == 180):
+                pieces = pieces ++ [[true, false, false, false]]
+                pieces = pieces ++ [[true, true, false, false]]
+                pieces = pieces ++ [[false, true, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+            else:
+                pieces = pieces ++ [[false, true, true, false]]
+                pieces = pieces ++ [[true, true, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+        case 6:
+            if (b.rotation == 0 || b.rotation == 180):
+                pieces = pieces ++ [[false, true, false, false]]
+                pieces = pieces ++ [[true, true, false, false]]
+                pieces = pieces ++ [[true, false, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+            else:
+                pieces = pieces ++ [[true, true, false, false]]
+                pieces = pieces ++ [[false, true, true, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+                pieces = pieces ++ [[false, false, false, false]]
+    return pieces
+
+//Given a block, its old piece matrix and its new piece matrix, determine the change in position of the block
+//and return a block with the new x and y
+Block changePos(Block b, [[bool]] old, [[bool]] newBlock):
+    int oldX = 4
+    int oldY = 4
+    int newX = 4
+    int newY = 4
+    
+    for i in 0..3:
+        for j in 0..3:
+            if old[i][j]:
+                if i < oldX:
+                    oldX = i
+                if j < oldY:
+                    oldY = j
+            if newBlock[i][j]:
+                if i < newX:
+                    newX = i
+                if j < newY:
+                    newY = j
+    int xDiff = newX - oldX
+    int yDiff = newY - oldY
+    b.x = b.x + xDiff
+    b.y = b.y + yDiff
+    return b
+
+//Checks whether the block collides with any existing debris on the board
+//if isUpdate is true, on a collision will add that block to the board and will clear any full lines found
+bool hasCollided(Board board, Block block, bool isUpdate):
+    [[bool]] pieces = calculatePieces(block)
+    bool valid = true
+    for i in block.x..(block.x+4):
+        for j in block.y..(block.y+4):
+            if (pieces[i-block.x][j-block.y]):
+                if (i > 9 || j > 19 || board[i][j]):
+                    if !(isUpdate):
+                        return true
+                    valid = false
+    if valid:
+        return false
+    block.y = block.y - 1
+    for i in block.x..(block.x+4):
+        for j in block.y..(block.y+4):
+            if pieces[i-block.x][j-block.y]:
+                board[i][j] = true
+    board = clearLines(board)
+    Game g = getGame()
+    g.board = board
+    setGame(g)
+    return true
+
+Board clearLines(Board board):
+    int lowestCleared = -1
+    int numCleared = 0
+    bool line = true
+    int j = 19
+    while (j > -1):
+        line = true
+        for i in 0..10:
+            if !(board[i][j]):
+                line = false
+        if line:
+            numCleared = numCleared+1
+            if (lowestCleared == -1):
+                lowestCleared = j
+            for i in 0..10:
+                board[i][j] = false
+        j = j -1
+    if (lowestCleared != -1):
+        j = lowestCleared-numCleared
+        while j > -1:
+            for i in 0..10:
+                if (board[i][j]):
+                    board[i][j] = false
+                    board[i][j+numCleared] = true
+            j = j-1
+        int num = 0
+        for i in 0.. numCleared:
+            num = num + 100*i
+        addScore(num)
+    return board
