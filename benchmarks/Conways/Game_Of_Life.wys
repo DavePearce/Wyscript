@@ -1,12 +1,14 @@
-native void draw([[int]] grid)
 native int getX()
 native int getY()
-native int getIterations()
-native [[int]] getStartGrid(int x, int y)
+
+native [[int]] getGrid()
+native void setGrid([[int]] grid)
+
 native int getMinNeighbours()
 native int getMaxNeighbours()
 
-[[int]] gameOfLife([[int]] grid, int gridX , int gridY, int min, int max):
+[[int]] gameOfLife(int gridX , int gridY, int min, int max):
+        [[int]] grid = getGrid()
         [[int]] newgrid = generate_grid(gridX,gridY)
         for x in 0..gridX :
                         for y in 0..gridY:
@@ -46,8 +48,7 @@ native int getMaxNeighbours()
                                                 if (count <= max && count >= min && grid[y][x] == 1):
                                                         newgrid[y][x] = 1
 
-        draw(newgrid)
-        return (newgrid)
+        setGrid(newgrid)
 
 [[int]] generate_grid(int x , int y):
         if (y <= 0):

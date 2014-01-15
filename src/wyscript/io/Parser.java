@@ -1481,7 +1481,8 @@ public class Parser {
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
-				e.attributes().add(new Attribute.Parentheses());
+				if (e != null)
+					e.attributes().add(new Attribute.Parentheses());
 				return e;
 			}
 
