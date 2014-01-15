@@ -569,7 +569,7 @@ function clearLines(board) {
         Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].count = 0;
         for(Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].count = 0; Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].count < Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].list.length; Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].count++) {
             var i = Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].list[Wyscript.funcs.i['tmp' + Wyscript.funcs.i.depth].count];
-            num = (num.add((new Wyscript.Integer(100).mul(i))));
+            num = (num.add((new Wyscript.Integer(100).mul(i.add(new Wyscript.Integer(1))))));
         }
         Wyscript.funcs.i.depth--;
         if (Wyscript.funcs.i.depth < 0)

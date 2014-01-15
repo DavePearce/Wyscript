@@ -312,7 +312,7 @@ Board clearLines(Board board):
                     board[i][j+numCleared] = true
             j = j-1
         int num = 0
-        for i in 0.. numCleared:
-            num = num + 100*i
+        for i in 0..numCleared:
+            num = num + 100*(i+1)
         addScore(num)
     return board
