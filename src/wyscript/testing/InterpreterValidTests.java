@@ -35,26 +35,6 @@ public class InterpreterValidTests {
 
 
 	@Test
-	public void Benchmark_Conways() {
-		runInterpreterTest("Benchmark_Conways");
-	}
-
-	@Test
-	public void Benchmark_TicTacToe() {
-		runInterpreterTest("Benchmark_TicTacToe");
-	}
-
-	@Test
-	public void Benchmark_Fibonacci() {
-		runInterpreterTest("Benchmark_Fibonacci");
-	}
-
-	@Test
-	public void Benchmark_Queens() {
-		runInterpreterTest("Benchmark_Queens");
-	}
-
-	@Test
 	public void BoolAssign_Valid_1() {
 		runInterpreterTest("BoolAssign_Valid_1");
 	}
