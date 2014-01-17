@@ -26,14 +26,17 @@ import static wyscript.util.SyntaxError.*;
  */
 public class TypeChecker {
 	private WyscriptFile file;
+	private String filename;
 	private WyscriptFile.FunDecl function;
 	private HashMap<String,WyscriptFile.FunDecl> functions;
 
 	private HashMap<String, Type> userTypes;
 	private HashMap<String, Type> constants;
 
-	public void check(WyscriptFile wf) {
+	public void check(WyscriptFile wf, String filename) {
+
 		this.file = wf;
+		this.filename = filename;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
 		this.userTypes = new HashMap<String, Type>();
 		this.constants = new HashMap<String, Type>();
@@ -107,7 +110,7 @@ public class TypeChecker {
 		} else if(stmt instanceof Stmt.Next) {
 			check((Stmt.Next) stmt, environment);
 		} else {
-			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
+			internalFailure("unknown statement encountered (" + stmt + ")", filename,stmt);
 		}
 	}
 
@@ -125,7 +128,7 @@ public class TypeChecker {
 		Expr temp = stmt.getExpr();
 		//Check if not returning anything
 		if (temp == null && !(function.ret instanceof Type.Void))
-			syntaxError("Method has non-void return type, must return expression of type " + function.ret, file.filename, stmt);
+			syntaxError("Method has non-void return type, must return expression of type " + function.ret, filename, stmt);
 		else if (temp == null)
 			return;
 
@@ -136,7 +139,7 @@ public class TypeChecker {
 	public void check(Stmt.VariableDeclaration stmt, Map<String,Type> environment) {
 		if(environment.containsKey(stmt.getName())) {
 			syntaxError("variable already declared: " + stmt.getName(),
-					file.filename, stmt);
+					filename, stmt);
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
 			checkSubtype(stmt.getType(),type, false, stmt);
@@ -182,7 +185,7 @@ public class TypeChecker {
 
 		Type t = check(e, environment);
 		if (!(t instanceof Type.List))
-			syntaxError("For loop source expression must evaluate to a list type", file.filename, e);
+			syntaxError("For loop source expression must evaluate to a list type", filename, e);
 
 		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
 		newEnv.put(v.getName(), ((Type.List)t).getElement());
@@ -199,7 +202,7 @@ public class TypeChecker {
 		Type expr = check(stmt.getExpr(), environment);
 
 		if (expr instanceof Type.Record) {
-			syntaxError("Switch expression may not have Record type", file.filename, expr);
+			syntaxError("Switch expression may not have Record type", filename, expr);
 		}
 
 		for (Stmt.SwitchStmt s : stmt.cases()) {
@@ -235,7 +238,7 @@ public class TypeChecker {
 	public void check(Stmt.Next stmt, Map<String, Type> environment) {
 		//Check statement is within a case body
 		if (environment.get("case") == null)
-			syntaxError("Can't have next statement outside of case or default body", file.filename, stmt);
+			syntaxError("Can't have next statement outside of case or default body", filename, stmt);
 	}
 
 	public Type check(Expr expr, Map<String,Type> environment) {
@@ -264,7 +267,7 @@ public class TypeChecker {
 		} else if(expr instanceof Expr.Is) {
 			type = check((Expr.Is) expr, environment);
 		} else {
-			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
+			internalFailure("unknown expression encountered (" + expr + ")", filename,expr);
 			return null; // dead code
 		}
 
@@ -348,7 +351,7 @@ public class TypeChecker {
 			return (promote) ? new Type.Real() : new Type.Int();
 
 		default:
-			internalFailure("Unknown binary operator encountered", file.filename, expr);
+			internalFailure("Unknown binary operator encountered", filename, expr);
 			return null;
 		}
 	}
@@ -383,7 +386,7 @@ public class TypeChecker {
 		} else if(constant == null) {
 			return new Type.Null();
 		} else {
-			internalFailure("unknown constant encountered (" + expr + ")", file.filename,expr);
+			internalFailure("unknown constant encountered (" + expr + ")", filename,expr);
 			return null; // dead code
 		}
 	}
@@ -407,7 +410,7 @@ public class TypeChecker {
 		List<WyscriptFile.Parameter> parameters = fn.parameters;
 		if(arguments.size() != parameters.size()) {
 			syntaxError("incorrect number of arguments to function",
-					file.filename, expr);
+					filename, expr);
 		}
 		for(int i=0;i!=parameters.size();++i) {
 			Type argument = check(arguments.get(i),environment);
@@ -446,11 +449,11 @@ public class TypeChecker {
 		Type t = check(expr.getSource(), environment);
 		Type.Record r = checkSubtype(Type.Record.class, t, expr.getSource());
 		if (r == null)
-			syntaxError("Can't access field of non-record type", file.filename, expr.getSource());
+			syntaxError("Can't access field of non-record type", filename, expr.getSource());
 
 		Type result = r.getFields().get(expr.getName());
 		if (result == null)
-			syntaxError("Field does not exist", file.filename, expr.getSource());
+			syntaxError("Field does not exist", filename, expr.getSource());
 
 		return result;
 	}
@@ -489,7 +492,7 @@ public class TypeChecker {
 			return new Type.Bool();
 
 		default:
-			internalFailure("Unknown unary operator encountered", file.filename, expr);
+			internalFailure("Unknown unary operator encountered", filename, expr);
 			return null;
 		}
 	}
@@ -498,7 +501,7 @@ public class TypeChecker {
 		Type type = environment.get(expr.getName());
 		if (type == null) {
 			syntaxError("unknown variable encountered: " + expr.getName(),
-					file.filename, expr);
+					filename, expr);
 		}
 		return type;
 	}
@@ -522,7 +525,7 @@ public class TypeChecker {
 			return (checkSubtype(t1, userTypes.get(((Type.Named)t2).getName()), element));
 		else {
 			syntaxError("expected instance of " + t1.getSimpleName()
-					+ ", found " + t2, file.filename, element);
+					+ ", found " + t2, filename, element);
 			return null;
 		}
 	}
@@ -542,7 +545,7 @@ public class TypeChecker {
 		}
 		else {
 			syntaxError("expected type " + t1
-					+ ", found " + t2, file.filename, element);
+					+ ", found " + t2, filename, element);
 		}
 	}
 
@@ -673,14 +676,14 @@ public class TypeChecker {
 			if (t1 instanceof Type.Named) {
 				tt1 = userTypes.get(((Type.Named)t1).getName());
 				if (tt1 == null)
-					internalFailure("Error, couldn't find type associated with " + t1, file.filename, tt1);
+					internalFailure("Error, couldn't find type associated with " + t1, filename, tt1);
 			}
 			else tt1 = t1;
 
 			if (t2 instanceof Type.Named) {
 				tt2 = userTypes.get(((Type.Named)t2).getName());
 				if (tt2 == null)
-					internalFailure("Error, couldn't find type associated with " + t2, file.filename, t2);
+					internalFailure("Error, couldn't find type associated with " + t2, filename, t2);
 			}
 			else tt2 = t2;
 

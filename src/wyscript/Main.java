@@ -81,7 +81,7 @@ public class Main {
 			WyscriptFile ast = parser.read();
 
 			// Second, we'd want to perform some kind of type checking here.
-			new TypeChecker().check(ast);
+			new TypeChecker().check(ast, srcFile.getPath());
 
 			// Third, we'd want to run the interpreter or compile the file.
 			switch(mode) {
