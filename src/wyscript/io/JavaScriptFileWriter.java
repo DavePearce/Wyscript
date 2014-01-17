@@ -22,7 +22,9 @@ public class JavaScriptFileWriter {
 	private PrintStream out;
 	private WyscriptFile file;
 	private HashMap<String, Type> userTypes;
-	private int switchCount = 0;	//Used to prevent issues with nested switch statements
+
+	private int forCount = 0;
+	private int switchCount = 0;	//Used to prevent issues with temporary variables
 
 	public JavaScriptFileWriter(File file) throws IOException {
 		this.out = new PrintStream(new FileOutputStream(file));
@@ -139,10 +141,10 @@ public class JavaScriptFileWriter {
 		//and then causes the switch's enclosing loop to repeat
 		else if (stmt instanceof Stmt.Next) {
 			indent(indent);
-			out.print("Wyscript.labels.var" + (switchCount-1) + " = ");
+			out.print("$WySwitch" + (switchCount-1) + " = ");
 
 			if (expr == null)
-				out.print("'Wyscriptdefault'");
+				out.print("'$DEFAULT'");
 
 			else
 				write(expr);
@@ -207,26 +209,12 @@ public class JavaScriptFileWriter {
 	 */
 	public void write(Stmt.For stmt, int indent, Expr expr) {
 
-		//First, create a new object inside Wyscript.funcs to hold all necessary variables
-		//Need to take extra care that recursive calls do not overwrite this data
-		String name = "Wyscript.funcs." + stmt.getIndex().getName();
+		//Use the value of forCount to determine the name of the temp variables
+		String name = "$WyTmp" + forCount++;
+		indent (indent);
+		out.println("var " + name + " = {}");
 		indent(indent);
-		out.println("if (" + name +" === undefined) {");
-		indent(indent+1);
-		out.println(name + " = {};");
-		indent(indent+1);
-		out.println(name + ".depth = 0;"); //Keep track of the recursive depth of this for loop
-		indent(indent);
-		out.println("}");
-		indent(indent);
-		out.println("else " + name + ".depth++;");
-
-		//Need to move into specialised scope for this depth
-		String scope = name + "['tmp' + " + name + ".depth]";
-		indent(indent);
-		out.println("Wyscript.defProperty(" + name + ", 'tmp' + " + name + ".depth, {});"); //Define an object for the local scope
-		indent(indent);
-		out.print(scope + ".list = ");
+		out.print(name + ".list = ");
 		write(stmt.getSource());
 		if ((stmt.getSource() instanceof Expr.Binary) && ((Expr.Binary)stmt.getSource()).getOp() == Expr.BOp.RANGE);
 		else {
@@ -236,28 +224,19 @@ public class JavaScriptFileWriter {
 		}
 		out.println(";");
 		indent(indent);
-		out.println(scope + ".count = 0;");
+		out.println(name + ".count = 0;");
 		indent(indent);
 
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
-		out.print("for(" + scope + ".count = 0; ");
-		out.print(scope + ".count < " + scope + ".list.length; ");
-		out.println(scope + ".count++) {");
+		out.print("for(" + name + ".count = 0; ");
+		out.print(name + ".count < " + name + ".list.length; ");
+		out.println(name + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = " + scope + ".list[" + scope + ".count];");
+		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
-
-		//Finally, decrement the depth, and if the count falls below 0,
-		//delete the entire object (including all the subscopes made)
-		indent(indent);
-		out.println(name + ".depth--;");
-		indent(indent);
-		out.println("if (" + name + ".depth < 0)");
-		indent(indent+1);
-		out.println("delete " + name + ";");
 	}
 
 	public void write(Stmt.While stmt, int indent, Expr expr) {
@@ -273,7 +252,7 @@ public class JavaScriptFileWriter {
 	public void write(Stmt.Switch stmt, int indent) {
 		indent(indent);
 		//Need to make a labeled loop surrounding switch to simulate explicit fallthrough
-		out.print("Wyscript.labels.var" + switchCount + " = ");
+		out.print("var $WySwitch" + switchCount + " = ");
 		write(stmt.getExpr());
 		out.println(";");
 		indent(indent);
@@ -286,8 +265,6 @@ public class JavaScriptFileWriter {
 
 		//Reset the nested switch count, and delete the property
 		switchCount--;
-		indent(indent);
-		out.println("delete Wyscript.labels.var" + switchCount);
 	}
 
 	/**
@@ -314,7 +291,7 @@ public class JavaScriptFileWriter {
 
 				Stmt.Case c = (Stmt.Case)stmt;
 
-				out.print("if(Wyscript.equals(Wyscript.labels.var" + (switchCount-1) + ", ");
+				out.print("if(Wyscript.equals($WySwitch" + (switchCount-1) + ", ");
 				write(c.getConstant());
 				out.println(", true)) {");
 			}
