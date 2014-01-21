@@ -158,12 +158,12 @@ public class TypeChecker {
 
 	public void check(Stmt.IfElse stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
-		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
+		checkSubtype(new Type.Bool(), condition, false, stmt.getCondition());
 		check(stmt.getTrueBranch(), new HashMap<String,Type>(environment));
 
 		//Check else-if branches
 		for (Expr e : stmt.getAltExpressions()) {
-			checkSubtype(Type.Bool.class, check(e, environment), e);
+			checkSubtype(new Type.Bool(), check(e, environment), false, e);
 			check(stmt.getAltBranch(e), new HashMap<String, Type>(environment));
 		}
 
@@ -178,7 +178,7 @@ public class TypeChecker {
 		Expr e = stmt.getCondition();
 		if (e != null) {
 			Type e_t = check(e, environment);
-			checkSubtype(Type.Bool.class, e_t, e);
+			checkSubtype(new Type.Bool(), e_t, false, e);
 		}
 
 		Stmt s = stmt.getIncrement();
@@ -204,7 +204,7 @@ public class TypeChecker {
 
 	public void check(Stmt.While stmt, Map<String,Type> environment) {
 		Type condition = check(stmt.getCondition(),environment);
-		checkSubtype(Type.Bool.class, condition, stmt.getCondition());
+		checkSubtype(new Type.Bool(), condition, false, stmt.getCondition());
 		check(stmt.getBody(), new HashMap<String,Type>(environment));
 	}
 
@@ -312,8 +312,8 @@ public class TypeChecker {
 
 		case AND:
 		case OR:
-			checkSubtype(Type.Bool.class, check(expr.getLhs(), environment), expr.getLhs());
-			checkSubtype(Type.Bool.class, check(expr.getRhs(), environment), expr.getRhs());
+			checkSubtype(new Type.Bool(), check(expr.getLhs(), environment), false, expr.getLhs());
+			checkSubtype(new Type.Bool(), check(expr.getRhs(), environment), false, expr.getRhs());
 			return new Type.Bool();
 
 		case EQ:
@@ -330,17 +330,17 @@ public class TypeChecker {
 			Type rhs = check(expr.getRhs(), environment);
 
 			if (!checkPossibleSubtype(new Type.Int(), lhs, false)) {
-				checkSubtype(Type.Real.class, lhs, expr.getLhs());
+				checkSubtype(new Type.Real(), lhs, false, expr.getLhs());
 			}
 			if (!checkPossibleSubtype(new Type.Int(), rhs, false)) {
-				checkSubtype(Type.Real.class, rhs, expr.getRhs());
+				checkSubtype(new Type.Real(), lhs, false, expr.getRhs());
 			}
 
 			return new Type.Bool();
 
 		case RANGE:
-			checkSubtype(Type.Int.class, check(expr.getLhs(), environment), expr.getLhs());
-			checkSubtype(Type.Int.class, check(expr.getRhs(), environment), expr.getRhs());
+			checkSubtype(new Type.Int(), check(expr.getLhs(), environment), false, expr.getLhs());
+			checkSubtype(new Type.Int(), check(expr.getLhs(), environment), false, expr.getRhs());
 			return new Type.List(new Type.Int());
 
 		case REM:
@@ -353,11 +353,11 @@ public class TypeChecker {
 			boolean promote = false;
 
 			if (!checkPossibleSubtype(new Type.Int(), lhs2, false)) {
-				checkSubtype(Type.Real.class, lhs2, expr.getLhs());
+				checkSubtype(new Type.Real(), lhs2, false, expr.getLhs());
 				promote = true;
 			}
 			if (!checkPossibleSubtype(new Type.Int(), rhs2, false)) {
-				checkSubtype(Type.Real.class, rhs2, expr.getRhs());
+				checkSubtype(new Type.Real(), rhs2, false, expr.getRhs());
 			}
 
 			return (promote) ? new Type.Real() : new Type.Int();
@@ -406,7 +406,7 @@ public class TypeChecker {
 	public Type check(Expr.IndexOf expr, Map<String, Type> environment) {
 		Type srcType = check(expr.getSource(), environment);
 		Type indexType = check(expr.getIndex(), environment);
-		checkSubtype(Type.Int.class, indexType, expr.getIndex());
+		checkSubtype(new Type.Int(), indexType, false, expr.getIndex());
 
 		//Check not indexing a String
 		if (checkPossibleSubtype(new Type.Strung(), srcType, false))
@@ -496,13 +496,13 @@ public class TypeChecker {
 			Type t = check(expr.getExpr(), environment);
 
 			if (!checkPossibleSubtype(new Type.Int(), t, false)) {
-				checkSubtype(Type.Real.class, t, expr.getExpr());
+				checkSubtype(new Type.Real(), t, false, expr.getExpr());
 				return new Type.Real();
 			}
 			return new Type.Int();
 
 		case NOT:
-			checkSubtype(Type.Bool.class, check(expr.getExpr(), environment), expr.getExpr());
+			checkSubtype(new Type.Bool(), check(expr.getExpr(), environment), false, expr.getExpr());
 			return new Type.Bool();
 
 		default:
@@ -538,10 +538,13 @@ public class TypeChecker {
 		else if (t2 instanceof Type.Named)
 			return (checkSubtype(t1, userTypes.get(((Type.Named)t2).getName()), element));
 		else {
+
 			//Must avoid double-reporting errors
-			if (!t1.equals(Type.Record.class))
-				errors.add(new TypeErrorData(filename, element, t2,
-					element.attribute(Attribute.Source.class), ErrorType.TYPE_MISMATCH));
+			if (!t1.equals(Type.Record.class)) {
+				Type t = getTypeFromClass(t1);
+					errors.add(new TypeErrorData(filename, element, t,
+						element.attribute(Attribute.Source.class), ErrorType.TYPE_MISMATCH));
+			}
 
 			return null;
 		}
@@ -564,7 +567,7 @@ public class TypeChecker {
 			element.attributes().add(new Attribute.Type(t2));
 			Expr e = new Expr.Cast(t1, null);
 			errors.add(new TypeErrorData(filename, e, element,
-					element.attribute(Attribute.Source.class), ErrorType.TYPE_MISMATCH));
+					element.attribute(Attribute.Source.class), ErrorType.SUBTYPE_MISMATCH));
 		}
 	}
 
@@ -816,5 +819,16 @@ public class TypeChecker {
 		}
 
 		return result;
+	}
+
+	/**
+	 * Gets a generic type, given the class of that type.
+	 * Guaranteed to only be called for record or list types
+	 */
+	private <T extends Type> Type getTypeFromClass(Class<T> t1) {
+		if (t1.equals(Type.List.class))
+			return new Type.List(new Type.Void());
+		else return new Type.Record(new HashMap<String, Type>());
+
 	}
 }
