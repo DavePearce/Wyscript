@@ -19,6 +19,7 @@
 package wyscript.io;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.*;
 
 import wyscript.error.ParserErrorData;
@@ -48,6 +49,7 @@ public class Parser {
 	private String filename;
 	private ArrayList<Token> tokens;
 	private HashSet<String> userDefinedTypes;
+	private HashSet<String> includeNames;
 	private HashMap<String, Expr> constants;
 
 	private int index;
@@ -57,6 +59,18 @@ public class Parser {
 		this.tokens = new ArrayList<Token>(tokens);
 		this.userDefinedTypes = new HashSet<String>();
 		constants = new HashMap<String, Expr>();
+
+		includeNames = new HashSet<String>();
+		includeNames.add(filename);
+	}
+
+	/**
+	 * Called when a new parser is created as part of parsing an include declaration.
+	 * Used to ensure no issues with circular includes arise.
+	 */
+	private Parser(String filename, List<Token> tokens, Set<String> includes) {
+		this(filename, tokens);
+		includeNames.addAll(includes);
 	}
 
 	/**
@@ -90,6 +104,44 @@ public class Parser {
 				}
 				break;
 
+			case Include:
+				d = parseIncludeDeclaration(errors);
+				if (d != null && !d.name().equals("")) {
+
+					//First, get the absolute filepath of the included file
+					String newInclude = null;
+					int index = filename.lastIndexOf(File.separator);
+					if (index == -1)
+						newInclude = d.name();
+					else newInclude = filename.substring(0, index+1) + d.name();
+
+					//Next, check whether or not the file has already been included
+					if (includeNames.contains(newInclude)) {
+						skipWhiteSpace();
+						continue;
+					}
+					includeNames.add(newInclude);
+
+					//Finally, lex and parse the new file, and add its declarations
+					WyscriptFile ast;
+
+					try {
+						File file = new File(newInclude);
+						Lexer lexer = new Lexer(file.getPath());
+						Parser parser = new Parser(file.getPath(), lexer.scan(), includeNames);
+						ast = parser.read();
+					}
+					catch (IOException e) {
+						Attribute.Source source = d.attribute(Attribute.Source.class);
+						errors.add(new ParserExprErrorData(filename, new Expr.Constant(d.name()),
+								null, null, source.start, source.end, ErrorType.BAD_INCLUDE));
+						skipWhiteSpace();
+						continue;
+					}
+
+					decls.addAll(ast.declarations);
+				}
+
 			default:
 				d = parseFunctionDeclaration(errors);
 				if (d != null)
@@ -98,16 +150,39 @@ public class Parser {
 			skipWhiteSpace();
 		}
 
+		WyscriptFile wf = new WyscriptFile(filename, decls);
+		errors.addAll(wf.checkClashes());
+
 		//Handle any errors generated during parsing, and stop compilation here
 		if (!errors.isEmpty())
 			handle(errors);
 
-		// Now, figure out module name from filename
-		String name = filename.substring(
-				filename.lastIndexOf(File.separatorChar) + 1,
-				filename.length() - 6);
+		return wf;
+	}
 
-		return new WyscriptFile(name, decls);
+	private IncludeDecl parseIncludeDeclaration(List<ParserErrorData> errors) {
+		int start = index;
+		boolean valid = true;
+
+		Token.Kind follow = StringValue;
+		if (match(errors, Include, follow) == null)
+			valid = false;
+
+		skipWhiteSpace();
+		follow = NewLine;
+
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
+		followSet.add(follow);
+
+		Token string = match(errors, StringValue, followSet);
+		if (string == null)
+			valid = false;
+
+		if (!matchEndLine(errors))
+			valid = false;
+
+		return (valid) ? new IncludeDecl(string.text.substring(1, string.text.length()-1), sourceAttr(start, index-1))
+					   : null;
 	}
 
 	private FunDecl parseFunctionDeclaration(List<ParserErrorData> errors) {

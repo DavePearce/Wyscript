@@ -272,6 +272,11 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Includes_Valid_1() {
+		runTest("Includes_Valid_1");
+	}
+
+	@Test
 	public void IntDefine_Valid_1() {
 		runTest("IntDefine_Valid_1");
 	}

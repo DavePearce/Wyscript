@@ -369,13 +369,9 @@ public class Interpreter {
 	}
 
 	private Object execute(Expr.Binary expr, HashMap<String,Object> frame) {
-		// First, deal with the short-circuiting operators first
+
 		Object lhs = execute(expr.getLhs(), frame);
-
-
-
-		// Second, deal the rest.
-		Object rhs = execute(expr.getRhs(), frame);
+		Object rhs = null;
 
 		Expr.BOp op = expr.getOp();
 
@@ -397,13 +393,12 @@ public class Interpreter {
 
 				switch(otherOp) {
 				case AND:
-					//Other operator has higher precedence, do nothing
-					if (op != Expr.BOp.AND)
-						break;
+					//Other operator has highest precedence, do nothing
+					break;
 
 				case OR:
 					//Mixing maths and logic operators
-					if (!(op == Expr.BOp.AND || op == Expr.BOp.OR))
+					if (!(op == Expr.BOp.AND))
 						break;
 					newExpr = new Expr.Binary(op, expr.getLhs(), bin.getLhs());
 					lhs = execute(newExpr, frame);
@@ -438,6 +433,15 @@ public class Interpreter {
 				}
 			}
 		}
+
+		//Handle short circuiting operators
+		if (lhs.equals(new Boolean(false)) && expr.getOp() == Expr.BOp.AND)
+			return false;
+		if (lhs.equals(new Boolean(true)) && expr.getOp() == Expr.BOp.OR)
+			return true;
+
+		if (rhs == null)
+			rhs = execute(expr.getRhs(), frame);
 
 		switch (op) {
 		case AND:

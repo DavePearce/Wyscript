@@ -1,0 +1,4 @@
+include "this is a bad include.wys"
+
+void main():
+    print "NO GO"

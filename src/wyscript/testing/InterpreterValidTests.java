@@ -4,6 +4,8 @@ import java.io.File;
 
 import org.junit.*;
 
+import wyscript.lang.WyscriptFile;
+
 
 public class InterpreterValidTests {
 	/**
@@ -187,6 +189,11 @@ public class InterpreterValidTests {
 	@Test
 	public void IfElse_Valid_3() {
 		runInterpreterTest("IfElse_Valid_3");
+	}
+
+	@Test
+	public void Includes_Valid_1() {
+		runInterpreterTest("Includes_Valid_1");
 	}
 
 	@Test

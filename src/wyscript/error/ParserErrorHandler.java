@@ -74,9 +74,21 @@ public class ParserErrorHandler {
 				msg = "Error: only one default case allowed in switch body";
 				suggestion = "case";
 				break;
+
+			case BAD_INCLUDE:
+				msg = handleExpr(data);
+				suggestion = null;
+				break;
+
+			case NAME_CLASH:
+				msg = handleExpr(data);
+				String name = ((ParserExprErrorData)data).expr().toString();
+				suggestion = data.found().text.replaceAll(name, name + "Copy");
+				break;
 			}
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());
-			outputSuggestion(Main.errout, suggestion, data.filename(), data.start(), data.end());
+			if (suggestion != null)
+				outputSuggestion(Main.errout, suggestion, data.filename(), data.start(), data.end());
 		}
 
 		throw new HandledException();
@@ -98,6 +110,15 @@ public class ParserErrorHandler {
 
 		case BAD_SWITCH_CONST:
 			return String.format("Error: expression '%s' is not a constant.\nCase expressions must be a constant value", data.expr());
+
+		case BAD_INCLUDE:
+			return "Error: can't find file to include: " + data.expr().toString();
+
+		case NAME_CLASH:
+			String type = data.expected().toString();
+			if (!type.equals("type") && !type.equals("constant"))
+				type = "function";
+			return String.format("Error: %s %s has already been declared", type, data.expr());
 
 		default:
 			throw new SyntaxError("Unknown parser error occurred on token " + d.found(), d.filename(), d.start(), d.end());

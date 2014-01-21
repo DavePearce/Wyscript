@@ -1,0 +1,11 @@
+include "Includes_Valid_1a.wys"
+
+void a(int i):
+    if (i % 2 == 0):
+        print "EVEN"
+    else:
+        b(i)
+
+void main():
+    a(1)
+    a(4)

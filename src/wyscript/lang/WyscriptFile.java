@@ -19,8 +19,14 @@
 package wyscript.lang;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import wyscript.error.ParserErrorData;
+import wyscript.error.ParserExprErrorData;
+import wyscript.error.ParserErrorData.ErrorType;
+import wyscript.io.Lexer.Token;
 import wyscript.util.Attribute;
 import wyscript.util.SyntacticElement;
 
@@ -52,6 +58,11 @@ public class WyscriptFile {
 				if (fd.name().equals(name)) {
 					return true;
 				}
+			} else if (d instanceof IncludeDecl) {
+				IncludeDecl id = (IncludeDecl) d;
+				if (id.name().equals(name)) {
+					return true;
+				}
 			}
 		}
 		return false;
@@ -81,6 +92,18 @@ public class WyscriptFile {
 		return null;
 	}
 
+	public IncludeDecl include(String name) {
+		for (Decl d : declarations) {
+			if (d instanceof IncludeDecl) {
+				IncludeDecl id = (IncludeDecl) d;
+				if (id.name().equals(name)) {
+					return id;
+				}
+			}
+		}
+		return null;
+	}
+
 	public List<FunDecl> functions(String name) {
 		ArrayList<FunDecl> matches = new ArrayList<FunDecl>();
 		for (Decl d : declarations) {
@@ -92,6 +115,57 @@ public class WyscriptFile {
 			}
 		}
 		return matches;
+	}
+
+	/**
+	 * Returns the set of errors resulting from name clashes within this file
+	 */
+	public Set<ParserErrorData> checkClashes() {
+		Set<ParserErrorData> errors = new HashSet<ParserErrorData>();
+		Set<Decl> decs = new HashSet<Decl>();
+
+ outer: for (Decl d : declarations) {
+	 	if (d instanceof IncludeDecl)
+	 		continue;
+
+			for (Decl other : decs) {
+				if (other.name().equals(d.name())) {
+					if (other.getClass().equals(d.getClass())) {
+						if (other instanceof FunDecl) {
+							FunDecl fd2 = (FunDecl) other;
+							FunDecl fd1 = (FunDecl) d;
+
+							if (fd1.parameters.size() != fd2.parameters.size())
+								continue;
+							for (int i = 0; i < fd1.parameters.size(); i++) {
+								if (!(fd1.parameters.get(i).equals(fd2.parameters.get(i))))
+									continue;
+							}
+
+						}
+
+						//Match found, add to errors
+						Token.Kind kind;
+						if (d instanceof TypeDecl) {
+							kind = Token.Kind.Type;
+						} else if (d instanceof ConstDecl)
+							kind = Token.Kind.Constant;
+						else
+							kind = Token.Kind.Void;
+
+						Attribute.Source source = d.attribute(Attribute.Source.class);
+						Token t = new Token(null, d.toString(), 0);
+
+						errors.add(new ParserExprErrorData(filename, new Expr.Constant(d.name()),
+								t, kind, source.start, source.end, ErrorType.NAME_CLASH));
+
+						continue outer;
+					}
+				}
+			}
+			decs.add(d);
+		}
+		return errors;
 	}
 
 	public interface Decl extends SyntacticElement {
@@ -115,7 +189,7 @@ public class WyscriptFile {
 		}
 
 		public String toString() {
-			return "const " + constant + " is " + name;
+			return "constant " + name + " is " + constant;
 		}
 	}
 
@@ -135,7 +209,27 @@ public class WyscriptFile {
 		}
 
 		public String toString() {
-			return "type " + type + " is " + name;
+			return "type " + name + " is " + type;
+		}
+	}
+
+	public static class IncludeDecl extends SyntacticElement.Impl implements
+			Decl {
+
+		public final String filepath;
+
+		public IncludeDecl(String fp, Attribute... attributes) {
+			super(attributes);
+			filepath = fp;
+
+		}
+
+		public String name() {
+			return filepath;
+		}
+
+		public String toString() {
+			return "include " + filepath;
 		}
 	}
 
@@ -175,6 +269,19 @@ public class WyscriptFile {
 		public String name() {
 			return name;
 		}
+
+		public String toString() {
+			String params = "(";
+			boolean first = true;
+			for (Parameter p : parameters) {
+				if (!first)
+					params += ", ";
+				first = false;
+				params += p;
+			}
+			params += ")";
+			return ret + " " + name + params + ":";
+		}
 	}
 
 	public static final class Parameter extends SyntacticElement.Impl implements
@@ -191,6 +298,19 @@ public class WyscriptFile {
 
 		public String name() {
 			return name;
+		}
+
+		public boolean equals(Object other) {
+			if (other == null)
+				return false;
+			if (other.getClass() != this.getClass())
+				return false;
+			Parameter p = (Parameter) other;
+			return (name.equals(p.name) && type.equals(p.type));
+		}
+
+		public String toString() {
+			return type + " " + name;
 		}
 	}
 }

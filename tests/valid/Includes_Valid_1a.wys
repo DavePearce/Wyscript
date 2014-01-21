@@ -1,0 +1,4 @@
+include "Includes_Valid_1.wys"
+
+void b(int i):
+    print i

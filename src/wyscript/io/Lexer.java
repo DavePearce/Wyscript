@@ -450,6 +450,7 @@ public class Lexer {
 			put("is", Token.Kind.Is);
 			put("in", Token.Kind.In);
 			put("native", Token.Kind.Native);
+			put("include", Token.Kind.Include);
 		}
 	};
 
@@ -490,6 +491,7 @@ public class Lexer {
 			Constant { public String toString() { return "constant"; }},
 			Type { public String toString() { return "type"; }},
 			Native { public String toString() { return "native"; }},
+			Include { public String toString() { return "include"; }},
 
 			// Constants (Given a toString for error handling purposes)
 			RealValue { public String toString() { return "real"; }},
