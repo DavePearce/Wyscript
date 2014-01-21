@@ -1,0 +1,11 @@
+constant PI is "mmmmm.... pie"
+constant PI is 3.14159
+
+type nat is int
+type nat is real
+
+void main():
+    print "ALSO NO GO"
+
+void main():
+    print "NO GO"
