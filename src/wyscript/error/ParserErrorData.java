@@ -70,6 +70,11 @@ public class ParserErrorData implements ErrorData{
 	 * - An expression was expected but not found
 	 * - A duplicate name was used when creating a record
 	 * - The parser tried to parse a type, but couldn't
+	 * - An expression in a switch case was not a constant
+	 * - There was a switch case with a duplicate expression
+	 * - There was a switch with multiple default cases
+	 * - There was an include that couldn't be loaded
+	 * - There was a name clash in the declarations of the file
 	 */
 	public static enum ErrorType {
 		MISSING_TOKEN, BAD_INDENT, BAD_EXPRESSION_TYPE, MISSING_EXPRESSION, DUPLICATE_TOKEN, INVALID_TYPE,

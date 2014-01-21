@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import wyscript.error.TypeErrorData;
+import wyscript.error.TypeErrorData.ErrorType;
+import wyscript.error.TypeErrorHandler;
 import wyscript.lang.*;
 import static wyscript.util.SyntaxError.*;
 
@@ -25,21 +28,22 @@ import static wyscript.util.SyntaxError.*;
  *
  */
 public class TypeChecker {
-	private WyscriptFile file;
+
 	private String filename;
 	private WyscriptFile.FunDecl function;
 	private HashMap<String,WyscriptFile.FunDecl> functions;
 
 	private HashMap<String, Type> userTypes;
 	private HashMap<String, Type> constants;
+	private ArrayList<TypeErrorData> errors;
 
 	public void check(WyscriptFile wf, String filename) {
 
-		this.file = wf;
 		this.filename = filename;
 		this.functions = new HashMap<String,WyscriptFile.FunDecl>();
 		this.userTypes = new HashMap<String, Type>();
 		this.constants = new HashMap<String, Type>();
+		this.errors = new ArrayList<TypeErrorData>();
 
 		for(WyscriptFile.Decl declaration : wf.declarations) {
 			if(declaration instanceof WyscriptFile.FunDecl) {
@@ -62,6 +66,8 @@ public class TypeChecker {
 				check((WyscriptFile.FunDecl) declaration);
 			}
 		}
+		if (!errors.isEmpty())
+			TypeErrorHandler.handle(errors, userTypes);
 	}
 
 	public void check(WyscriptFile.FunDecl fd) {
@@ -127,8 +133,11 @@ public class TypeChecker {
 	public void check(Stmt.Return stmt, Map<String, Type> environment) {
 		Expr temp = stmt.getExpr();
 		//Check if not returning anything
-		if (temp == null && !(function.ret instanceof Type.Void))
-			syntaxError("Method has non-void return type, must return expression of type " + function.ret, filename, stmt);
+		if (temp == null && !(function.ret instanceof Type.Void)) {
+			Attribute.Source source = function.attribute(Attribute.Source.class);
+			source = new Attribute.Source(source.end, source.end);
+			errors.add(new TypeErrorData(filename, null, function, source, ErrorType.MISSING_RETURN));
+		}
 		else if (temp == null)
 			return;
 
@@ -138,8 +147,8 @@ public class TypeChecker {
 
 	public void check(Stmt.VariableDeclaration stmt, Map<String,Type> environment) {
 		if(environment.containsKey(stmt.getName())) {
-			syntaxError("variable already declared: " + stmt.getName(),
-					filename, stmt);
+			errors.add(new TypeErrorData(filename, null, stmt,
+					stmt.attribute(Attribute.Source.class), ErrorType.DUPLICATE_VARIABLE));
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
 			checkSubtype(stmt.getType(),type, false, stmt);
@@ -185,7 +194,8 @@ public class TypeChecker {
 
 		Type t = check(e, environment);
 		if (!(t instanceof Type.List))
-			syntaxError("For loop source expression must evaluate to a list type", filename, e);
+			errors.add(new TypeErrorData(filename, stmt.getSource(), null,
+					stmt.getSource().attribute(Attribute.Source.class), ErrorType.BAD_FOR_LIST));
 
 		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
 		newEnv.put(v.getName(), ((Type.List)t).getElement());
@@ -202,7 +212,8 @@ public class TypeChecker {
 		Type expr = check(stmt.getExpr(), environment);
 
 		if (expr instanceof Type.Record) {
-			syntaxError("Switch expression may not have Record type", filename, expr);
+			errors.add(new TypeErrorData(filename, stmt.getExpr(), null,
+					stmt.getExpr().attribute(Attribute.Source.class), ErrorType.BAD_SWITCH_TYPE));
 		}
 
 		for (Stmt.SwitchStmt s : stmt.cases()) {
@@ -218,27 +229,28 @@ public class TypeChecker {
 		checkSubtype(type, check(stmt.getConstant(), environment), false, stmt.getConstant());
 
 		//Workaround to ensure next statements only work within an enclosing case body
-		environment.put("case", new Type.Void());
 		for (Stmt s : stmt.getStmts()) {
+			environment.put("#case", new Type.Void());
 			check(s, environment);
 		}
-		environment.remove("case");
+		environment.remove("#case");
 	}
 
 	public void check(Stmt.Default stmt, Map<String, Type> environment) {
 
 		//Workaround to ensure next statements only work within an enclosing case body
-		environment.put("case", new Type.Void());
 		for (Stmt s : stmt.getStmts()) {
+			environment.put("#case", new Type.Void());
 			check(s, environment);
 		}
-		environment.remove("case");
+		environment.remove("#case");
 	}
 
 	public void check(Stmt.Next stmt, Map<String, Type> environment) {
 		//Check statement is within a case body
-		if (environment.get("case") == null)
-			syntaxError("Can't have next statement outside of case or default body", filename, stmt);
+		if (environment.get("#case") == null)
+			errors.add(new TypeErrorData(filename, null, null,
+					stmt.attribute(Attribute.Source.class), ErrorType.BAD_NEXT));
 	}
 
 	public Type check(Expr expr, Map<String,Type> environment) {
@@ -409,8 +421,8 @@ public class TypeChecker {
 		List<Expr> arguments = expr.getArguments();
 		List<WyscriptFile.Parameter> parameters = fn.parameters;
 		if(arguments.size() != parameters.size()) {
-			syntaxError("incorrect number of arguments to function",
-					filename, expr);
+			errors.add(new TypeErrorData(filename, expr, fn,
+					expr.attribute(Attribute.Source.class), ErrorType.BAD_FUNC_PARAMS));
 		}
 		for(int i=0;i!=parameters.size();++i) {
 			Type argument = check(arguments.get(i),environment);
@@ -449,11 +461,13 @@ public class TypeChecker {
 		Type t = check(expr.getSource(), environment);
 		Type.Record r = checkSubtype(Type.Record.class, t, expr.getSource());
 		if (r == null)
-			syntaxError("Can't access field of non-record type", filename, expr.getSource());
+			errors.add(new TypeErrorData(filename, expr, null,
+					expr.attribute(Attribute.Source.class), ErrorType.BAD_FIELD_ACCESS));
 
 		Type result = r.getFields().get(expr.getName());
 		if (result == null)
-			syntaxError("Field does not exist", filename, expr.getSource());
+			errors.add(new TypeErrorData(filename, expr, null,
+					expr.attribute(Attribute.Source.class), ErrorType.MISSING_FIELD));
 
 		return result;
 	}
@@ -517,15 +531,18 @@ public class TypeChecker {
 	 * @return
 	 */
 	public <T extends Type> T checkSubtype(Class<T> t1, Type t2,
-			SyntacticElement element) {
+			Expr element) {
 		if (t1.isInstance(t2)) {
 			return (T) t2;
 		}
 		else if (t2 instanceof Type.Named)
 			return (checkSubtype(t1, userTypes.get(((Type.Named)t2).getName()), element));
 		else {
-			syntaxError("expected instance of " + t1.getSimpleName()
-					+ ", found " + t2, filename, element);
+			//Must avoid double-reporting errors
+			if (!t1.equals(Type.Record.class))
+				errors.add(new TypeErrorData(filename, element, t2,
+					element.attribute(Attribute.Source.class), ErrorType.TYPE_MISMATCH));
+
 			return null;
 		}
 	}
@@ -544,8 +561,10 @@ public class TypeChecker {
 			//OK!
 		}
 		else {
-			syntaxError("expected type " + t1
-					+ ", found " + t2, filename, element);
+			element.attributes().add(new Attribute.Type(t2));
+			Expr e = new Expr.Cast(t1, null);
+			errors.add(new TypeErrorData(filename, e, element,
+					element.attribute(Attribute.Source.class), ErrorType.TYPE_MISMATCH));
 		}
 	}
 
