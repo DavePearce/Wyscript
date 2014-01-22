@@ -36,7 +36,7 @@ public class TypeErrorHandler {
 			case BAD_FIELD_ACCESS:
 				Expr.RecordAccess ra = (Expr.RecordAccess) data.found();
 				msg = String.format("Error: cannot access field %s of non-record expression %s", ra.getName(), ra.getSource());
-				suggestion = null;
+				suggestion = null; //Can't make a suggestion without more info of user's intent
 				break;
 
 			case BAD_FOR_LIST:
@@ -64,7 +64,7 @@ public class TypeErrorHandler {
 
 			case BAD_NEXT:
 				msg = "Error: Next statement must be inside switch case/default body";
-				suggestion = null;
+				suggestion = null; //clearing the statement leaves a blank suggestion - just skip making a suggestion
 				break;
 
 			case BAD_SWITCH_TYPE:
@@ -89,7 +89,7 @@ public class TypeErrorHandler {
 			case MISSING_FIELD:
 				Expr.RecordAccess e = (Expr.RecordAccess) data.found();
 				msg = String.format("Error: expression %s does not have field %s", e.getSource(), e.getName());
-				suggestion = null;
+				suggestion = null; //Can't make a suggestion without more info of user's intent
 				break;
 
 			case MISSING_RETURN:
@@ -111,8 +111,12 @@ public class TypeErrorHandler {
 				//and stored the expected type in a dummy cast expression
 				Type found = data.expected().attribute(Attribute.Type.class).type;
 				Type expected = ((Expr.Cast)data.found()).getType();
-				msg = String.format("Error: %s has type %s, expected subtype of %s type", data.expected(), found, expected);
+				msg = String.format("Error: %s has type %s, expected %s or subtype of %s", data.expected(), found, expected, expected);
 				suggestion = getExampleOfType(expected, userTypes);
+
+			case UNDECLARED_VARIABLE:
+				msg = "Error: variable " + data.found().toString() + " has not been declared";
+				suggestion = null; //No way of determining variable's intended type
 			}
 
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());

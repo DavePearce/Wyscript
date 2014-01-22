@@ -151,7 +151,7 @@ public class TypeChecker {
 					stmt.attribute(Attribute.Source.class), ErrorType.DUPLICATE_VARIABLE));
 		} else if(stmt.getExpr() != null) {
 			Type type = check(stmt.getExpr(),environment);
-			checkSubtype(stmt.getType(),type, false, stmt);
+			checkSubtype(stmt.getType(),type, false, stmt.getExpr());
 		}
 		environment.put(stmt.getName(), stmt.getType());
 	}
@@ -292,6 +292,7 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Binary expr, Map<String,Type> environment) {
+		int errCount = errors.size();
 		switch (expr.getOp()) {
 
 		case APPEND:
@@ -305,11 +306,14 @@ public class TypeChecker {
 			if (!isString) {
 				checkSubtype(Type.List.class, left, expr.getLhs());
 				checkSubtype(Type.List.class, right, expr.getRhs());
+				if (errCount < errors.size())
+					return new Type.Void();
 
 				//Check that the RHS is a subtype of the LHS
 				checkSubtype(left, right, false, expr.getRhs());
 			}
-
+			if (errCount < errors.size())
+				return new Type.Void();
 			return left;
 
 		case AND:
@@ -362,6 +366,8 @@ public class TypeChecker {
 				checkSubtype(new Type.Real(), rhs2, false, expr.getRhs());
 			}
 
+			if (errCount < errors.size())
+				return new Type.Void();
 			return (promote) ? new Type.Real() : new Type.Int();
 
 		default:
@@ -425,7 +431,7 @@ public class TypeChecker {
 		if(arguments.size() != parameters.size()) {
 			errors.add(new TypeErrorData(filename, expr, fn,
 					expr.attribute(Attribute.Source.class), ErrorType.BAD_FUNC_PARAMS));
-			return null;
+			return new Type.Void();
 		}
 		for(int i=0;i!=parameters.size();++i) {
 			Type argument = check(arguments.get(i),environment);
@@ -466,13 +472,15 @@ public class TypeChecker {
 		if (r == null) {
 			errors.add(new TypeErrorData(filename, expr, null,
 					expr.attribute(Attribute.Source.class), ErrorType.BAD_FIELD_ACCESS));
-			return null;
+			return new Type.Void();
 		}
 
 		Type result = r.getFields().get(expr.getName());
-		if (result == null)
+		if (result == null) {
 			errors.add(new TypeErrorData(filename, expr, null,
 					expr.attribute(Attribute.Source.class), ErrorType.MISSING_FIELD));
+			return new Type.Void();
+		}
 
 		return result;
 	}
@@ -489,6 +497,7 @@ public class TypeChecker {
 
 	public Type check(Expr.Unary expr, Map<String,Type> environment) {
 
+		int errCount = errors.size();
 		switch(expr.getOp()) {
 
 		case LENGTHOF:
@@ -504,6 +513,8 @@ public class TypeChecker {
 				checkSubtype(new Type.Real(), t, false, expr.getExpr());
 				return new Type.Real();
 			}
+			if (errCount < errors.size())
+				return new Type.Void();
 			return new Type.Int();
 
 		case NOT:
@@ -519,8 +530,8 @@ public class TypeChecker {
 	public Type check(Expr.Variable expr, Map<String, Type> environment) {
 		Type type = environment.get(expr.getName());
 		if (type == null) {
-			syntaxError("unknown variable encountered: " + expr.getName(),
-					filename, expr);
+			errors.add(new TypeErrorData(filename, expr, null, expr.attribute(Attribute.Source.class), ErrorType.UNDECLARED_VARIABLE));
+			return new Type.Void();
 		}
 		return type;
 	}

@@ -1,0 +1,4 @@
+void main():
+    int a = 4
+    string b = "7"
+    int c = b + a

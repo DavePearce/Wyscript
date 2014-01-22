@@ -63,10 +63,11 @@ public class TypeErrorData implements ErrorData {
 	 * - Tried to access field of non-record type
 	 * - Tried to access field that doesn't exist
 	 * - Expected one type, found another
-	 * - Expected one type be a subtype of another
+	 * - Expected one type to be a subtype of another
+	 * - Referenced an undeclared variable
 	 */
 	public static enum ErrorType {
 		MISSING_RETURN, DUPLICATE_VARIABLE, BAD_FOR_LIST, BAD_SWITCH_TYPE, BAD_NEXT, BAD_FUNC_PARAMS,
-		BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH
+		BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH, UNDECLARED_VARIABLE
 	}
 }
