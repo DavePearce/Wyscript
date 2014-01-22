@@ -539,7 +539,7 @@ public class Parser {
 	private Expr.Invoke parseInvokeStatement(Token name, List<ParserErrorData> errors,
 			Set<Token.Kind> parentFollow) {
 
-		int start = index;
+		int start = index - 2;
 		boolean valid = true;
 
 		// An invoke statement begins with the name of the function to be
@@ -555,7 +555,7 @@ public class Parser {
 		while (eventuallyMatch(errors, RightBrace) == null) {
 			if (!firstTime) {
 				if (match(errors,Token.Kind.Comma, followSet) == null) {
-					//Need to check wher control flow should go
+					//Need to check where control flow should go
 					if (tokens.get(index).kind == RightBrace) {
 						index++;
 						valid = false;
