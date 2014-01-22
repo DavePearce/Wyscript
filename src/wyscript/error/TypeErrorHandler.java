@@ -63,19 +63,27 @@ public class TypeErrorHandler {
 				break;
 
 			case BAD_NEXT:
-				msg = "Error: Next statement mut be inside switch case/default body";
-				suggestion = "";
+				msg = "Error: Next statement must be inside switch case/default body";
+				suggestion = null;
 				break;
 
 			case BAD_SWITCH_TYPE:
-				msg = "Error: switch expression may not be a record";
+				msg = "Error: switch expression may not be a record type";
 				suggestion = "[" + data.found() + "]";
 				break;
 
 			case DUPLICATE_VARIABLE:
 				Stmt.VariableDeclaration vd = (Stmt.VariableDeclaration) data.expected();
 				msg = "Error: variable with name " + vd.getName() + " has already been declared";
-				suggestion = vd.getName() + "Copy";
+				suggestion = vd.getType() + " " + vd.getName() + "Copy";
+				if (vd.getExpr() != null) {
+					String typeChar = "";
+					if (vd.getType() instanceof Type.Strung)
+						typeChar = "\"";
+					else if (vd.getType() instanceof Type.Char)
+						typeChar = "'";
+					suggestion += String.format(" = %s%s%s", typeChar, vd.getExpr(), typeChar);
+				}
 				break;
 
 			case MISSING_FIELD:

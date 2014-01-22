@@ -360,7 +360,7 @@ public interface Expr extends SyntacticElement {
 		}
 
 		public String toString() {
-			return "(is " + getLhs() + " " + getRhs() + ")";
+			return getLhs() + " is " + getRhs();
 		}
 
 		/**
@@ -567,6 +567,10 @@ public interface Expr extends SyntacticElement {
 		public Type getType() {
 			return type;
 		}
+
+		public String toString() {
+			return String.format("(%s) %s", type, source);
+		}
 	}
 	/**
 	 * Represents a list constructor which constructs a list value from zero or
@@ -622,6 +626,18 @@ public interface Expr extends SyntacticElement {
 		 */
 		public List<Expr> getArguments() {
 			return arguments;
+		}
+
+		public String toString() {
+			String s = "[";
+			boolean first = true;
+			for (Expr e : arguments) {
+				if (!first)
+					s += ", ";
+				first = false;
+				s += e;
+			}
+			return s + "]";
 		}
 	}
 
@@ -720,6 +736,19 @@ public interface Expr extends SyntacticElement {
 		public List<Pair<String, Expr>> getFields() {
 			return fields;
 		}
+
+		public String toString() {
+			String s = "{";
+			boolean first = true;
+			for (Pair<String, Expr> e : fields) {
+				if (!first)
+					s += ", ";
+				first = false;
+				s += e.first() + ": " + e.second();
+			}
+			s += "}";
+			return s;
+		}
 	}
 
 	/**
@@ -774,6 +803,19 @@ public interface Expr extends SyntacticElement {
 		 */
 		public List<Expr> getArguments() {
 			return arguments;
+		}
+
+		public String toString() {
+			String params = "(";
+			boolean first = true;
+			for (Expr e : arguments) {
+				if (!first)
+					params += ", ";
+				first = false;
+				params += e;
+			}
+			params += ")";
+			return name+params;
 		}
 	}
 }

@@ -193,9 +193,11 @@ public class TypeChecker {
 		Expr.Variable v = stmt.getIndex();
 
 		Type t = check(e, environment);
-		if (!(t instanceof Type.List))
+		if (!(t instanceof Type.List)) {
 			errors.add(new TypeErrorData(filename, stmt.getSource(), null,
 					stmt.getSource().attribute(Attribute.Source.class), ErrorType.BAD_FOR_LIST));
+			return;
+		}
 
 		HashMap<String, Type> newEnv = new HashMap<String, Type>(environment);
 		newEnv.put(v.getName(), ((Type.List)t).getElement());
@@ -423,6 +425,7 @@ public class TypeChecker {
 		if(arguments.size() != parameters.size()) {
 			errors.add(new TypeErrorData(filename, expr, fn,
 					expr.attribute(Attribute.Source.class), ErrorType.BAD_FUNC_PARAMS));
+			return null;
 		}
 		for(int i=0;i!=parameters.size();++i) {
 			Type argument = check(arguments.get(i),environment);
@@ -460,9 +463,11 @@ public class TypeChecker {
 
 		Type t = check(expr.getSource(), environment);
 		Type.Record r = checkSubtype(Type.Record.class, t, expr.getSource());
-		if (r == null)
+		if (r == null) {
 			errors.add(new TypeErrorData(filename, expr, null,
 					expr.attribute(Attribute.Source.class), ErrorType.BAD_FIELD_ACCESS));
+			return null;
+		}
 
 		Type result = r.getFields().get(expr.getName());
 		if (result == null)

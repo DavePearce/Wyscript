@@ -1,0 +1,29 @@
+void testRecordAccess():
+    int i = 0
+    print i.x
+
+void testBadFor():
+    for i in 0:
+        print i
+
+void testBadFunction(int x, int y):
+    testBadFunction(x)
+
+void testBadNext():
+    next
+
+void testBadSwitch():
+    switch({x: 0, y: 0}):
+        default:
+            print "Hello"
+
+void testDuplicate():
+    int x = 0
+    string x = "0"
+
+void testMissingField():
+    print {x:0, y:0}.z
+
+int testMissingReturn():
+    print "No return!"
+
