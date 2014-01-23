@@ -1,0 +1,25 @@
+void badSwap(int a, int b):
+    int tmp = a
+    a = b
+    b = tmp
+
+void swap(&int a, &int b):
+    int tmp = *a
+    *a = *b
+    *b = tmp
+
+void main():
+    int a = 0
+    int b = 1
+    print "A: " ++ a
+    print "B: " ++ b
+    badSwap(a, b)
+    print "A: " ++ a
+    print "B: " ++ b
+    &int ar = new a
+    &int br = new b
+    swap(ar, br)
+    a = *ar
+    b = *br
+    print "A: " ++ a
+    print "B: " ++ b

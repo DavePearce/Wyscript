@@ -1,0 +1,36 @@
+void add1(&int i):
+    *i = (*i + 1)
+
+void swap(&int a, &int b):
+    int tmp = *b
+    *b = *a
+    *a = tmp
+
+void main():
+    int a = 0
+    int b = 1
+    &int c = new 2
+    &int ra = new a
+    &int rb = new b
+    &int rc = c
+    print "A: " ++ a
+    print "B: " ++ b
+    print "C: " ++ *c
+    add1(ra)
+    add1(rb)
+    a = *ra
+    b = *rb
+    add1(rc)
+    add1(c)
+    print "A: " ++ a
+    print "B: " ++ b
+    print "C: " ++ *c
+    swap(ra, rb)
+    a = *ra
+    b = *rb
+    swap(rb, rc)
+    b = *rb
+    swap(c, rc)
+    print "A: " ++ a
+    print "B: " ++ b
+    print "C: " ++ *c

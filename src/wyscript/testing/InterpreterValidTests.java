@@ -457,6 +457,26 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void References_Valid_1() {
+		runInterpreterTest("References_Valid_1");
+	}
+
+	@Test
+	public void References_Valid_2() {
+		runInterpreterTest("References_Valid_2");
+	}
+
+	@Test
+	public void References_Valid_3() {
+		runInterpreterTest("References_Valid_3");
+	}
+
+	@Test
+	public void References_Valid_4() {
+		runInterpreterTest("References_Valid_4");
+	}
+
+	@Test
 	public void Remainder_Valid_1() {
 		runInterpreterTest("Remainder_Valid_1");
 	}

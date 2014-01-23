@@ -32,6 +32,7 @@ import static wyscript.io.Lexer.Token.Kind.*;
 import wyscript.lang.Expr;
 import wyscript.lang.Stmt;
 import wyscript.lang.Type;
+import wyscript.lang.Type.Reference;
 import wyscript.lang.WyscriptFile;
 import wyscript.lang.WyscriptFile.*;
 import wyscript.util.Attribute;
@@ -507,6 +508,8 @@ public class Parser {
 			return userDefinedTypes.contains(token.text);
 		case LeftCurly:
 		case LeftSquare:
+		case Ampersand:
+		case LogicalAnd:
 			return isStartOfType(index + 1);
 		}
 
@@ -1199,29 +1202,35 @@ public class Parser {
 				return null;
 			}
 		}
+		//Have to match && on line
+		int next = skipLineSpace(index);
+		Expr.BOp bop;
 
-		int next = skipWhiteSpace(index);
-		if (next < tokens.size()) {
-			Token token = tokens.get(next);
-			Expr.BOp bop;
-			switch (token.kind) {
-			case LogicalAnd:
-				bop = Expr.BOp.AND;
-				break;
-			case LogicalOr:
-				bop = Expr.BOp.OR;
-				break;
-			default:
-				return lhs;
+		if (next < tokens.size() && tokens.get(next).kind == LogicalAnd) {
+			bop = Expr.BOp.AND;
+		}
+		else {
+			next = skipWhiteSpace(index);
+			
+			if (next < tokens.size()) {
+				Token token = tokens.get(next);
+				switch (token.kind) {
+			
+				case LogicalOr:
+					bop = Expr.BOp.OR;
+					break;
+				default:
+					return lhs;
+				}
 			}
+			else return lhs;
+		}
 			index = next+1; // match the operator
 			Expr rhs = parseExpression(errors, parentFollow);
 			if (rhs == null)
 				return null;
 			else
 				return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
-		}
-		return lhs;
 	}
 
 	private Expr parseConditionExpression(List<ParserErrorData> errors,
@@ -1431,14 +1440,19 @@ public class Parser {
 			}
 		}
 
-		int next = skipWhiteSpace(index);
+		if (tryAndMatchOnLine(Star) != null) {
+			Expr.BOp bop = Expr.BOp.MUL;
+			Expr rhs = parseMulDivExpression(errors, parentFollow);
+			if (rhs == null)
+				return null;
+			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+		}
+
+		int next = this.skipWhiteSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
-			case Star:
-				bop = Expr.BOp.MUL;
-				break;
 			case RightSlash:
 				bop = Expr.BOp.DIV;
 				break;
@@ -1569,8 +1583,6 @@ public class Parser {
 						index - 1));
 			}
 		case Null:
-			System.out.print
-			("");
 			return new Expr.Constant(null, sourceAttr(start, index - 1));
 		case True:
 			return new Expr.Constant(true, sourceAttr(start, index - 1));
@@ -1603,6 +1615,24 @@ public class Parser {
 				return null;
 			return new Expr.Unary(Expr.UOp.NOT, tmp, sourceAttr(start,
 					index - 1));
+
+		case New:
+			Expr e = parseTerm(errors, parentFollow);
+			if (e == null)
+				return null;
+			return new Expr.New(e, sourceAttr(start, index-1));
+
+		case Star:
+			Expr ex = parseTerm(errors, parentFollow);
+			if (ex == null)
+				return null;
+			return new Expr.Deref(ex, sourceAttr(start, index-1));
+
+		case Ampersand:
+			Expr ref = parseTerm(errors, parentFollow);
+			if (ref == null)
+				return null;
+			return new Expr.Ref(ref, sourceAttr(start, index-1));
 		}
 
 		//Couldn't parse, may have hit garbage values. Skip until we match something in the follow set
@@ -1789,13 +1819,24 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(VerticalBar);
 
+		//First, try and parse a reference type
+		Token tok = tryAndMatch(Ampersand);
+		if (tok == null) tok = tryAndMatch(LogicalAnd);
+		if (tok != null) {
+			Type ref = parseType (errors, parentFollow);
+			if (ref == null)
+				return null;
+			return (tok.kind == Ampersand) ? new Type.Reference(ref, sourceAttr(start, index-1))
+										 : new Type.Reference(new Type.Reference(ref), sourceAttr(start, index-1));
+		}
+
 		Type t = parseBaseType(errors, followSet);
 		if (t == null) {
 			if (tokens.get(index).kind != VerticalBar)
 				return null;
 		}
 
-		// Now, attempt to look for union types
+		// Now, attempt to look for union or reference types
 		if (tryAndMatch(VerticalBar) != null) {
 			// this is a union type
 			ArrayList<Type> types = new ArrayList<Type>();

@@ -464,6 +464,47 @@ public interface Expr extends SyntacticElement {
 		}
 	}
 
+	/**
+	 * Represents a dereference expression, composed recursively from the expression it is
+	 * dereferencing.
+	 *
+	 * @author Daniel Campbell
+	 *
+	 */
+	public static class Deref extends SyntacticElement.Impl implements Expr, LVal {
+		private final Expr expr;
+
+		public Deref(Expr e, Attribute... attributes) {
+			super(attributes);
+			expr = e;
+		}
+
+		public String toString() {
+			return "*" + expr;
+		}
+
+		public Expr getExpr() {
+			return expr;
+		}
+	}
+
+	public static class Ref extends SyntacticElement.Impl implements Expr {
+		private final Expr expr;
+
+		public Ref(Expr e, Attribute... attributes) {
+			super(attributes);
+			expr = e;
+		}
+
+		public String toString() {
+			return "&" + expr;
+		}
+
+		public Expr getExpr() {
+			return expr;
+		}
+	}
+
 	public enum UOp {
 		NOT {
 			public String toString() {
@@ -816,6 +857,31 @@ public interface Expr extends SyntacticElement {
 			}
 			params += ")";
 			return name+params;
+		}
+	}
+
+	/**
+	 * The new expression. Equivalent to
+	 * a reference to a variable with the value of the
+	 * supplied expression.
+	 *
+	 * @author Daniel Campbell
+	 *
+	 */
+	public static class New extends SyntacticElement.Impl implements Expr {
+		private final Expr expr;
+
+		public New(Expr e, Attribute... attributes) {
+			super(attributes);
+			expr = e;
+		}
+
+		public Expr getExpr() {
+			return expr;
+		}
+
+		public String toString() {
+			return "new " + expr;
 		}
 	}
 }

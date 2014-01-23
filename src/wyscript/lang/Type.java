@@ -209,6 +209,33 @@ public interface Type extends SyntacticElement {
 	}
 
 	/**
+	 * Represents a reference type, which is simply a reference to another type
+	 * (which may also be a reference type)
+	 */
+	public static final class Reference extends SyntacticElement.Impl implements
+	Type {
+
+		private Type refType;
+
+		public Reference(Type t, Attribute... attributes) {
+			super(attributes);
+			refType = t;
+		}
+
+		public Type getType() {
+			return refType;
+		}
+
+		public boolean equals(Object o) {
+			return o instanceof Type.Reference && ((Type.Reference)o).refType.equals(refType);
+		}
+
+		public String toString() {
+			return "&" + refType;
+		}
+	}
+
+	/**
 	 * Represents a named type which has yet to be expanded in the given
 	 * context.
 	 *

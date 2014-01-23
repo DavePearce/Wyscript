@@ -1,0 +1,15 @@
+void main():
+    int a = 5
+    int b = 3
+    print "A: " ++ a
+    print "B: " ++ b
+    &int ar = new a
+    &int br = new b
+    print "A: " ++ *ar
+    print "B: " ++ *br
+    *ar = 3
+    *br = 5
+    a = *ar
+    b = *br
+    print "A: " ++ a
+    print "B: " ++ b
