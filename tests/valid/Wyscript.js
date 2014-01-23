@@ -481,6 +481,16 @@ Wyscript.Type.String.prototype.subtype = function(superType) {
   return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
 };
 
+Wyscript.Type.Reference = function(refType) {this.refType = refType};
+Wyscript.Type.Reference.prototype = new Wyscript.Type();
+Wyscript.Type.Reference.prototype.subtype = function(superType) {
+ if (superType instanceof Wyscript.Type.Reference) {
+    return this.refType.subtype(superType.refType);
+ }
+  return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
+};
+
+
 Wyscript.Type.List = function(elem) {this.elem = elem;};
 Wyscript.Type.List.prototype = new Wyscript.Type();
 Wyscript.Type.List.prototype.subtype = function(superType) {
@@ -671,6 +681,24 @@ Wyscript.is = function(obj, type) {
   		return Wyscript.getType(obj).subtype(type);
   }
   return false; //obj is not a subtype of type/type unknown
+};
+
+//REFERENCE TYPES
+Wyscript.Ref = function(value) {
+	this.value = value;
+	this.type = new Wyscript.Type.Reference(Wyscript.getType(value));
+};
+
+Wyscript.Ref.prototype.deref = function() {
+	return this.value;
+};
+
+Wyscript.Ref.prototype.setValue = function(value) {
+	this.value = value;
+};
+
+Wyscript.Ref.prototype.toString = function() {
+	return ("&" + this.value.toString());
 };
 
 //Gets the type of the given object
