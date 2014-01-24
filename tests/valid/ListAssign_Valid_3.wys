@@ -1,4 +1,4 @@
-[int] f(int i):
+function f(int i) => [int]:
     [int] arr1 = [1, 2, 64]
     [int] arr2 = arr1
     if i != |arr1|:
@@ -7,7 +7,7 @@
         arr2[2] = i
     return arr1 ++ arr2
 
-void main():
+function main() => void:
     print f(2)
     print f(3)
 

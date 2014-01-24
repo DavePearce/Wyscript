@@ -2,11 +2,11 @@ type rec1 is {int x}
 
 type rec2 is {rec1 current}
 
-rec2 f(rec2 r):
+function f(rec2 r) => rec2:
     r.current.x = 1
     return r
 
-void main():
+function main() => void:
     rec2 r = {current: {x: 0}}
     print "BEFORE: " ++ r
     print "AFTER: " ++ f(r)

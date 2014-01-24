@@ -1,5 +1,5 @@
 constant PI is 3.1415
 
-void main():
+function main() => void:
     print PI
 

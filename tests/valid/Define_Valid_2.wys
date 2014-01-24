@@ -1,6 +1,6 @@
 type dr2point is {real y, real x}
 
-void main():
+function main() => void:
     dr2point p = {x: 1.0, y: 2.23}
     print p
 

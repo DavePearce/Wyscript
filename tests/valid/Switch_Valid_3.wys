@@ -1,4 +1,4 @@
-int f(real x):
+function f(real x) => int:
     switch(x):
         case 1.23:
             return 0
@@ -6,7 +6,7 @@ int f(real x):
             return -1
     return 10
 
-void main():
+function main() => void:
     print f(1.23)
     print f(2.01)
     print f(3.0)

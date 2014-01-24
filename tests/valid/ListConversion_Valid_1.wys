@@ -1,6 +1,6 @@
-string f([real] ls):
+function f([real] ls) => string:
     return "" ++ ls
 
-void main():
+function main() => void:
     print f([1.0, 2.0, 3.0])
 

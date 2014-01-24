@@ -1,4 +1,4 @@
-void main():
+function main() => void:
 
         // Type equality.
         print 1 is int

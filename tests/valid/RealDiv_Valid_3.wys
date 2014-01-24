@@ -1,6 +1,6 @@
-real g(real x):
+function g(real x) => real:
     return x / 3.0
 
-void main():
+function main() => void:
     print g(0.234)
 

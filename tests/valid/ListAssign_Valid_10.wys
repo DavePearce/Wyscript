@@ -1,12 +1,12 @@
 type nint is null|int
 
-[[nint]] move(int from, int to, [[nint]] list):
+function move(int from, int to, [[nint]] list) => [[nint]]:
     nint tmp = list[from][from + 1]
     list[from][from + 1] = null
     list[to][to + 1] = tmp
     return list
 
-void main():
+function main() => void:
     [[nint]] ls = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
     ls = move(0, 1, ls)
     print ls

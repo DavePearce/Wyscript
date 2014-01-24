@@ -1,6 +1,6 @@
-bool pred():
+function pred() => bool:
     return false
 
-void main():
+function main() => void:
     print pred()
 

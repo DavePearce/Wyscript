@@ -1,10 +1,10 @@
-[char] f(string str):
+function f(string str) => [char]:
     [char] r = []
     for i in 0..|str|:
         r = r ++ [str[i]]
     return r
 
-void main():
+function main() => void:
     [char] r = f("Hello")
     print r
 

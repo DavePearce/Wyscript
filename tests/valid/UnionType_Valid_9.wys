@@ -1,6 +1,6 @@
 type IntList is {int|[int] op}
 
-void main():
+function main() => void:
     IntList x = {op: 1}
     x.op = 1
     IntList y = x

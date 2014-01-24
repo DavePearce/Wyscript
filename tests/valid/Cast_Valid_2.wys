@@ -1,6 +1,6 @@
-[real] f([int] xs):
+function f([int] xs) => [real]:
     return ([real]) xs
 
-void main():
+function main() => void:
     print f([1, 2, 3])
 

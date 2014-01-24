@@ -1,11 +1,11 @@
 include "Includes_Valid_1a.wys"
 
-void a(int i):
+function a(int i) => void:
     if (i % 2 == 0):
         print "EVEN"
     else:
         b(i)
 
-void main():
+function main() => void:
     a(1)
     a(4)

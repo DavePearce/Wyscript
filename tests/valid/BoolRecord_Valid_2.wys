@@ -1,6 +1,6 @@
 type Record is {bool flag, int code}
 
-void main():
+function main() => void:
     Record x = {flag: true, code: 0}
     if x.flag:
         print "GOT HERE"

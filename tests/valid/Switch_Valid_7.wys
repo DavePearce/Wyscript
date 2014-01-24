@@ -1,4 +1,4 @@
-string f(string input):
+function f(string input) => string:
     string r
     char c = input[0]
     switch(c):
@@ -16,7 +16,7 @@ string f(string input):
             r = "GOT NOTHING"
     return r
 
-void main():
+function main() => void:
     print f("N")
     print f("K")
     print f("Q")

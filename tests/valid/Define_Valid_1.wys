@@ -2,7 +2,7 @@ type point is {int y, int x}
 
 type listint is [int]
 
-void main():
+function main() => void:
     listint li = [1, 2, 3]
     point p = {x: 1, y: 2}
     int x = p.x

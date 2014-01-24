@@ -1,7 +1,7 @@
-int f([int] x):
+function f([int] x) => int:
     return |x|
 
-void main():
+function main() => void:
     [[int]] arr = [[1, 2, 3]]
     print f(arr[0])
 

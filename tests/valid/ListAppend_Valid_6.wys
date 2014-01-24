@@ -1,12 +1,12 @@
 type plistv6 is [int]
 
-int f(plistv6 xs):
+function f(plistv6 xs) => int:
     return |xs|
 
-int g(plistv6 left, plistv6 right):
+function g(plistv6 left, plistv6 right) => int:
     return f(left ++ right)
 
-void main():
+function main() => void:
     int r = g([1, 2, 3], [6, 7, 8])
     print r
 

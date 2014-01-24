@@ -1,6 +1,6 @@
-real f(real x):
+function f(real x) => real:
     return 0.0 - x
 
-void main():
+function main() => void:
     print f(1.234)
 

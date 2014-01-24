@@ -1,12 +1,12 @@
-void add1(&int i):
+function add1(&int i) => void:
     *i = (*i + 1)
 
-void swap(&int a, &int b):
+function swap(&int a, &int b) => void:
     int tmp = *b
     *b = *a
     *a = tmp
 
-void main():
+function main() => void:
     int a = 0
     int b = 1
     &int c = new 2

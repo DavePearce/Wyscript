@@ -1,6 +1,6 @@
 type point is {int x, int y}
 
-void main():
+function main() => void:
     &point p = new {x: 1, y: 0}
     print p->x
     print p->y

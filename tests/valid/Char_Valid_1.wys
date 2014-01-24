@@ -1,6 +1,6 @@
-string f(string s, char c):
+function f(string s, char c) => string:
     return s ++ c
 
-void main():
+function main() => void:
     print f("Hello Worl", 'd')
 

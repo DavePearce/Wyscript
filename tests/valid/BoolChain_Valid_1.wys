@@ -1,10 +1,10 @@
-void f(bool x, bool y, bool z):
+function f(bool x, bool y, bool z) => void:
     if (x && (y || z)):
         print "TRUE"
     else:
         print "FALSE"
 
-void main():
+function main() => void:
     f(true, true, true)
     f(true, true, false)
     f(true, false, true)

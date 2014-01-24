@@ -1,10 +1,10 @@
-string f(bool b):
+function f(bool b) => string:
     if b:
         return "TRUE"
     else:
         return "FALSE"
 
-void main():
+function main() => void:
     print f(true)
     print f(false)
 

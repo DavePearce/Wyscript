@@ -1,9 +1,9 @@
 type tac1tup is {int f1, int f2}
 
-tac1tup f():
+function f() => tac1tup:
     return {f1: 1, f2: 3}
 
-void main():
+function main() => void:
     tac1tup x = f()
     x.f1 = x.f2 - 2
     print x

@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     &int x = new (4)
     print (x is &int)
     print (x is &real)

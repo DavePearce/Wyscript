@@ -1,6 +1,6 @@
 type liststr is [int]|string
 
-int len(liststr l):
+function len(liststr l) => int:
     if l is string:
         string s = (string) l
         return |s|
@@ -8,7 +8,7 @@ int len(liststr l):
         [int] ls = ([int]) l
         return |ls|
 
-void main():
+function main() => void:
     [int] l = [1,2]
     print len(l)
     string s = "Hello World"

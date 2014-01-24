@@ -1,4 +1,4 @@
 include "Includes_Valid_1.wys"
 
-void b(int i):
+function b(int i) => void:
     print i

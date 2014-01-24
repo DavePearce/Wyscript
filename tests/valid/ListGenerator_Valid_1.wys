@@ -1,8 +1,8 @@
-void f([int] x):
+function f([int] x) => void:
     int z = |x|
     print z
     print x[z - 1]
 
-void main():
+function main() => void:
     [int] arr = [1, 2, 3]
     f(arr)

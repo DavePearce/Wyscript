@@ -1,4 +1,4 @@
-int f([int] x):
+function f([int] x) => int:
     switch(x):
         case []:
             return 0
@@ -6,7 +6,7 @@ int f([int] x):
             return -1
     return 10
 
-void main():
+function main() => void:
     print f([])
     print f([1])
     print f([3])

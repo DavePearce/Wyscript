@@ -1,9 +1,9 @@
-int f([int] x):
+function f([int] x) => int:
     int y = x[0]
     int z = x[0]
     return z + y
 
-void main():
+function main() => void:
     [int] arr = [1, 2, 3]
     print f(arr)
     print arr

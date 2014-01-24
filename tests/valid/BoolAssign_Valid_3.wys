@@ -1,18 +1,18 @@
-int f(int x, int y):
+function f(int x, int y) => int:
     bool a = x == y
     if a:
         return 1
     else:
         return x + y
 
-int g(int x, int y):
+function g(int x, int y) => int:
     bool a = x >= y
     if ! a:
         return x + y
     else:
         return 1
 
-void main():
+function main() => void:
     print f(1, 1)
     print f(0, 0)
     print f(4, 345)

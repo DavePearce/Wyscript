@@ -4,9 +4,9 @@ type tur4nat is int
 
 type wur4nat is ur4nat|tur4nat
 
-wur4nat f(wur4nat x):
+function f(wur4nat x) => wur4nat:
     return x
 
-void main():
+function main() => void:
     print f(1)
 

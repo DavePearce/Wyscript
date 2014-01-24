@@ -1,12 +1,12 @@
 type imsg is int|{string msg}
 
-string getMessage(imsg m):
+function getMessage(imsg m) => string:
     if(m is {string msg}):
         {string msg} n = ({string msg}) m
         return n.msg
     else:
         return "" ++ m
 
-void main():
+function main() => void:
     print getMessage({msg:"HELLO WORLD"})
     print getMessage(1)

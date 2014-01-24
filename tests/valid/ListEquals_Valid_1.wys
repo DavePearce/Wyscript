@@ -1,15 +1,15 @@
-string f([int] xs, [int] ys):
+function f([int] xs, [int] ys) => string:
     if xs == ys:
         return "EQUAL"
     else:
         return "NOT EQUAL"
 
-void g([int] xs, [int] ys):
+function g([int] xs, [int] ys) => void:
     print xs
     print ys
     print f(xs, ys)
 
-void main():
+function main() => void:
     g([1, 4], [1, 4])
     g([1, 4], [1, 42])
     g([], [])

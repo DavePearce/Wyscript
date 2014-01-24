@@ -3,7 +3,7 @@ type NestRec is {real x, Rec y}
 
 type CastRec is {real x, {int x} y}
 
-void main():
+function main() => void:
     NestRec tmp = {x: 4.4, y: {x: 4.0}}
     CastRec result = (CastRec)tmp
     print result

@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     [bool] ls = [true, false, true]
     print ls
     bool x = ls[0]

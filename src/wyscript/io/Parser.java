@@ -194,14 +194,21 @@ public class Parser {
 		if (tryAndMatch(Native, true) != null) {
 			isNative = true;
 		}
-
-		Token.Kind follow = Identifier;
+		Token.Kind follow = Token.Kind.Identifier;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
-
-		Type ret = parseType(errors, true, followSet);
-		if (ret == null)
+		if (match(errors, Function, follow) == null) {
 			valid = false;
+			if (! followSet.contains(tokens.get(index))) {
+				index++;
+				return null;
+			}
+
+		}
+
+		follow = Token.Kind.LeftBrace;
+		followSet = new HashSet<Token.Kind>();
+		followSet.add(follow);
 
 		skipWhiteSpace();
 		follow = LeftBrace;
@@ -250,6 +257,16 @@ public class Parser {
 				paramTypes.add(new Parameter(t, n.text, sourceAttr(pstart,
 					index - 1)));
 		}
+
+		follow = Colon;
+		followSet.add(Colon);
+		followSet.remove(RightBrace);
+
+		Token n = match(errors, DoubleArrow, followSet);
+		if (n == null)
+			valid = false;
+
+		Type ret = parseType(errors, true, followSet);
 
 		//If parsing a native function, stop here
 		if (isNative) {
@@ -302,7 +319,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Type t = parseType(errors, false, followSet);
+		Type t = parseType(errors, true, followSet);
 		if (t == null)
 			valid = false;
 
@@ -334,7 +351,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Expr e = parseExpression(errors, false, followSet);
+		Expr e = parseExpression(errors, true, followSet);
 		if (e == null)
 			valid = false;
 
