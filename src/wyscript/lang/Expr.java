@@ -488,23 +488,6 @@ public interface Expr extends SyntacticElement {
 		}
 	}
 
-	public static class Ref extends SyntacticElement.Impl implements Expr {
-		private final Expr expr;
-
-		public Ref(Expr e, Attribute... attributes) {
-			super(attributes);
-			expr = e;
-		}
-
-		public String toString() {
-			return "&" + expr;
-		}
-
-		public Expr getExpr() {
-			return expr;
-		}
-	}
-
 	public enum UOp {
 		NOT {
 			public String toString() {

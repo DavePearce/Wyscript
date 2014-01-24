@@ -972,6 +972,8 @@ public class JavaScriptFileWriter {
 			write((Type.Record)t);
 		else if (t instanceof Type.Union)
 			write((Type.Union)t);
+		else if (t instanceof Type.Reference)
+			write((Type.Reference)t);
 		else internalFailure("Unknown type encountered: " + t, file.filename, t);
 	}
 
@@ -1046,6 +1048,12 @@ public class JavaScriptFileWriter {
 			write(b);
 		}
 		out.print("])");
+	}
+
+	public void write(Type.Reference t) {
+		out.print("new Wyscript.Type.Reference(");
+		write(t.getType());
+		out.print(")");
 	}
 
 	public void indent(int indent) {

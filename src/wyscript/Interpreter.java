@@ -907,7 +907,7 @@ public class Interpreter {
 			return false;
 		} else if (type instanceof Type.Reference) {
 			Type.Reference ref = (Type.Reference) type;
-			return false;
+			return (value instanceof Ref && instanceOf(((Ref)value).getValue(), ref.getType()));
 		}
 
 		else {

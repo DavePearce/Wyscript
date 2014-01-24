@@ -447,8 +447,7 @@ Wyscript.Type.Bool.prototype.subtype = function(superType) {
 Wyscript.Type.Int = function() {};
 Wyscript.Type.Int.prototype = new Wyscript.Type();
 Wyscript.Type.Int.prototype.subtype = function(superType) {
-  //Ints are a subtype of reals
-  if (superType instanceof Wyscript.Type.Int || superType instanceof Wyscript.Type.Real) {
+  if (superType instanceof Wyscript.Type.Int) {
     return true;
   }
   return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
@@ -656,7 +655,7 @@ Wyscript.is = function(obj, type) {
   }
   
   else if (type instanceof Wyscript.Type.Real) {
-      if (obj instanceof Wyscript.Float || obj instanceof Wyscript.Integer) {
+      if (obj instanceof Wyscript.Float) {
       	return true;
       }
       return false;
@@ -679,6 +678,10 @@ Wyscript.is = function(obj, type) {
   
   else if (type instanceof Wyscript.Type.Union) {
   		return Wyscript.getType(obj).subtype(type);
+  }
+  
+  else if (type instanceof Wyscript.Type.Reference) {
+  		return (obj instanceof Wyscript.Ref && obj.type.subtype(type));
   }
   return false; //obj is not a subtype of type/type unknown
 };

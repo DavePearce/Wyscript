@@ -263,7 +263,7 @@ public class Lexer {
 		case '.':
 			if((pos+1) < input.length() && input.charAt(pos+1) == '.') {
 				pos = pos + 2;
-				return new Token(Token.Kind.DotDot,"..",pos);
+				return new Token(Token.Kind.DotDot,"..",pos-2);
 			} else {
 				return new Token(Token.Kind.Dot,".",pos++);
 			}
@@ -277,7 +277,7 @@ public class Lexer {
 		case '|':
 			if((pos+1) < input.length() && input.charAt(pos+1) == '|') {
 				pos = pos+2;
-				return new Token(Token.Kind.LogicalOr, "||", pos);
+				return new Token(Token.Kind.LogicalOr, "||", pos-2);
 			}
 				return new Token(Token.Kind.VerticalBar,"|",pos++);
 
@@ -296,11 +296,15 @@ public class Lexer {
 		case '+':
 			if((pos+1) < input.length() && input.charAt(pos+1) == '+') {
 				pos = pos + 2;
-				return new Token(Token.Kind.PlusPlus,"++",pos);
+				return new Token(Token.Kind.PlusPlus,"++",pos-2);
 			} else {
 				return new Token(Token.Kind.Plus,"+",pos++);
 			}
 		case '-':
+			if ((pos + 1) < input.length() && input.charAt(pos+1) == '>') {
+				pos += 2;
+				return new Token(Token.Kind.Arrow, "->", pos-2);
+			}
 			return new Token(Token.Kind.Minus,"-",pos++);
 		case '*':
 			return new Token(Token.Kind.Star,"*",pos++);
@@ -326,6 +330,9 @@ public class Lexer {
 			if ((pos + 1) < input.length() && input.charAt(pos + 1) == '=') {
 				pos += 2;
 				return new Token(Token.Kind.EqualsEquals,"==",pos - 2);
+			} else if ((pos + 1) < input.length() && input.charAt(pos+1) == '>') {
+				pos += 2;
+				return new Token(Token.Kind.DoubleArrow, "=>", pos-2);
 			} else {
 				return new Token(Token.Kind.Equals,"=",pos++);
 			}
@@ -452,6 +459,7 @@ public class Lexer {
 			put("native", Token.Kind.Native);
 			put("include", Token.Kind.Include);
 			put("new", Token.Kind.New);
+			put("function", Token.Kind.Function);
 		}
 	};
 
@@ -494,6 +502,7 @@ public class Lexer {
 			Native { public String toString() { return "native"; }},
 			Include { public String toString() { return "include"; }},
 			New { public String toString() { return "new"; }},
+			Function { public String toString() { return "function"; }},
 
 			// Constants (Given a toString for error handling purposes)
 			RealValue { public String toString() { return "real"; }},
@@ -533,6 +542,8 @@ public class Lexer {
 			GreaterEquals { public String toString() { return ">="; }},
 			LogicalAnd { public String toString() { return "&&"; }},
 			LogicalOr { public String toString() { return "||"; }},
+			Arrow { public String toString() { return "->"; }},
+			DoubleArrow { public String toString() { return "=>"; }},
 
 			// Other
 			NewLine { public String toString() { return "\\n"; }},

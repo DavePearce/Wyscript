@@ -1,0 +1,8 @@
+type point is {int x, int y}
+
+void main():
+    &point p = new {x: 1, y: 0}
+    print p->x
+    print p->y
+    print (*p).x
+    print (*p).y

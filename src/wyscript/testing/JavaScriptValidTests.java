@@ -578,6 +578,16 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void References_Valid_5() {
+		runTest("References_Valid_5");
+	}
+
+	@Test
+	public void References_Valid_6() {
+		runTest("References_Valid_6");
+	}
+
+	@Test
 	public void Remainder_Valid_1() {
 		runTest("Remainder_Valid_1");
 	}

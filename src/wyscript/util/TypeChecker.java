@@ -285,8 +285,6 @@ public class TypeChecker {
 			type = check((Expr.Deref) expr, environment);
 		} else if(expr instanceof Expr.New) {
 			type = check((Expr.New) expr, environment);
-		} else if(expr instanceof Expr.Ref) {
-			type = check((Expr.Ref)expr, environment);
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", filename,expr);
 			return null; // dead code
@@ -553,11 +551,6 @@ public class TypeChecker {
 		return new Type.Reference(type);
 	}
 
-	public Type check(Expr.Ref expr, Map<String, Type> environment) {
-		Type type = check(expr.getExpr(), environment);
-		return new Type.Reference(type);
-	}
-
 	/**
 	 * Check that a given type t2 is an instance of of another type t1. This
 	 * method is useful for checking that a type is, for example, a List type.
@@ -646,7 +639,7 @@ public class TypeChecker {
 			return true;
 		} else if (t1 instanceof Type.Null && t2 instanceof Type.Null) {
 			return true;
-		} else if (t1 instanceof Type.Real && t2 instanceof Type.Int) {
+		} else if (cast && t1 instanceof Type.Real && t2 instanceof Type.Int) {
 			return true;
 		} else if (cast && t1 instanceof Type.Int && t2 instanceof Type.Real) {
 			return true;
