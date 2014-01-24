@@ -1,0 +1,35 @@
+void main():
+    int a = 0
+    int b = 1
+    
+    &int ra = new a
+    &int rb = new b
+    &&int rra = new ra
+    &&int rrb = new rb
+    
+    print "A: " ++ a
+    print "B: " ++ b
+    print "*A: " ++ ra
+    print "*B: " ++ rb
+    
+    *ra = 2
+    **rrb = 3
+    a = *ra
+    rb = *rrb
+    b = *rb
+    
+    print "A: " ++ a
+    print "B: " ++ b
+    print "*A: " ++ ra
+    print "*B: " ++ rb
+    
+    &int tmp = ra
+    *rra = *rrb
+    *rrb = tmp
+    rb = *rrb
+    ra = *rra
+    
+    print "A: " ++ a
+    print "B: " ++ b
+    print "*A: " ++ ra
+    print "*B: " ++ rb

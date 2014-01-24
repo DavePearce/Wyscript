@@ -68,7 +68,7 @@ public class TypeErrorHandler {
 				break;
 
 			case BAD_SWITCH_TYPE:
-				msg = "Error: switch expression may not be a record type";
+				msg = "Error: switch expression may not be a record or reference type";
 				suggestion = "[" + data.found() + "]";
 				break;
 

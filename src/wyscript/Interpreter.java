@@ -23,6 +23,7 @@ import java.util.*;
 import wyscript.lang.*;
 import wyscript.util.Attribute;
 import wyscript.util.Pair;
+import wyscript.util.Ref;
 import wyscript.util.SyntacticElement;
 import static wyscript.util.SyntaxError.*;
 
@@ -241,7 +242,13 @@ public class Interpreter {
 				StringBuffer str = (StringBuffer) src;
 				str.setCharAt(idx, (Character) rhs);
 			}
-		} else {
+		} else if(lhs instanceof Expr.Deref) {
+			Ref var = (Ref) execute(((Expr.Deref)lhs).getExpr(), frame);
+			Object rhs = execute(stmt.getRhs(), frame);
+			var.setValue(rhs);
+		}
+
+		else {
 			internalFailure("unknown lval encountered (" + lhs + ")", file.filename,stmt);
 		}
 
@@ -362,7 +369,12 @@ public class Interpreter {
 			return execute((Expr.Unary) expr,frame);
 		} else if(expr instanceof Expr.Variable) {
 			return execute((Expr.Variable) expr,frame);
-		} else {
+		} else if(expr instanceof Expr.Deref) {
+			return execute((Expr.Deref) expr,frame);
+		} else if(expr instanceof Expr.New) {
+			return execute((Expr.New) expr,frame);
+		}
+		else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 			return null;
 		}
@@ -747,6 +759,16 @@ public class Interpreter {
 		return frame.get(expr.getName());
 	}
 
+	private Object execute(Expr.Deref expr, HashMap<String, Object> frame) {
+		Ref val = (Ref) execute(expr.getExpr(), frame);
+		return val.getValue();
+	}
+
+	private Object execute(Expr.New expr, HashMap<String, Object> frame) {
+		Object value = execute(expr.getExpr(), frame);
+		return new Ref(value);
+	}
+
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
@@ -875,13 +897,21 @@ public class Interpreter {
 			return false;
 		} else if(type instanceof Type.Named) {
 			return instanceOf(value, userTypes.get(type.toString()));
-		} else {
+		} else if (type instanceof Type.Union){
 			Type.Union ut = (Type.Union) type;
 			for (Type bt : ut.getBounds()) {
 				if (instanceOf(value, bt)) {
 					return true;
 				}
 			}
+			return false;
+		} else if (type instanceof Type.Reference) {
+			Type.Reference ref = (Type.Reference) type;
+			return false;
+		}
+
+		else {
+			internalFailure("Unknown type encountered", file.filename, type);
 			return false;
 		}
 	}

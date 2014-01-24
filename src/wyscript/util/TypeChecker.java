@@ -11,6 +11,7 @@ import wyscript.error.TypeErrorData;
 import wyscript.error.TypeErrorData.ErrorType;
 import wyscript.error.TypeErrorHandler;
 import wyscript.lang.*;
+import wyscript.lang.Type.Reference;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -213,7 +214,7 @@ public class TypeChecker {
 	public void check(Stmt.Switch stmt, Map<String, Type> environment) {
 		Type expr = check(stmt.getExpr(), environment);
 
-		if (expr instanceof Type.Record) {
+		if (expr instanceof Type.Record || expr instanceof Type.Reference) {
 			errors.add(new TypeErrorData(filename, stmt.getExpr(), null,
 					stmt.getExpr().attribute(Attribute.Source.class), ErrorType.BAD_SWITCH_TYPE));
 		}
@@ -280,6 +281,12 @@ public class TypeChecker {
 			type = check((Expr.Variable) expr, environment);
 		} else if(expr instanceof Expr.Is) {
 			type = check((Expr.Is) expr, environment);
+		} else if(expr instanceof Expr.Deref) {
+			type = check((Expr.Deref) expr, environment);
+		} else if(expr instanceof Expr.New) {
+			type = check((Expr.New) expr, environment);
+		} else if(expr instanceof Expr.Ref) {
+			type = check((Expr.Ref)expr, environment);
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", filename,expr);
 			return null; // dead code
@@ -536,6 +543,21 @@ public class TypeChecker {
 		return type;
 	}
 
+	public Type check(Expr.Deref expr, Map<String, Type> environment) {
+		Type type = check(expr.getExpr(), environment);
+		return ((Type.Reference)type).getType();
+	}
+
+	public Type check(Expr.New expr, Map<String, Type> environment) {
+		Type type = check(expr.getExpr(), environment);
+		return new Type.Reference(type);
+	}
+
+	public Type check(Expr.Ref expr, Map<String, Type> environment) {
+		Type type = check(expr.getExpr(), environment);
+		return new Type.Reference(type);
+	}
+
 	/**
 	 * Check that a given type t2 is an instance of of another type t1. This
 	 * method is useful for checking that a type is, for example, a List type.
@@ -730,6 +752,10 @@ public class TypeChecker {
 		//void is a subtype of every type
 		else if (t2 instanceof Type.Void) {
 			return true;
+		} else if (t1 instanceof Type.Reference && t2 instanceof Type.Reference) {
+			Type newT1 = ((Type.Reference)t1).getType();
+			Type newT2 = ((Type.Reference)t2).getType();
+			return checkPossibleSubtype(newT1, newT2, cast);
 		} else return false;
 	}
 

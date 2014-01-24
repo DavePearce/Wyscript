@@ -389,6 +389,14 @@ public class JavaScriptFileWriter {
 			write(stmt.getRhs());
 			out.print(")");
 		}
+		//Must use a library function to mutate a reference
+		else if (stmt.getLhs() instanceof Expr.Deref) {
+			write(((Expr.Deref)stmt.getLhs()).getExpr());
+			out.print(".setValue(");
+			write(stmt.getRhs());
+			out.print(")");
+		}
+
 		else {
 			write(stmt.getLhs());
 			out.print(" = ");
@@ -452,7 +460,13 @@ public class JavaScriptFileWriter {
 			write((Expr.Variable) expr);
 		} else if(expr instanceof Expr.Is) {
 			write((Expr.Is)expr);
-		} else {
+		} else if(expr instanceof Expr.Deref) {
+			write((Expr.Deref)expr);
+		} else if(expr instanceof Expr.New) {
+			write((Expr.New)expr);
+		}
+
+		else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
 		}
 	}
@@ -920,6 +934,17 @@ public class JavaScriptFileWriter {
 		out.print(", ");
 		write(t);
 		out.print(")");
+	}
+
+	public void write(Expr.New expr) {
+		out.print("new Wyscript.Ref(");
+		write(expr.getExpr());
+		out.print(")");
+	}
+
+	public void write(Expr.Deref expr) {
+		write(expr.getExpr());
+		out.print(".deref()");
 	}
 
 	/**

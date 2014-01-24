@@ -310,7 +310,7 @@ public class Lexer {
 				pos += 2;
 				return new Token(Token.Kind.LogicalAnd,"&&", pos - 2);
 			}
-			break;
+			else return new Token(Token.Kind.Ampersand, "&", pos++);
 		case '/':
 			return new Token(Token.Kind.RightSlash,"/",pos++);
 		case '%':
@@ -451,6 +451,7 @@ public class Lexer {
 			put("in", Token.Kind.In);
 			put("native", Token.Kind.Native);
 			put("include", Token.Kind.Include);
+			put("new", Token.Kind.New);
 		}
 	};
 
@@ -492,6 +493,7 @@ public class Lexer {
 			Type { public String toString() { return "type"; }},
 			Native { public String toString() { return "native"; }},
 			Include { public String toString() { return "include"; }},
+			New { public String toString() { return "new"; }},
 
 			// Constants (Given a toString for error handling purposes)
 			RealValue { public String toString() { return "real"; }},
@@ -501,6 +503,7 @@ public class Lexer {
 			ConstantType {public String toString() { return "int or string constant"; }},
 
 			// Symbols
+			Ampersand { public String toString() { return "&"; }},
 			Comma { public String toString() { return ","; }},
 			SemiColon { public String toString() { return ";"; }},
 			Colon { public String toString() { return ":"; }},
