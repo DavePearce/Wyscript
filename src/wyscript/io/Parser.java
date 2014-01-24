@@ -191,7 +191,7 @@ public class Parser {
 		boolean valid = true;
 		boolean isNative = false;
 
-		if (tryAndMatch(Native) != null) {
+		if (tryAndMatch(Native, true) != null) {
 			isNative = true;
 		}
 
@@ -199,7 +199,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Type ret = parseType(errors, followSet);
+		Type ret = parseType(errors, true, followSet);
 		if (ret == null)
 			valid = false;
 
@@ -232,7 +232,7 @@ public class Parser {
 			firstTime = false;
 			int pstart = index;
 
-			Type t = parseType(errors, followSet);
+			Type t = parseType(errors, true, followSet);
 			if (t == null) {
 				valid = false;
 				if (tokens.get(index).kind == RightBrace)
@@ -302,7 +302,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Type t = parseType(errors, followSet);
+		Type t = parseType(errors, false, followSet);
 		if (t == null)
 			valid = false;
 
@@ -334,7 +334,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Expr e = parseExpression(errors, followSet);
+		Expr e = parseExpression(errors, false, followSet);
 		if (e == null)
 			valid = false;
 
@@ -467,7 +467,7 @@ public class Parser {
 		case Switch:
 			return parseSwitch(index-1, indent, errors, follow);
 		case Identifier:
-			if (tryAndMatch(Token.Kind.LeftBrace) != null) {
+			if (tryAndMatch(Token.Kind.LeftBrace, false) != null) {
 				return parseInvokeStatement(token, errors, follow);
 			}
 		}
@@ -569,7 +569,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseExpression(errors, followSet);
+			Expr e = parseExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind == RightBrace)
@@ -611,7 +611,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(follow);
 
-		Type type = parseType(errors, followSet);
+		Type type = parseType(errors, true, followSet);
 		if (type == null) {
 			valid = false;
 			if (!(tokens.get(index).kind == Identifier))
@@ -644,10 +644,10 @@ public class Parser {
 		// A variable declaration may optionally be assigned an initialiser
 		// expression.
 		Expr initialiser = null;
-		if (tryAndMatch(Token.Kind.Equals) != null) {
+		if (tryAndMatch(Token.Kind.Equals, false) != null) {
 			if (!parentFollow.contains(Equals))
 				followSet.remove(Equals);
-			initialiser = parseExpression(errors, followSet);
+			initialiser = parseExpression(errors, false, followSet);
 			if (initialiser == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -688,7 +688,7 @@ public class Parser {
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
 		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
-			e = parseExpression(errors, followSet);
+			e = parseExpression(errors, false, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -719,12 +719,12 @@ public class Parser {
 			Set<Token.Kind> parentFollow) {
 
 		// A print statement begins with the keyword "print", followed by the
-		// expression who's value will be printed.
+		// expression whos value will be printed.
 		boolean valid = true;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(NewLine);
 
-		Expr e = parseExpression(errors, followSet);
+		Expr e = parseExpression(errors, false, followSet);
 		if (e == null) {
 			valid = false;
 			if (tokens.get(index).kind != NewLine)
@@ -760,7 +760,7 @@ public class Parser {
 		Map<Expr, List<Stmt>> alts = new HashMap<Expr, List<Stmt>>(); //The map of else-if alternatives
 		followSet.add(Colon);
 
-		Expr c = parseExpression(errors, followSet);
+		Expr c = parseExpression(errors, true, followSet);
 		if (c == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -794,15 +794,15 @@ public class Parser {
 
 		// Second, attempt to parse the false branch, which is optional.
 		List<Stmt> fblk = Collections.emptyList();
-		if (tryAndMatch(Else) != null) {
+		if (tryAndMatch(Else, true) != null) {
 
 			if (!parentFollow.contains(Else))
 				followSet.remove(Else);
 			followSet.add(Colon);
 
 			//Match any number of else-if statements
-			while (tryAndMatch(If) != null) {
-				Expr e = parseExpression(errors, followSet);
+			while (tryAndMatch(If, true) != null) {
+				Expr e = parseExpression(errors, true, followSet);
 				if (e == null) {
 					valid = false;
 					if (tokens.get(index).kind != Colon)
@@ -834,7 +834,7 @@ public class Parser {
 
 				if (! parentFollow.contains(Else))
 					followSet.remove(Else);
-				if (tryAndMatch(Else) == null) {
+				if (tryAndMatch(Else, true) == null) {
 					return (valid) ? new Stmt.IfElse(c, tblk, alts, fblk, sourceAttr(start, end - 1))
 					   			   : new Stmt.IfElse(null, new ArrayList<Stmt>(),
 					   					   new HashMap<Expr, List<Stmt>>(), new ArrayList<Stmt>());
@@ -870,7 +870,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(Colon);
 
-		Expr condition = parseExpression(errors, followSet);
+		Expr condition = parseExpression(errors, true, followSet);
 		if (condition == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -903,7 +903,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(Colon);
 
-		Expr expr = parseExpression(errors, followSet);
+		Expr expr = parseExpression(errors, true, followSet);
 		if (expr == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -966,7 +966,7 @@ public class Parser {
 				}
 
 				//Matching a case statement
-				if (tryAndMatch(Case) != null) {
+				if (tryAndMatch(Case, true) != null) {
 
 					Stmt.Case tmp = (parseCase(indent, usedLiterals, errors, parentFollow));
 					if (tmp != null) {
@@ -980,7 +980,7 @@ public class Parser {
 					}
 				}
 				//Matching a default statement
-				else if (tryAndMatch(Default) != null) {
+				else if (tryAndMatch(Default, true) != null) {
 					if (def) {
 						def = false;
 					}
@@ -1011,7 +1011,7 @@ public class Parser {
 		followSet.add(Colon);
 		boolean valid = true;
 
-		Expr e = parseExpression(errors, followSet);
+		Expr e = parseExpression(errors, true, followSet);
 
 		if (e == null) {
 			valid = false;
@@ -1100,7 +1100,7 @@ public class Parser {
 				return null;
 		}
 		else {
-			source = parseExpression(errors, followSet);
+			source = parseExpression(errors, true, followSet);
 			if (source == null) {
 				valid = false;
 				if (tokens.get(index).kind != Colon)
@@ -1141,7 +1141,7 @@ public class Parser {
 
 		// standard assignment
 		int start = index;
-		Expr lhs = parseExpression(errors, followSet);
+		Expr lhs = parseExpression(errors, true, followSet);
 		if (lhs == null) {
 			valid = false;
 			if (tokens.get(index).kind != Equals)
@@ -1166,7 +1166,7 @@ public class Parser {
 				return null;
 		}
 		else {
-			rhs = parseExpression(errors, followSet);
+			rhs = parseExpression(errors, false, followSet);
 			if (rhs == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -1181,7 +1181,7 @@ public class Parser {
 					   : new Stmt.Assign(null, null);
 	}
 
-	private Expr parseExpression(List<ParserErrorData> errors, Set<Token.Kind> parentFollow) {
+	private Expr parseExpression(List<ParserErrorData> errors, boolean terminated, Set<Token.Kind> parentFollow) {
 
 		checkNotEof(errors, Expression);
 
@@ -1190,7 +1190,7 @@ public class Parser {
 		followSet.add(LogicalOr);
 
 		int start = index;
-		Expr lhs = parseConditionExpression(errors, followSet);
+		Expr lhs = parseConditionExpression(errors, terminated, followSet);
 		if (lhs == null) {
 			switch (tokens.get(index).kind) {
 
@@ -1202,39 +1202,34 @@ public class Parser {
 				return null;
 			}
 		}
-		//Have to match && on line
-		int next = skipLineSpace(index);
-		Expr.BOp bop;
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 
-		if (next < tokens.size() && tokens.get(next).kind == LogicalAnd) {
-			bop = Expr.BOp.AND;
-		}
-		else {
-			next = skipWhiteSpace(index);
-			
-			if (next < tokens.size()) {
-				Token token = tokens.get(next);
-				switch (token.kind) {
-			
-				case LogicalOr:
-					bop = Expr.BOp.OR;
-					break;
-				default:
-					return lhs;
-				}
+		if (next < tokens.size()) {
+			Token token = tokens.get(next);
+			Expr.BOp bop;
+			switch (token.kind) {
+
+			case LogicalOr:
+				bop = Expr.BOp.OR;
+				break;
+			case LogicalAnd:
+				bop = Expr.BOp.AND;
+				break;
+			default:
+				return lhs;
 			}
-			else return lhs;
-		}
 			index = next+1; // match the operator
-			Expr rhs = parseExpression(errors, parentFollow);
+			Expr rhs = parseExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 			else
 				return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+		}
+		else return lhs;
 	}
 
 	private Expr parseConditionExpression(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 
@@ -1247,7 +1242,7 @@ public class Parser {
 		followSet.add(NotEquals);
 		followSet.add(Is);
 
-		Expr lhs = parseAppendExpression(errors, followSet);
+		Expr lhs = parseAppendExpression(errors, terminated, followSet);
 		if (lhs == null) {
 			switch (tokens.get(index).kind) {
 
@@ -1265,7 +1260,7 @@ public class Parser {
 			}
 		}
 
-		int next = skipWhiteSpace(index);
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
@@ -1290,7 +1285,7 @@ public class Parser {
 				break;
 			case Is:
 				index = next + 1; // match the operator
-				Type rhs = parseType(errors, parentFollow);
+				Type rhs = parseType(errors, terminated, parentFollow);
 				if (rhs == null)
 					return null;
 				else
@@ -1300,7 +1295,7 @@ public class Parser {
 			}
 
 			index = next + 1; // match the operator
-			Expr rhs = parseConditionExpression(errors, parentFollow);
+			Expr rhs = parseConditionExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 
@@ -1310,26 +1305,26 @@ public class Parser {
 	}
 
 	private Expr parseAppendExpression(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(PlusPlus);
 
-		Expr lhs = parseRangeExpression(errors, followSet);
+		Expr lhs = parseRangeExpression(errors, terminated, followSet);
 		if (lhs == null) {
 			if (tokens.get(index).kind != PlusPlus)
 				return null;
 		}
 
-		int next = skipWhiteSpace(index);
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			switch (token.kind) {
 			case PlusPlus:
 				index = next + 1; // match the operator
-				Expr rhs = parseAppendExpression(errors, parentFollow);
+				Expr rhs = parseAppendExpression(errors, terminated, parentFollow);
 				if (rhs == null)
 					return null;
 
@@ -1341,26 +1336,26 @@ public class Parser {
 	}
 
 	private Expr parseRangeExpression(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(DotDot);
 
-		Expr lhs = parseAddSubExpression(errors, followSet);
+		Expr lhs = parseAddSubExpression(errors, terminated, followSet);
 		if (lhs == null) {
 			if (tokens.get(index).kind != DotDot)
 				return null;
 		}
 
-		int next = skipWhiteSpace(index);
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			switch (token.kind) {
 			case DotDot:
 				index = next + 1; // match the operator
-				Expr rhs = parseRangeExpression(errors, parentFollow);
+				Expr rhs = parseRangeExpression(errors, terminated, parentFollow);
 				if (rhs == null)
 					return null;
 
@@ -1372,7 +1367,7 @@ public class Parser {
 	}
 
 	private Expr parseAddSubExpression(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow ) {
+			boolean terminated, Set<Token.Kind> parentFollow ) {
 
 		int start = index;
 
@@ -1380,7 +1375,7 @@ public class Parser {
 		followSet.add(Plus);
 		followSet.add(Minus);
 
-		Expr lhs = parseMulDivExpression(errors, followSet);
+		Expr lhs = parseMulDivExpression(errors, terminated, followSet);
 		if (lhs == null) {
 			switch (tokens.get(index).kind) {
 			case Plus:
@@ -1392,7 +1387,7 @@ public class Parser {
 			}
 		}
 
-		int next = skipWhiteSpace(index);
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
@@ -1407,7 +1402,7 @@ public class Parser {
 				return lhs;
 			}
 			index = next + 1; // match the operator
-			Expr rhs = parseAddSubExpression(errors, parentFollow);
+			Expr rhs = parseAddSubExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 
@@ -1417,7 +1412,7 @@ public class Parser {
 	}
 
 	private Expr parseMulDivExpression(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 
@@ -1426,7 +1421,7 @@ public class Parser {
 		followSet.add(RightSlash);
 		followSet.add(Percent);
 
-		Expr lhs = parseIndexTerm(errors, followSet);
+		Expr lhs = parseIndexTerm(errors, terminated, followSet);
 		if (lhs == null) {
 			switch (tokens.get(index).kind) {
 
@@ -1440,15 +1435,8 @@ public class Parser {
 			}
 		}
 
-		if (tryAndMatchOnLine(Star) != null) {
-			Expr.BOp bop = Expr.BOp.MUL;
-			Expr rhs = parseMulDivExpression(errors, parentFollow);
-			if (rhs == null)
-				return null;
-			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
-		}
 
-		int next = this.skipWhiteSpace(index);
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
@@ -1459,11 +1447,14 @@ public class Parser {
 			case Percent:
 				bop = Expr.BOp.REM;
 				break;
+			case Star:
+				bop = Expr.BOp.MUL;
+				break;
 			default:
 				return lhs;
 			}
 			index = next + 1; // match the operator
-			Expr rhs = parseMulDivExpression(errors, parentFollow);
+			Expr rhs = parseMulDivExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 
@@ -1473,7 +1464,7 @@ public class Parser {
 	}
 
 	private Expr parseIndexTerm(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 
@@ -1481,7 +1472,7 @@ public class Parser {
 		followSet.add(LeftSquare);
 		followSet.add(Dot);
 
-		Expr lhs = parseTerm(errors, followSet);
+		Expr lhs = parseTerm(errors, terminated, followSet);
 		if (lhs == null) {
 			switch(tokens.get(index).kind) {
 
@@ -1496,8 +1487,8 @@ public class Parser {
 
 		Token token;
 
-		while ((token = tryAndMatchOnLine(LeftSquare)) != null
-				|| (token = tryAndMatch(Dot)) != null) {
+		while ((token = tryAndMatch(LeftSquare, terminated)) != null
+				|| (token = tryAndMatch(Dot, terminated)) != null) {
 			start = index;
 
 			if (!parentFollow.contains(LeftSquare))
@@ -1509,7 +1500,7 @@ public class Parser {
 
 				followSet.add(RightSquare);
 
-				Expr rhs = parseAddSubExpression(errors, followSet);
+				Expr rhs = parseAddSubExpression(errors, true, followSet);
 				if (rhs == null)
 					if (tokens.get(index).kind != RightSquare)
 						return null;
@@ -1532,7 +1523,7 @@ public class Parser {
 	}
 
 	private Expr parseTerm(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		checkNotEof(errors, Expression);
 
@@ -1548,14 +1539,14 @@ public class Parser {
 			if (isStartOfType(index)) {
 				// indicates a cast
 
-				Type t = parseType(errors, followSet);
+				Type t = parseType(errors, true, followSet);
 				if (t == null)
 					if (tokens.get(index).kind != RightBrace)
 						return null;
 
 				if (match(errors, RightBrace, parentFollow) == null)
 					return null;
-				Expr e = parseTerm(errors, parentFollow);
+				Expr e = parseTerm(errors, terminated, parentFollow);
 
 				if (e == null)
 					return null;
@@ -1563,7 +1554,7 @@ public class Parser {
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			}
 			else {
-				Expr e = parseExpression(errors, followSet);
+				Expr e = parseExpression(errors, true, followSet);
 				if (e == null)
 					if (tokens.get(index).kind != RightBrace)
 						return null;
@@ -1576,7 +1567,7 @@ public class Parser {
 			}
 
 		case Identifier:
-			if (tryAndMatchOnLine(LeftBrace) != null) {
+			if (tryAndMatch(LeftBrace, terminated) != null) {
 				return parseInvokeExpr(start,token, errors, parentFollow);
 			} else {
 				return new Expr.Variable(token.text, sourceAttr(start,
@@ -1602,7 +1593,7 @@ public class Parser {
 			return new Expr.Constant(new StringBuffer(str), sourceAttr(start,
 					index - 1));
 		case Minus:
-			return parseNegation(start, errors, parentFollow);
+			return parseNegation(start, errors, terminated, parentFollow);
 		case VerticalBar:
 			return parseLengthOf(start, errors, parentFollow);
 		case LeftSquare:
@@ -1610,26 +1601,26 @@ public class Parser {
 		case LeftCurly:
 			return parseRecordVal(start, errors, parentFollow);
 		case Shreak:
-			Expr tmp = parseTerm(errors, parentFollow);
+			Expr tmp = parseTerm(errors, terminated, parentFollow);
 			if (tmp == null)
 				return null;
 			return new Expr.Unary(Expr.UOp.NOT, tmp, sourceAttr(start,
 					index - 1));
 
 		case New:
-			Expr e = parseTerm(errors, parentFollow);
+			Expr e = parseTerm(errors, terminated, parentFollow);
 			if (e == null)
 				return null;
 			return new Expr.New(e, sourceAttr(start, index-1));
 
 		case Star:
-			Expr ex = parseTerm(errors, parentFollow);
+			Expr ex = parseTerm(errors, terminated, parentFollow);
 			if (ex == null)
 				return null;
 			return new Expr.Deref(ex, sourceAttr(start, index-1));
 
 		case Ampersand:
-			Expr ref = parseTerm(errors, parentFollow);
+			Expr ref = parseTerm(errors, terminated, parentFollow);
 			if (ref == null)
 				return null;
 			return new Expr.Ref(ref, sourceAttr(start, index-1));
@@ -1660,7 +1651,7 @@ public class Parser {
 				}
 			}
 			firstTime = false;
-			Expr e = parseExpression(errors, followSet);
+			Expr e = parseExpression(errors, true, followSet);
 			if (e == null) {
 				if (tokens.get(index).kind != RightSquare)
 					return null;
@@ -1711,8 +1702,10 @@ public class Parser {
 				}
 			}
 
-			if (valid && keys.contains(n.text))
+			if (valid && keys.contains(n.text)) {
+				valid = false;
 				errors.add(new ParserErrorData(filename, n, null, DUPLICATE_TOKEN));
+			}
 
 			if (!parentFollow.contains(Colon))
 				followSet.remove(Colon);
@@ -1725,7 +1718,7 @@ public class Parser {
 				else return null;
 			}
 
-			Expr e = parseExpression(errors, followSet);
+			Expr e = parseExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != RightCurly)
@@ -1746,7 +1739,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(VerticalBar);
 
-		Expr e = parseIndexTerm(errors, followSet);
+		Expr e = parseIndexTerm(errors, true, followSet);
 		if (e == null) {
 			if (tokens.get(index).kind != VerticalBar)
 				return null;
@@ -1760,9 +1753,9 @@ public class Parser {
 	}
 
 	private Expr parseNegation(int start, List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
-		Expr e = parseIndexTerm(errors, parentFollow);
+		Expr e = parseIndexTerm(errors, terminated, parentFollow);
 		if (e == null)
 			return null;
 
@@ -1800,7 +1793,7 @@ public class Parser {
 				firstTime = false;
 			}
 			boolean valid = true;
-			Expr e = parseExpression(errors, followSet);
+			Expr e = parseExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != RightBrace)
@@ -1813,37 +1806,37 @@ public class Parser {
 	}
 
 	private Type parseType(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		int start = index;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(VerticalBar);
 
 		//First, try and parse a reference type
-		Token tok = tryAndMatch(Ampersand);
-		if (tok == null) tok = tryAndMatch(LogicalAnd);
+		Token tok = tryAndMatch(Ampersand, terminated);
+		if (tok == null) tok = tryAndMatch(LogicalAnd, terminated);
 		if (tok != null) {
-			Type ref = parseType (errors, parentFollow);
+			Type ref = parseType (errors, terminated, parentFollow);
 			if (ref == null)
 				return null;
 			return (tok.kind == Ampersand) ? new Type.Reference(ref, sourceAttr(start, index-1))
 										 : new Type.Reference(new Type.Reference(ref), sourceAttr(start, index-1));
 		}
 
-		Type t = parseBaseType(errors, followSet);
+		Type t = parseBaseType(errors, terminated, followSet);
 		if (t == null) {
 			if (tokens.get(index).kind != VerticalBar)
 				return null;
 		}
 
 		// Now, attempt to look for union or reference types
-		if (tryAndMatch(VerticalBar) != null) {
+		if (tryAndMatch(VerticalBar, terminated) != null) {
 			// this is a union type
 			ArrayList<Type> types = new ArrayList<Type>();
 			types.add(t);
 
 			do {
-				Type tmp = parseBaseType(errors, followSet);
+				Type tmp = parseBaseType(errors, terminated, followSet);
 				if (tmp == null) {
 					if (tokens.get(index).kind != VerticalBar)
 						return null;
@@ -1851,7 +1844,7 @@ public class Parser {
 				else
 					types.add(tmp);
 			}
-			while (tryAndMatch(VerticalBar) != null);
+			while (tryAndMatch(VerticalBar, terminated) != null);
 
 			return new Type.Union(types, sourceAttr(start, index - 1));
 		} else {
@@ -1860,7 +1853,7 @@ public class Parser {
 	}
 
 	private Type parseBaseType(List<ParserErrorData> errors,
-			Set<Token.Kind> parentFollow) {
+			boolean terminated, Set<Token.Kind> parentFollow) {
 
 		checkNotEof(errors, Type2);
 		int start = index;
@@ -1904,7 +1897,7 @@ public class Parser {
 				boolean valid = true;
 
 				checkNotEof(errors, Type2);
-				Type tmp = parseType(errors, followSet);
+				Type tmp = parseType(errors, true, followSet);
 				if (tmp == null) {
 					valid = false;
 					if (tokens.get(index).kind == RightCurly) {
@@ -1939,7 +1932,7 @@ public class Parser {
 
 			followSet.add(RightSquare);
 
-			t = parseType(errors, followSet);
+			t = parseType(errors, true, followSet);
 			if (t == null) {
 				if (tokens.get(index).kind != RightSquare)
 					return null;
@@ -2053,31 +2046,12 @@ public class Parser {
 	 * accidentally gobble up some important indentation.
 	 *
 	 * @param kind
+	 * @param terminated - whether or not the current expression has a terminator
+	 * 					   (and so whether or not we can safely skip newlines)
 	 * @return
 	 */
-	private Token tryAndMatch(Token.Kind kind) {
-		int next = skipWhiteSpace(index);
-		if(next < tokens.size()) {
-			Token t = tokens.get(next);
-			if(t.kind == kind) {
-				index = next + 1;
-				return t;
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Attempt to match a given token on the *same* line, whilst ignoring any
-	 * whitespace in between. Note that, in the case it fails to match, then the
-	 * index will be unchanged. This latter point is important, otherwise we
-	 * could accidentally gobble up some important indentation.
-	 *
-	 * @param kind
-	 * @return
-	 */
-	private Token tryAndMatchOnLine(Token.Kind kind) {
-		int next = skipLineSpace(index);
+	private Token tryAndMatch(Token.Kind kind, boolean terminated) {
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 		if(next < tokens.size()) {
 			Token t = tokens.get(next);
 			if(t.kind == kind) {
