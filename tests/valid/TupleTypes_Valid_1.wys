@@ -1,0 +1,4 @@
+function main() => void:
+    (int, int) x = (0, 1)
+    print (x is (int, int))
+    print (x is (int, string))

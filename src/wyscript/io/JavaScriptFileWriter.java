@@ -666,64 +666,15 @@ public class JavaScriptFileWriter {
 
 	public void write(Expr.Cast expr) {
 
-		//We need to check for the case where casting one of the number types
-		//to the other number type, as this affects how we print the number
-		Type t = expr.getType();
-		t = convertNamedType(t);
-
-		Type actual = expr.getSource().attribute(Attribute.Type.class).type;
-		actual = convertNamedType(actual);
-
-		//Pointless cast
-		if (t.equals(actual)) {
-			write(expr.getSource());
-			return;
-		}
-
-		//Casting a union has no impact on the underlying object. So can ignore it
-		else if (actual instanceof Type.Union) {
-			write(expr.getSource());
-			return;
-		}
-
-		//Can call the cast method of a record or list or union
-		else if (t instanceof Type.Record || t instanceof Type.List) {
-
-			write(expr.getSource());
-			out.print(".cast(");
-
-			List<String> typeList = getRecordTypeList(actual, expr.getType());
-
-			if (typeList.isEmpty()) {
-				out.print("'', [],");
-				write(t);
-				out.print(")");
-			}
-			else {
-				out.print("'" + typeList.get(0) +"', [");
-				boolean first = true;
-				for (int i = 1; i < typeList.size(); i++) {
-					if(!first)
-						out.print(", ");
-					first = false;
-					out.print("'" + typeList.get(i) + "'");
-				}
-				out.print("],");
-				write(t);
-				out.print(")");
-			}
-		}
-		else if (t instanceof Type.Real || t instanceof Type.Int) {
-			write(expr.getSource());
-			out.print(".cast('" + t.toString() + "')");
-		}
-
-		//This cast has no impact on the program (and has already been type checked)
-		else write(expr.getSource());
+		out.print("Wyscript.cast(");
+		write(expr.getType());
+		out.print(", ");
+		write(expr.getSource());
+		out.print(")");
 	}
 
 	/**
-	 * Removes any references to named types in a given type, and returns the actual type
+	 * Removes any references to named types in a given type, and returns the resulting type
 	 */
 	private Type convertNamedType(Type t) {
 		Type current = t;
@@ -744,6 +695,16 @@ public class JavaScriptFileWriter {
 			return new Type.Record(fields);
 		}
 
+		//Clone the tuple and step through it, replacing any named types found
+		else if (current instanceof Type.Tuple) {
+			List<Type> types = new ArrayList<Type>(((Type.Tuple)current).getTypes());
+			List<Type> newTypes = new ArrayList<Type>();
+			for (Type type : types) {
+				newTypes.add(convertNamedType(type));
+			}
+			return new Type.Tuple(newTypes);
+		}
+
 		//Clone the union and step through its bounds, replacing any named types found
 		else if (current instanceof Type.Union) {
 			List<Type> newBounds = new ArrayList<Type>();
@@ -754,63 +715,6 @@ public class JavaScriptFileWriter {
 		}
 
 		else return current;
-	}
-
-	/**
-	 * Gets the list of fields changed in a cast affecting a record type - the first element
-	 * will be the name of the field changed, and the subsequent elements form a list of the fields
-	 * that must be traversed to reach the changed field.
-	 */
-	private List<String> getRecordTypeList(Type actual, Type castType) {
-
-		if (actual.equals(castType))
-			return new ArrayList<String>();
-
-		Type current = castType;
-		current = convertNamedType(castType);
-
-		Type temp = convertNamedType(actual);
-
-		String castedName = "";
-		Type casted = null;
-		List<String> fieldList = new ArrayList<String>();
-
-		outer: while (casted == null) {
-			if (temp instanceof Type.List) {
-				temp = ((Type.List)temp).getElement();
-				current = ((Type.List)current).getElement();
-			}
-			else if (temp instanceof Type.Record) {
-				Type.Record actualRecord = (Type.Record)temp;
-				Type.Record currentRecord = (Type.Record)current;
-				for (String s : actualRecord.getFields().keySet()) {
-					if (actualRecord.getFields().get(s).equals(currentRecord.getFields().get(s)))
-						continue;
-					else {
-						current = currentRecord.getFields().get(s);
-						temp = actualRecord.getFields().get(s);
-						if (current instanceof Type.Record || current instanceof Type.List) {
-							fieldList.add(s);
-							continue outer;
-						}
-						else {
-							casted = temp;
-							castedName = s;
-							break outer;
-						}
-					}
-				}
-				break; //Signals a 'pointless' cast
-			}
-			else return new ArrayList<String>(); //Should be dead code
-
-		}
-		if (casted == null)
-			return new ArrayList<String>(); //pointless cast, no difference in types
-		else {
-			fieldList.add(0, castedName);
-			return fieldList;
-		}
 	}
 
 	public void write(Expr.Constant expr) {

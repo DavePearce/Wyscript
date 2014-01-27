@@ -684,6 +684,26 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void TupleTypes_Valid_1() {
+		runTest("TupleTypes_Valid_1");
+	}
+
+	@Test
+	public void TupleTypes_Valid_2() {
+		runTest("TupleTypes_Valid_2");
+	}
+
+	@Test
+	public void TupleTypes_Valid_3() {
+		runTest("TupleTypes_Valid_3");
+	}
+
+	@Test
+	public void TupleTypes_Valid_4() {
+		runTest("TupleTypes_Valid_4");
+	}
+
+	@Test
 	public void TypeEquals_Valid_1_RuntimeTest() {
 		runTest("TypeEquals_Valid_1");
 	}

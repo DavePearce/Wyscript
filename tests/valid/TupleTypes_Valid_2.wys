@@ -1,0 +1,10 @@
+type T1 is (int, int)
+type T2 is (real, real)
+
+function cast(T1 x) => T2:
+    return (T2) x
+
+function main() => void:
+    T1 x = (0, 1)
+    print (x is T1)
+    print ((cast(x)) is T2)

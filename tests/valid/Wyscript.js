@@ -35,18 +35,14 @@ Wyscript.Float.prototype.rem = function(other) {
 	return new Wyscript.Float(this.num % other.num);
 };
 		
-Wyscript.Float.prototype.cast = function(type) {
-    if (type === 'real') {
-      return new Wyscript.Float(this.num);
-   }
-	
+Wyscript.Float.prototype.cast = function() {	
    return new Wyscript.Integer(this.num);
 };
 
 Wyscript.Float.prototype.toString = function() {
     var tmp = this.num.toString();
     var abs = Math.abs(this.num);
-    if (abs < 0.001 || abs >= 10000000) {
+    if (abs != 0 && (abs < 0.001 || abs >= 10000000)) {
 		tmp = this.num.toExponential().replace('e', 'E');
 	}
 	if (tmp.indexOf('.') === -1) {
@@ -112,11 +108,7 @@ Wyscript.Integer.prototype.rem = function(other) {
 	return new Wyscript.Float(this.num % other.num);
 };
 		
-Wyscript.Integer.prototype.cast = function(type) {
-	if (type === 'int') {
-	  return new Wyscript.Integer(this.num);
-	}
-	  
+Wyscript.Integer.prototype.cast = function() {	  
 	return new Wyscript.Float(this.num);
 };
 
@@ -249,23 +241,6 @@ Wyscript.Record.prototype.setValue = function(name, key) {
   this.values[index] = key;
 };
 
-//Casts a record - uses fieldList to determine what field actually has its type changed
-Wyscript.Record.prototype.cast = function(name, fieldList, newType) {
-	var index;
-  var result = this.clone();
-  if (fieldList.length > 0) {
-    index = this.names.indexOf(fieldList[0]);
-    var t = newType.getType(fieldList);
-    result.values[index] = this.values[index].cast(name.toString(), fieldList.slice(1), t);
-  }
-  else {
-    index = this.names.indexOf(name.toString());
-    result.values[index] = this.values[index].cast();
-  }
-  result.type = newType;
-  return result;
-};
-
 //Deep-Clones the record to ensure pass-by-value holds
 Wyscript.Record.prototype.clone = function() {
   var i;
@@ -372,23 +347,6 @@ Wyscript.List.prototype.append = function(other) {
     result[count++] = other.list[i];
   }
   return new Wyscript.List(result, this.type);
-};
-
-//Casts the list - requires knowledge of a fieldList in case this list contains records
-Wyscript.List.prototype.cast = function(name, fieldList, newType) {
-  var tmp = [];
-  var i;
-  var t;
-  
-  for (i = 0; i < this.list.length; i++) {
-    if (fieldList !== undefined && fieldList !== null && fieldList.length > 0) {
-      t = newType.getType(fieldList);
-      tmp[i] = this.list[i].cast(name, fieldList, t);
-    }
-    tmp[i] = this.list[i].cast(name, fieldList);
-    
-  }
-  return new Wyscript.List(tmp, newType);
 };
 
 //Deep-Clones the list to ensure pass-by-value
@@ -542,11 +500,6 @@ Wyscript.Type.List.prototype.subtype = function(superType) {
   return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
 };
 
-//Used for determining the type when casting nested records - for a list, just return the element type
-Wyscript.Type.List.prototype.getType = function() {
-  return this.elem;
-};
-
 Wyscript.Type.Record = function(names, types) {
   this.names = names;
   this.types = types;
@@ -571,20 +524,6 @@ Wyscript.Type.Record.prototype.subtype = function(superType) {
     return false;
   }
   return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
-};
-
-//Used to determine the type of nested casted records - return the type of the field
-//corresponding to the first element of fieldList (which is always non-empty)
-Wyscript.Type.Record.prototype.getType = function(fieldList) {
-	
-	var i = 0;
-	
-  for (i = 0; i < this.types.length; i++) {
-    if (this.names[i] === fieldList[0]) {
-      return this.types[i];
-    }
-  }
-  return undefined; //Shouldn't happen
 };
 
 Wyscript.Type.Union = function(bounds) {this.bounds = bounds};
@@ -805,4 +744,62 @@ Wyscript.getType = function(obj) {
 		return new Wyscript.Type.Bool();
 	}
 	return obj.type;
+};
+
+//Casts an object to the given type
+Wyscript.cast = function(type, obj) {
+	//Handle the null case
+	if (obj === null)
+	    return null;
+	    
+	//Handle the boolean case (only case where obj.type is undefined)
+	if (obj.type === undefined)
+	    return obj;
+	    
+	//Check for type equality (don't cast in that case)
+	if (Wyscript.is(obj, type)) {
+		if (obj.clone === undefined)
+		    return obj;
+		return obj.clone();
+	}
+	
+	//Handle the case where casting an int or real
+	if (obj instanceof Wyscript.Integer || obj instanceof Wyscript.Float)
+	    return obj.cast();
+	    
+	//Handle the case where casting a list
+	if (obj instanceof Wyscript.List) {
+		var newList = [];
+		var i;
+		for (i = 0; i < obj.list.length; i++) {
+			newList[i] = Wyscript.cast(type.elem, obj.list[i]);
+		}
+		return new Wyscript.List(newList, type);
+	}
+	
+	//Handle the case where casting a record
+	if (obj instanceof Wyscript.Record) {
+		var newNames = [];
+		var newVals = [];
+		var j;
+		for (j = 0; j < obj.names.length; j++) {
+			newNames[j] = obj.names[j];
+			newVals[j] = Wyscript.cast(type.types[j], obj.values[j]);
+		}
+		return new Wyscript.Record(newNames, newVals, type);
+	}
+	
+	//Handle the case where casting a tuple
+	if (obj instanceof Wyscript.Tuple) {
+		var newValList = [];
+		var k;
+		for (k = 0; k < obj.values.length; k++) {
+			newValList[k] = Wyscript.cast(type.typeList[k], obj.values[k]);
+		}
+		return new Wyscript.Tuple(newValList, type);
+	}
+	
+	//Otherwise, just return the object
+	return obj;
+	    
 };

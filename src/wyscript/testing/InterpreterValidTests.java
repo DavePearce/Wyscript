@@ -575,6 +575,26 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void TupleTypes_Valid_1() {
+		runInterpreterTest("TupleTypes_Valid_1");
+	}
+
+	@Test
+	public void TupleTypes_Valid_2() {
+		runInterpreterTest("TupleTypes_Valid_2");
+	}
+
+	@Test
+	public void TupleTypes_Valid_3() {
+		runInterpreterTest("TupleTypes_Valid_3");
+	}
+
+	@Test
+	public void TupleTypes_Valid_4() {
+		runInterpreterTest("TupleTypes_Valid_4");
+	}
+
+	@Test
 	public void TypeEquals_Valid_1_RuntimeTest() {
 		runInterpreterTest("TypeEquals_Valid_1");
 	}

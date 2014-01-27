@@ -1,0 +1,14 @@
+type R1 is {int x}
+type T1 is (R1, R1, R1, R1)
+type R2 is {real x}
+type T2 is (R2, R1, R2, R1)
+
+function cast (T1 x) => T2:
+    return (T2) x
+
+function main() => void:
+    T1 x = ({x:0}, {x:1}, {x:2}, {x:3})
+    print (x is T1)
+    print ((cast(x)) is T2)
+    print x
+    print cast(x)
