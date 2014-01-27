@@ -21,6 +21,7 @@ package wyscript.lang;
 import java.util.*;
 
 import wyscript.util.Attribute;
+import wyscript.util.Attribute.Source;
 import wyscript.util.SyntacticElement;
 
 /**
@@ -271,6 +272,56 @@ public interface Type extends SyntacticElement {
 			if (!(o instanceof Type.Named))
 				return false;
 			return name == ((Type.Named)o).name;
+		}
+	}
+
+	/**
+	 * Represents a tuple type - this can be thought of as a record with anonymous
+	 * fields.
+	 */
+	public static final class Tuple extends SyntacticElement.Impl implements
+		Type {
+
+		private ArrayList<Type> types;
+
+		public Tuple(java.util.List<Type> typeList, Attribute... attributes) {
+			super(attributes);
+			this.types = new ArrayList<Type>(typeList);
+		}
+
+		public ArrayList<Type> getTypes() {
+			return types;
+		}
+
+		public String toString() {
+			String s = "(";
+			boolean first = true;
+
+			for (Type t : types) {
+				if (!first)
+					s += ", ";
+				first = false;
+				s += t.toString();
+			}
+
+			return s + ")";
+		}
+
+		public boolean equals(Object o) {
+			if (o == null)
+				return false;
+			if (!(o instanceof Type.Tuple))
+				return false;
+
+			Type.Tuple other = (Type.Tuple) o;
+			if (types.size() != other.types.size())
+				return false;
+
+			for (int i = 0; i < types.size(); i++) {
+				if (!(types.get(i).equals(other.types.get(i))))
+					return false;
+			}
+			return true;
 		}
 	}
 

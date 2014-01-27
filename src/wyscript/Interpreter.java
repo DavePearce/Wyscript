@@ -25,6 +25,7 @@ import wyscript.util.Attribute;
 import wyscript.util.Pair;
 import wyscript.util.Ref;
 import wyscript.util.SyntacticElement;
+import wyscript.util.Tuple;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -246,6 +247,16 @@ public class Interpreter {
 			Ref var = (Ref) execute(((Expr.Deref)lhs).getExpr(), frame);
 			Object rhs = execute(stmt.getRhs(), frame);
 			var.setValue(rhs);
+		} else if(lhs instanceof Expr.Tuple) {
+			Expr.Tuple lTup = (Expr.Tuple)lhs;
+
+			Tuple rTup = (Tuple) execute(stmt.getRhs(), frame);
+			//Split the tuple assignment into a list of assignments, and execute them
+			for (int i = 0; i < lTup.getExprs().size(); i++) {
+				Stmt.Assign tmp = new Stmt.Assign((Expr.LVal)lTup.getExprs().get(i),
+						new Expr.Constant(rTup.getValues().get(i)));
+				execute(tmp, frame);
+			}
 		}
 
 		else {
@@ -373,6 +384,8 @@ public class Interpreter {
 			return execute((Expr.Deref) expr,frame);
 		} else if(expr instanceof Expr.New) {
 			return execute((Expr.New) expr,frame);
+		} else if(expr instanceof Expr.Tuple) {
+			return execute((Expr.Tuple)expr, frame);
 		}
 		else {
 			internalFailure("unknown expression encountered (" + expr + ")", file.filename,expr);
@@ -769,6 +782,14 @@ public class Interpreter {
 		return new Ref(value);
 	}
 
+	private Object execute(Expr.Tuple expr, HashMap<String, Object> frame) {
+		List<Object> values = new ArrayList<Object>();
+		for (Expr e : expr.getExprs()) {
+			values.add(execute(e, frame));
+		}
+		return new Tuple(values);
+	}
+
 	/**
 	 * Perform a deep clone of the given object value. This is either a
 	 * <code>Boolean</code>, <code>Integer</code>, <code>Double</code>,
@@ -797,7 +818,14 @@ public class Interpreter {
 		} else if (o instanceof StringBuffer) {
 			StringBuffer sb = (StringBuffer) o;
 			return new StringBuffer(sb);
-		} else {
+		} else if (o instanceof Tuple) {
+			Tuple t = (Tuple) o;
+			List<Object> newVals = new ArrayList<Object>();
+			for (Object v : t.getValues())
+				newVals.add(deepClone(v));
+			return new Tuple(newVals);
+		}
+		else {
 			// other cases can be ignored
 			return o;
 		}
@@ -908,6 +936,16 @@ public class Interpreter {
 		} else if (type instanceof Type.Reference) {
 			Type.Reference ref = (Type.Reference) type;
 			return (value instanceof Ref && instanceOf(((Ref)value).getValue(), ref.getType()));
+		} else if (type instanceof Type.Tuple) {
+			if (!(value instanceof Tuple)) return false;
+			Tuple t = (Tuple) value;
+			if (t.getValues().size() != ((Type.Tuple)type).getTypes().size())
+				return false;
+			for (int i = 0; i < t.getValues().size(); i++) {
+				if (!(instanceOf(t.getValues().get(i), ((Type.Tuple)type).getTypes().get(i))))
+					return false;
+			}
+			return true;
 		}
 
 		else {
@@ -940,12 +978,19 @@ public class Interpreter {
 			return Character.class;
 
 		else if (t instanceof Type.List) {
-			//Is there a better way to do this?
 			return ArrayList.class;
 		}
 
 		else if (t instanceof Type.Record) {
 			return HashMap.class;
+		}
+
+		else if (t instanceof Type.Reference) {
+			return Ref.class;
+		}
+
+		else if (t instanceof Type.Tuple) {
+			return Tuple.class;
 		}
 		else return null;
 

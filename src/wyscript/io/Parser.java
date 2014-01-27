@@ -351,7 +351,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Expr e = parseExpression(errors, true, followSet);
+		Expr e = parseTupleExpression(errors, true, followSet);
 		if (e == null)
 			valid = false;
 
@@ -528,6 +528,19 @@ public class Parser {
 		case Ampersand:
 		case LogicalAnd:
 			return isStartOfType(index + 1);
+
+		//More complex, have to check for the comma to ensure isn't a cast
+		case LeftBrace:
+
+			if (!(isStartOfType(index + 1)))
+				return false;
+
+			int next = index + 2;
+			while (next < tokens.size() && tokens.get(next).kind != RightBrace) {
+				if (tokens.get(next).kind == Comma)
+					return true;
+			}
+			return false;
 		}
 
 		return false;
@@ -586,7 +599,7 @@ public class Parser {
 			} else {
 				firstTime = false;
 			}
-			Expr e = parseExpression(errors, true, followSet);
+			Expr e = parseLogicalExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind == RightBrace)
@@ -664,7 +677,7 @@ public class Parser {
 		if (tryAndMatch(Token.Kind.Equals, false) != null) {
 			if (!parentFollow.contains(Equals))
 				followSet.remove(Equals);
-			initialiser = parseExpression(errors, false, followSet);
+			initialiser = parseTupleExpression(errors, false, followSet);
 			if (initialiser == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -705,7 +718,7 @@ public class Parser {
 		// A return statement may optionally have a return expression.
 		int next = skipLineSpace(index);
 		if (next < tokens.size() && tokens.get(next).kind != NewLine) {
-			e = parseExpression(errors, false, followSet);
+			e = parseTupleExpression(errors, false, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -741,7 +754,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(NewLine);
 
-		Expr e = parseExpression(errors, false, followSet);
+		Expr e = parseTupleExpression(errors, false, followSet);
 		if (e == null) {
 			valid = false;
 			if (tokens.get(index).kind != NewLine)
@@ -777,7 +790,7 @@ public class Parser {
 		Map<Expr, List<Stmt>> alts = new HashMap<Expr, List<Stmt>>(); //The map of else-if alternatives
 		followSet.add(Colon);
 
-		Expr c = parseExpression(errors, true, followSet);
+		Expr c = parseLogicalExpression(errors, true, followSet);
 		if (c == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -819,7 +832,7 @@ public class Parser {
 
 			//Match any number of else-if statements
 			while (tryAndMatch(If, true) != null) {
-				Expr e = parseExpression(errors, true, followSet);
+				Expr e = parseLogicalExpression(errors, true, followSet);
 				if (e == null) {
 					valid = false;
 					if (tokens.get(index).kind != Colon)
@@ -887,7 +900,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(Colon);
 
-		Expr condition = parseExpression(errors, true, followSet);
+		Expr condition = parseLogicalExpression(errors, true, followSet);
 		if (condition == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -920,7 +933,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(Colon);
 
-		Expr expr = parseExpression(errors, true, followSet);
+		Expr expr = parseTupleExpression(errors, true, followSet);
 		if (expr == null) {
 			valid = false;
 			if (tokens.get(index).kind != Colon)
@@ -1028,7 +1041,7 @@ public class Parser {
 		followSet.add(Colon);
 		boolean valid = true;
 
-		Expr e = parseExpression(errors, true, followSet);
+		Expr e = parseLogicalExpression(errors, true, followSet);
 
 		if (e == null) {
 			valid = false;
@@ -1117,7 +1130,7 @@ public class Parser {
 				return null;
 		}
 		else {
-			source = parseExpression(errors, true, followSet);
+			source = parseLogicalExpression(errors, true, followSet);
 			if (source == null) {
 				valid = false;
 				if (tokens.get(index).kind != Colon)
@@ -1158,7 +1171,7 @@ public class Parser {
 
 		// standard assignment
 		int start = index;
-		Expr lhs = parseExpression(errors, true, followSet);
+		Expr lhs = parseTupleExpression(errors, true, followSet);
 		if (lhs == null) {
 			valid = false;
 			if (tokens.get(index).kind != Equals)
@@ -1183,7 +1196,7 @@ public class Parser {
 				return null;
 		}
 		else {
-			rhs = parseExpression(errors, false, followSet);
+			rhs = parseTupleExpression(errors, false, followSet);
 			if (rhs == null) {
 				valid = false;
 				if (tokens.get(index).kind != NewLine)
@@ -1198,7 +1211,45 @@ public class Parser {
 					   : new Stmt.Assign(null, null);
 	}
 
-	private Expr parseExpression(List<ParserErrorData> errors, boolean terminated, Set<Token.Kind> parentFollow) {
+	private Expr parseTupleExpression(List<ParserErrorData> errors, boolean terminated, Set<Token.Kind> parentFollow) {
+
+		checkNotEof(errors, Expression);
+
+		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
+		followSet.add(Comma);
+
+		int start = index;
+
+		Expr e = parseLogicalExpression(errors, terminated, followSet);
+
+		if (e == null) {
+			if (tokens.get(index).kind != Comma)
+				return null;
+		}
+
+		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
+		if (!(next < tokens.size() && tokens.get(next).kind == Comma))
+			return e;
+
+		index = next + 1;
+
+		List<Expr> exprs = new ArrayList<Expr>();
+		exprs.add(e);
+
+		do {
+			e = parseLogicalExpression(errors, terminated, followSet);
+			if (e == null) {
+				if (tokens.get(index).kind != Comma)
+					return null;
+			}
+			else exprs.add(e);
+		}
+		while (tryAndMatch(Comma, terminated) != null);
+
+		return new Expr.Tuple(exprs, sourceAttr(start, index-1));
+	}
+
+	private Expr parseLogicalExpression(List<ParserErrorData> errors, boolean terminated, Set<Token.Kind> parentFollow) {
 
 		checkNotEof(errors, Expression);
 
@@ -1236,7 +1287,7 @@ public class Parser {
 				return lhs;
 			}
 			index = next+1; // match the operator
-			Expr rhs = parseExpression(errors, terminated, parentFollow);
+			Expr rhs = parseLogicalExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 			else
@@ -1576,7 +1627,7 @@ public class Parser {
 				return new Expr.Cast(t, e, sourceAttr(start, index - 1));
 			}
 			else {
-				Expr e = parseExpression(errors, true, followSet);
+				Expr e = parseTupleExpression(errors, true, followSet);
 				if (e == null)
 					if (tokens.get(index).kind != RightBrace)
 						return null;
@@ -1630,7 +1681,7 @@ public class Parser {
 					index - 1));
 
 		case New:
-			Expr e = parseTerm(errors, terminated, parentFollow);
+			Expr e = parseTupleExpression(errors, terminated, parentFollow);
 			if (e == null)
 				return null;
 			return new Expr.New(e, sourceAttr(start, index-1));
@@ -1667,7 +1718,7 @@ public class Parser {
 				}
 			}
 			firstTime = false;
-			Expr e = parseExpression(errors, true, followSet);
+			Expr e = parseLogicalExpression(errors, true, followSet);
 			if (e == null) {
 				if (tokens.get(index).kind != RightSquare)
 					return null;
@@ -1734,7 +1785,7 @@ public class Parser {
 				else return null;
 			}
 
-			Expr e = parseExpression(errors, true, followSet);
+			Expr e = parseLogicalExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != RightCurly)
@@ -1809,7 +1860,7 @@ public class Parser {
 				firstTime = false;
 			}
 			boolean valid = true;
-			Expr e = parseExpression(errors, true, followSet);
+			Expr e = parseLogicalExpression(errors, true, followSet);
 			if (e == null) {
 				valid = false;
 				if (tokens.get(index).kind != RightBrace)
@@ -1948,6 +1999,40 @@ public class Parser {
 				return null;
 
 			return new Type.List(t, sourceAttr(start, index - 1));
+
+		case LeftBrace:
+
+			followSet.add(RightBrace);
+			List<Type> typeList = new ArrayList<Type>();
+
+			boolean first = true;
+			while (eventuallyMatch(errors, RightBrace) == null) {
+				if (!first) {
+					if (match(errors, Comma, followSet) == null) {
+						if (tokens.get(index).kind == RightBrace) {
+							index++;
+							break;
+						}
+						else return null;
+					}
+				}
+				first = false;
+				boolean valid = true;
+
+				checkNotEof(errors, Type2);
+				Type tmp = parseType(errors, true, followSet);
+				if (tmp == null) {
+					valid = false;
+					if (tokens.get(index).kind == RightBrace) {
+						index++;
+						break;
+					}
+					else return null;
+				}
+				if (valid)
+					typeList.add(tmp);
+			}
+			return new Type.Tuple(typeList, sourceAttr(start, index-1));
 
 		case Identifier:
 			return new Type.Named(token.text, sourceAttr(start, index - 1));

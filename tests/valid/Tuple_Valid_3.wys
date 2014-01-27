@@ -1,0 +1,9 @@
+function main() => void:
+    (int, int) x = 0, 1
+    print(x)
+    
+    int y
+    int z
+    y,z = x
+    print y
+    print z

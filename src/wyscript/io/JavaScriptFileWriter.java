@@ -121,6 +121,8 @@ public class JavaScriptFileWriter {
 			indent(indent);
 			writeAtom((Stmt.Atom) stmt);
 			out.println(";");
+		} else if(stmt instanceof Stmt.Assign) {
+			write((Stmt.Assign)stmt, indent);
 		} else if(stmt instanceof Stmt.IfElse) {
 			write((Stmt.IfElse) stmt, indent, expr);
 		} else if(stmt instanceof Stmt.OldFor) {
@@ -344,9 +346,7 @@ public class JavaScriptFileWriter {
 	}
 
 	public void writeAtom(Stmt stmt) {
-		if(stmt instanceof Stmt.Assign) {
-			write((Stmt.Assign) stmt);
-		} else if(stmt instanceof Stmt.Print) {
+		if(stmt instanceof Stmt.Print) {
 			write((Stmt.Print) stmt);
 		} else if(stmt instanceof Stmt.Return) {
 			write((Stmt.Return) stmt);
@@ -357,11 +357,12 @@ public class JavaScriptFileWriter {
 		}
 	}
 
-	public void write(Stmt.Assign stmt) {
+	public void write(Stmt.Assign stmt, int indent) {
 		Type t = stmt.getLhs().attribute(Attribute.Type.class).type;
 
 		//Special case for mutating a string, which is illegal in javascript
 		if (t instanceof Type.Char && stmt.getLhs() instanceof Expr.IndexOf) {
+			indent(indent);
 			write(((Expr.IndexOf)stmt.getLhs()).getSource());
 			out.print(" = ");
 			write(((Expr.IndexOf)stmt.getLhs()).getSource());
@@ -369,42 +370,63 @@ public class JavaScriptFileWriter {
 			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
 			out.print(", ");
 			write(stmt.getRhs());
-			out.print(")");
+			out.println(");");
 		}
 		//Must use the library function to mutate a list
 		else if (stmt.getLhs() instanceof Expr.IndexOf) {
+			indent(indent);
 			write(((Expr.IndexOf)stmt.getLhs()).getSource());
 			out.print(".setValue(");
 			write(((Expr.IndexOf)stmt.getLhs()).getIndex());
 			out.print(", ");
 			write(stmt.getRhs());
-			out.print(")");
+			out.println(");");
 		}
 		//Must use a library function to mutate a record
 		else if (stmt.getLhs() instanceof Expr.RecordAccess) {
+			indent(indent);
 			write(((Expr.RecordAccess)stmt.getLhs()).getSource());
 			out.print(".setValue('");
 			out.print(((Expr.RecordAccess)stmt.getLhs()).getName());
 			out.print("', ");
 			write(stmt.getRhs());
-			out.print(")");
+			out.println(");");
 		}
-		//Must use a library function to mutate a reference
+		//Must use a library function for a dereference assignment
 		else if (stmt.getLhs() instanceof Expr.Deref) {
+			indent(indent);
 			write(((Expr.Deref)stmt.getLhs()).getExpr());
 			out.print(".setValue(");
 			write(stmt.getRhs());
-			out.print(")");
+			out.println(");");
 		}
+		//Must use a library function for a tuple assignment
+		else if (stmt.getLhs() instanceof Expr.Tuple) {
+			Expr.Tuple tuple = (Expr.Tuple) stmt.getLhs();
 
+			indent(indent);
+			out.print("var $WyscriptTupleVal = ");
+			write(stmt.getRhs());
+			out.println(";");
+
+			for (int i = 0; i < tuple.getExprs().size(); i++) {
+				indent(indent);
+				write(tuple.getExprs().get(i));
+				out.print(" = $WyscriptTupleVal");
+				out.println(".values[" + i + "];");
+			}
+		}
 		else {
+			indent(indent);
 			write(stmt.getLhs());
 			out.print(" = ");
 			write(stmt.getRhs());
 
 			//Handle pass by value
-			if (t instanceof Type.List || t instanceof Type.Record)
-				out.print(".clone()");
+			if (t instanceof Type.List || t instanceof Type.Record || t instanceof Type.Tuple)
+				out.println(".clone();");
+			else
+				out.println(";");
 		}
 	}
 
@@ -432,7 +454,7 @@ public class JavaScriptFileWriter {
 			Type t = init.attribute(Attribute.Type.class).type;
 			out.print(" = ");
 			write(init);
-			if (t instanceof Type.List || t instanceof Type.Record || t instanceof Type.Union)
+			if (t instanceof Type.List || t instanceof Type.Record || t instanceof Type.Tuple)
 				out.print(".clone()");
 		}
 	}
@@ -464,6 +486,8 @@ public class JavaScriptFileWriter {
 			write((Expr.Deref)expr);
 		} else if(expr instanceof Expr.New) {
 			write((Expr.New)expr);
+		} else if(expr instanceof Expr.Tuple) {
+			write((Expr.Tuple)expr);
 		}
 
 		else {
@@ -833,7 +857,7 @@ public class JavaScriptFileWriter {
 			}
 			firstTime=false;
 			write(arg);
-			if (t instanceof Type.List || t instanceof Type.Record)
+			if (t instanceof Type.List || t instanceof Type.Record || t instanceof Type.Tuple)
 				out.print(".clone()");
 		}
 		out.print(")");
@@ -947,6 +971,20 @@ public class JavaScriptFileWriter {
 		out.print(".deref()");
 	}
 
+	public void write(Expr.Tuple expr) {
+		out.print("new Wyscript.Tuple([");
+		boolean first = true;
+		for (Expr e : expr.getExprs()) {
+			if (!first)
+				out.print(", ");
+			first = false;
+			write(e);
+		}
+		out.print("], ");
+		write(expr.attribute(Attribute.Type.class).type);
+		out.print(")");
+	}
+
 	/**
 	 * Writes a type - necessary for Record and List objects
 	 */
@@ -974,6 +1012,8 @@ public class JavaScriptFileWriter {
 			write((Type.Union)t);
 		else if (t instanceof Type.Reference)
 			write((Type.Reference)t);
+		else if (t instanceof Type.Tuple)
+			write((Type.Tuple)t);
 		else internalFailure("Unknown type encountered: " + t, file.filename, t);
 	}
 
@@ -1054,6 +1094,18 @@ public class JavaScriptFileWriter {
 		out.print("new Wyscript.Type.Reference(");
 		write(t.getType());
 		out.print(")");
+	}
+
+	public void write(Type.Tuple t) {
+		out.print("new Wyscript.Type.Tuple([");
+		boolean first = true;
+		for (Type type : t.getTypes()) {
+			if (!first)
+				out.print(", ");
+			first = false;
+			write(type);
+		}
+		out.print("])");
 	}
 
 	public void indent(int indent) {

@@ -161,12 +161,13 @@ Wyscript.equals = function(lhs, rhs, isEqual) {
   else if (left instanceof Wyscript.Char) {
   		left = left.char;
   }
-  else if (left instanceof Wyscript.List) {
+  else if (left instanceof Wyscript.List || left instanceof Wyscript.Tuple || left instanceof Wyscript.Record) {
     	if (isEqual) {
     		return left.equals(rhs);
     	}
     	return !(left.equals(rhs));
   }
+  
   var right = rhs;
   if (right.num !== undefined) {
   		right = right.num;
@@ -274,7 +275,7 @@ Wyscript.Record.prototype.clone = function() {
   for (i = 0; i < this.names.length; i++) {
     cnames[i] = this.names[i];
     elem = this.values[i];
-    if (elem instanceof Wyscript.List || elem instanceof Wyscript.Record) {
+    if (elem instanceof Wyscript.List || elem instanceof Wyscript.Record || elem instanceof Wyscript.Tuple) {
       elem = elem.clone();
    }
     cvalues[i] = elem;
@@ -283,7 +284,7 @@ Wyscript.Record.prototype.clone = function() {
 };
 
 Wyscript.Record.prototype.toString = function() {
-	var i;
+  var i;
   var str = '{';
   var tmpNames = [];
   var tmp;
@@ -304,6 +305,31 @@ Wyscript.Record.prototype.toString = function() {
   }
   str += '}';
   return new Wyscript.String(str);
+};
+
+Wyscript.Record.prototype.equals = function(other) {
+	if (!(other instanceof Wyscript.Record))
+		return false;
+		
+	if (other.names.length != this.names.length)
+		return false;
+		
+	var tmpNames = [];
+	var otherNames = [];
+		
+	var i;
+	for (i = 0; i < this.names.length; i++) {
+		tmpNames[i] = this.names[i];
+		otherNames[i] = other.names[i];
+	}
+	tmpNames.sort();
+	otherNames.sort();
+	
+	for (i = 0; i < tmpNames.length; i++) {
+		if (!Wyscript.equals(this.values[this.names.indexOf(tmpNames[i])], other.values[other.names.indexOf(otherNames[i])], true))
+			return false;
+	}
+	return true;
 };
 
 //LIST CLASS/METHODS
@@ -373,7 +399,7 @@ Wyscript.List.prototype.clone = function() {
   
   for (i = 0; i < this.list.length; i++) {
     elem = this.list[i];
-    if (elem instanceof Wyscript.List || elem instanceof Wyscript.Record) {
+    if (elem instanceof Wyscript.List || elem instanceof Wyscript.Record || elem instanceof Wyscript.Tuple) {
       elem = elem.clone();
     }
     clist[i] = elem;
@@ -489,6 +515,22 @@ Wyscript.Type.Reference.prototype.subtype = function(superType) {
   return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
 };
 
+Wyscript.Type.Tuple = function(typeList) {this.typeList = typeList;}
+Wyscript.Type.Tuple.prototype = new Wyscript.Type();
+Wyscript.Type.Tuple.prototype.subtype = function(superType) {
+ 	if (superType instanceof Wyscript.Type.Tuple) {
+ 	 	if (superType.typeList.length != this.typeList.length)
+ 	 		return false;
+ 	 
+    	var i = 0;
+    	for (i = 0; i < this.typeList.length; i++) {
+    		if (!(this.typeList[i].subtype(superType.typeList[i])))
+    			return false;
+    	}
+    	return true;
+ 	}
+  return (superType instanceof Wyscript.Type.Union && superType.unionSupertype(this));
+};
 
 Wyscript.Type.List = function(elem) {this.elem = elem;};
 Wyscript.Type.List.prototype = new Wyscript.Type();
@@ -683,6 +725,9 @@ Wyscript.is = function(obj, type) {
   else if (type instanceof Wyscript.Type.Reference) {
   		return (obj instanceof Wyscript.Ref && obj.type.subtype(type));
   }
+  else if (type instanceof Wyscript.Type.Tuple) {
+  		return (obj instanceof Wyscript.Tuple && obj.type.subtype(type));
+  }
   return false; //obj is not a subtype of type/type unknown
 };
 
@@ -702,6 +747,53 @@ Wyscript.Ref.prototype.setValue = function(value) {
 
 Wyscript.Ref.prototype.toString = function() {
 	return ("&" + this.value.toString());
+};
+
+//TUPLE TYPE
+Wyscript.Tuple = function(values, type) {
+	this.values = values;
+	this.type = type;
+};
+
+Wyscript.Tuple.equals = function(other) {
+	if (!(other instanceof Wyscript.Tuple))
+		return false;
+		
+	if (other.values.length != this.values.length)
+		return false;
+		
+	var i;
+	for (i = 0; i < this.values.length; i++) {
+		if (!Wyscript.equals(this.values[i], other.values[i], true))
+			return false;
+	}
+	return true;
+};
+
+Wyscript.Tuple.prototype.toString = function() {
+	var s = "(";
+	var i = 0;
+	var first = true;
+	for (i = 0; i < this.values.length; i++) {
+		if (!first)
+			s += ", ";
+		first = false;
+		s += this.values[i].toString();
+	}
+	s += ")";
+	return s;
+};
+
+Wyscript.Tuple.prototype.clone = function() {
+	var newlist = [];
+	var i = 0;
+	for (i = 0; i < this.values.length; i++) {
+		var tmp = this.values[i];
+		if (tmp instanceof Wyscript.Record || tmp instanceof Wyscript.List || tmp instanceof Wyscript.Tuple)
+			tmp = tmp.clone();
+		newlist[i] = tmp;
+	}
+	return new Wyscript.Tuple(newlist, this.type);
 };
 
 //Gets the type of the given object

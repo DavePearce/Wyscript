@@ -68,7 +68,7 @@ public class TypeErrorHandler {
 				break;
 
 			case BAD_SWITCH_TYPE:
-				msg = "Error: switch expression may not be a record or reference type";
+				msg = "Error: switch expression may not be a record, tuple or reference type";
 				suggestion = "[" + data.found() + "]";
 				break;
 
@@ -118,6 +118,13 @@ public class TypeErrorHandler {
 			case UNDECLARED_VARIABLE:
 				msg = "Error: variable " + data.found().toString() + " has not been declared";
 				suggestion = null; //No way of determining variable's intended type
+				break;
+
+			case BAD_TUPLE_ASSIGN:
+				msg = "Error: tuple " + data.found() + " contains expr " + data.expected() + " that cannot be assigned to";
+				Type fnd = data.found().attribute(Attribute.Type.class).type;
+				suggestion = getExampleOfType(fnd, userTypes);
+				break;
 			}
 
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());
@@ -151,7 +158,7 @@ public class TypeErrorHandler {
 		else if (t instanceof Type.Bool) {
 			s += "true";
 		}
-		else {
+		else if (t instanceof Type.Record){
 			Type.Record r = (Type.Record) t;
 			s += "{";
 			boolean first = true;
@@ -162,6 +169,20 @@ public class TypeErrorHandler {
 				s += name + " : " + getExampleOfType(r.getFields().get(name), userTypes);
 			}
 			s += "}";
+		}
+		else if (t instanceof Type.Reference) {
+			s += "new " + getExampleOfType(((Type.Reference)t).getType(), userTypes);
+		}
+		else if (t instanceof Type.Tuple) {
+			s += "(";
+			boolean first = true;
+			for (Type tup : ((Type.Tuple)t).getTypes()) {
+				if (!first)
+					s += ", ";
+				first = false;
+				s += getExampleOfType(tup, userTypes);
+			}
+			s += ")";
 		}
 		return s;
 	}

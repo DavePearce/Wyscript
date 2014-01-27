@@ -4,8 +4,6 @@ import java.io.File;
 
 import org.junit.*;
 
-import wyscript.lang.WyscriptFile;
-
 
 public class InterpreterValidTests {
 	/**
@@ -382,6 +380,16 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Normalize_Valid_4() {
+		runInterpreterTest("Normalize_Valid_4");
+	}
+
+	@Test
+	public void Normalize_Valid_5() {
+		runInterpreterTest("Normalize_Valid_5");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runInterpreterTest("RealDiv_Valid_1");
 	}
@@ -549,6 +557,21 @@ public class InterpreterValidTests {
 	@Test
 	public void Switch_Valid_9() {
 		runInterpreterTest("Switch_Valid_9");
+	}
+
+	@Test
+	public void Tuple_Valid_1() {
+		runInterpreterTest("Tuple_Valid_1");
+	}
+
+	@Test
+	public void Tuple_Valid_2() {
+		runInterpreterTest("Tuple_Valid_2");
+	}
+
+	@Test
+	public void Tuple_Valid_3() {
+		runInterpreterTest("Tuple_Valid_3");
 	}
 
 	@Test
