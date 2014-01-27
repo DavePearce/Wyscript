@@ -1,0 +1,11 @@
+//Checks that nested tuple normalization works
+
+type nint is int|null
+
+type T1 is ((nint, nint), nint)
+type inner is (null, null) | (null, int) | (int, null) | (int, int)
+type U1 is (inner, null) | (inner, int)
+
+function main() => void:
+	T1 t = ((1, null), 1)
+	print (t is U1)

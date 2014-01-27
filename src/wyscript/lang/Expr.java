@@ -382,6 +382,36 @@ public interface Expr extends SyntacticElement {
 		}
 	}
 
+	public static class Tuple extends SyntacticElement.Impl implements
+	Expr, LVal {
+
+		private List<Expr> exprs;
+
+		public Tuple(List<Expr> exprs, Attribute... attributes) {
+			super(attributes);
+			this.exprs = new ArrayList<Expr>(exprs);
+		}
+
+		public List<Expr> getExprs() {
+			return exprs;
+		}
+
+		public String toString() {
+			String s = "(";
+			boolean first = true;
+
+			for (Expr e : exprs) {
+				if (!first)
+					s += ", ";
+				first = false;
+				s += e.toString();
+			}
+
+			return s + ")";
+		}
+
+	}
+
 	/**
 	 * <p>
 	 * Represents a list or string access expression, which may also form the

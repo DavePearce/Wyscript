@@ -65,9 +65,11 @@ public class TypeErrorData implements ErrorData {
 	 * - Expected one type, found another
 	 * - Expected one type to be a subtype of another
 	 * - Referenced an undeclared variable
+	 * - Assigned to a tuple that contained expressions that couldn't be assigned to
 	 */
 	public static enum ErrorType {
 		MISSING_RETURN, DUPLICATE_VARIABLE, BAD_FOR_LIST, BAD_SWITCH_TYPE, BAD_NEXT, BAD_FUNC_PARAMS,
-		BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH, UNDECLARED_VARIABLE
+		BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH, UNDECLARED_VARIABLE,
+		BAD_TUPLE_ASSIGN
 	}
 }

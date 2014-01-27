@@ -1,0 +1,9 @@
+function swap(int x, int y) => (int, int):
+    return (y, x)
+
+function main() => void:
+    int x = 2
+    int y = 3
+    (x, y) = swap(x, y)
+    print x
+    print y

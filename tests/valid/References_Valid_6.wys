@@ -4,4 +4,4 @@ function main() => void:
     print (x is &real)
     print (*x is int)
     print (x is null | &int)
-    print (new(x) is &&int)
+    print ((new x) is &&int)

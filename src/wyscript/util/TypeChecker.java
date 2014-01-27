@@ -125,6 +125,13 @@ public class TypeChecker {
 		Type lhs = check(stmt.getLhs(), environment);
 		Type rhs = check(stmt.getRhs(), environment);
 		checkSubtype(lhs,rhs, false, stmt);
+		if (stmt.getLhs() instanceof Expr.Tuple) {
+			for (Expr e : ((Expr.Tuple)stmt.getLhs()).getExprs()) {
+				if (!(e instanceof Expr.LVal))
+					errors.add(new TypeErrorData(filename, stmt.getLhs(), e,
+							lhs.attribute(Attribute.Source.class), ErrorType.BAD_TUPLE_ASSIGN));
+			}
+		}
 	}
 
 	public void check(Stmt.Print stmt, Map<String,Type> environment) {
@@ -214,7 +221,7 @@ public class TypeChecker {
 	public void check(Stmt.Switch stmt, Map<String, Type> environment) {
 		Type expr = check(stmt.getExpr(), environment);
 
-		if (expr instanceof Type.Record || expr instanceof Type.Reference) {
+		if (expr instanceof Type.Record || expr instanceof Type.Reference || expr instanceof Type.Tuple) {
 			errors.add(new TypeErrorData(filename, stmt.getExpr(), null,
 					stmt.getExpr().attribute(Attribute.Source.class), ErrorType.BAD_SWITCH_TYPE));
 		}
@@ -285,6 +292,8 @@ public class TypeChecker {
 			type = check((Expr.Deref) expr, environment);
 		} else if(expr instanceof Expr.New) {
 			type = check((Expr.New) expr, environment);
+		} else if(expr instanceof Expr.Tuple) {
+			type = check((Expr.Tuple) expr, environment);
 		} else {
 			internalFailure("unknown expression encountered (" + expr + ")", filename,expr);
 			return null; // dead code
@@ -551,6 +560,15 @@ public class TypeChecker {
 		return new Type.Reference(type);
 	}
 
+	public Type check(Expr.Tuple expr, Map<String, Type> environment) {
+		List<Type> types = new ArrayList<Type>();
+
+		for (Expr e : expr.getExprs())
+			types.add(check(e, environment));
+
+		return new Type.Tuple(types);
+	}
+
 	/**
 	 * Check that a given type t2 is an instance of of another type t1. This
 	 * method is useful for checking that a type is, for example, a List type.
@@ -624,6 +642,18 @@ public class TypeChecker {
 			}
 		}
 
+		//Attempt to normalize tuple types
+		if (t1 instanceof Type.Tuple || t2 instanceof Type.Tuple) {
+			if (t1 instanceof Type.Tuple) {
+				Attribute type = normalize((Type.Tuple) t1);
+				t1.attributes().add(type);
+			}
+			if (t2 instanceof Type.Tuple) {
+				Attribute type = normalize((Type.Tuple) t2);
+				t2.attributes().add(type);
+			}
+		}
+
 
 		if (t1 instanceof Type.Bool && t2 instanceof Type.Bool) {
 			return true;
@@ -676,6 +706,19 @@ public class TypeChecker {
 			}
 			return true;
 		}
+		else if (t1 instanceof Type.Tuple && t2 instanceof Type.Tuple) {
+			Type.Tuple tup1 = (Type.Tuple) t1;
+			Type.Tuple tup2 = (Type.Tuple) t2;
+
+			if (tup1.getTypes().size() != tup2.getTypes().size())
+				return false;
+
+			for (int i = 0; i < tup1.getTypes().size(); i++) {
+				if (!(checkPossibleSubtype(tup1.getTypes().get(i), tup2.getTypes().get(i), cast)))
+					return false;
+			}
+			return true;
+		}
 		//A union is a subtype of a union if all its bounds are subtypes of t1's bounds
 		else if (t1 instanceof Type.Union && t2 instanceof Type.Union) {
 
@@ -711,7 +754,7 @@ public class TypeChecker {
 			boolean subtype = false;
 			Type actual = t2;
 			//Handle normalized types
-			if (t2 instanceof Type.Record) {
+			if (t2 instanceof Type.Record || t2 instanceof Type.Tuple) {
 				actual = t2.attribute(Attribute.Type.class).type;
 			}
 			for (Type t : u1.getBounds()) {
@@ -745,11 +788,96 @@ public class TypeChecker {
 		//void is a subtype of every type
 		else if (t2 instanceof Type.Void) {
 			return true;
-		} else if (t1 instanceof Type.Reference && t2 instanceof Type.Reference) {
+		}
+
+		else if (t1 instanceof Type.Reference && t2 instanceof Type.Reference) {
 			Type newT1 = ((Type.Reference)t1).getType();
 			Type newT2 = ((Type.Reference)t2).getType();
+
 			return checkPossibleSubtype(newT1, newT2, cast);
 		} else return false;
+	}
+
+	/**
+	 * Attempts to normalize the type of a Tuple - if the tuple contains
+	 * any union types (eg (int|null, int) ), those types are extracted
+	 * to create a union type of tuples ( (int, int) | (null, int) )
+	 */
+	private Attribute normalize(Type.Tuple t) {
+
+		List<Type> types = t.getTypes();
+
+		boolean hasUnion = false;
+		for (Type type : types) {
+			if (type instanceof Type.Union)
+				hasUnion = true;
+		}
+
+		return (hasUnion) ? getTupleUnion(t) : new Attribute.Type(t);
+	}
+
+	/**
+	 * Wrapper Method - Calls getTupleUnion to get the bounds
+	 * of the resulting union type, then wraps that union in
+	 * an attribute and returns it
+	 * @param types
+	 * @return
+	 */
+	private Attribute getTupleUnion(Type.Tuple t) {
+
+		List<List<Type>> tupleTypes = getTupleUnion(t.getTypes());
+
+		List<Type> bounds = new ArrayList<Type>();
+
+		for (List<Type> typeList : tupleTypes)
+			bounds.add(new Type.Tuple(typeList));
+
+		return new Attribute.Type(new Type.Union(bounds));
+	}
+
+	/**
+	 * Takes a list of types and returns a list of all the possible type lists
+	 * after normalisation.
+	 */
+	private List<List<Type>> getTupleUnion(List<Type> types) {
+
+		List<List<Type>> result = new ArrayList<List<Type>>();
+
+		//First, split the type list up into the first element and the remainder,
+		//and get the normalised typelist for the remainder (getting nothing if the typelist only
+		//had one element)
+		Type elem = types.get(0);
+		List<List<Type>> other = (types.size() > 1) ? getTupleUnion(types.subList(1, types.size()-1))
+													: new ArrayList<List<Type>>();
+		List<Type> current = new ArrayList<Type>();
+
+		//Create a list of all the types for the current element
+		if (elem instanceof Type.Union) {
+			for (Type t : ((Type.Union)elem).getBounds()) {
+				current.add(t);
+			}
+		}
+		else current.add(elem);
+
+		//For all the union types we've built up so far,
+		//create a new list(s) with the current type(s) at the front
+		for (List<Type> lt : other) {
+			for (Type t : current) {
+				List<Type> tmp = new ArrayList<Type>(lt);
+				tmp.add(0, t);
+				result.add(tmp);
+			}
+		}
+		//The case where the type list only contained one element
+		if (result.isEmpty()) {
+			for (Type t : current) {
+				List<Type> tmp = new ArrayList<Type>();
+				tmp.add(t);
+				result.add(tmp);
+			}
+		}
+
+		return result;
 	}
 
 	/**

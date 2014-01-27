@@ -3,8 +3,6 @@ package wyscript.util;
 /**
  * Used in the interpreter to represent an object reference
  * created with the new expression.
- *
- * @author Daniel Campbell
  */
 public class Ref {
 

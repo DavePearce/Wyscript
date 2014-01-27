@@ -64,7 +64,7 @@ public interface Stmt extends SyntacticElement {
 	 *
 	 */
 	public static final class Assign extends SyntacticElement.Impl implements
-			Atom {
+			Stmt{
 
 		private final Expr.LVal lhs;
 		private final Expr rhs;

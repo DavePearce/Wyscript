@@ -9,12 +9,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Reader;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-
 import org.junit.*;
 import org.mozilla.javascript.Context;
-import org.mozilla.javascript.Script;
 import org.mozilla.javascript.Scriptable;
 import org.mozilla.javascript.ScriptableObject;
 
@@ -461,6 +457,16 @@ public class JavaScriptValidTests {
 		runTest("Normalize_Valid_3");
 	}
 
+	@Test
+	public void Normalize_Valid_4() {
+		runTest("Normalize_Valid_4");
+	}
+
+	@Test
+	public void Normalize_Valid_5() {
+		runTest("Normalize_Valid_5");
+	}
+
 
 	@Test
 	public void Precedence_Valid_1() {
@@ -660,6 +666,21 @@ public class JavaScriptValidTests {
 	@Test
 	public void Switch_Valid_10() {
 		runTest("Switch_Valid_10");
+	}
+
+	@Test
+	public void Tuple_Valid_1() {
+		runTest("Tuple_Valid_1");
+	}
+
+	@Test
+	public void Tuple_Valid_2() {
+		runTest("Tuple_Valid_2");
+	}
+
+	@Test
+	public void Tuple_Valid_3() {
+		runTest("Tuple_Valid_3");
 	}
 
 	@Test

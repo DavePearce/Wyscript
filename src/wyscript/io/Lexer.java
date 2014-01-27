@@ -245,7 +245,7 @@ public class Lexer {
 
 	static final char[] opStarts = { ',', '(', ')', '[', ']', '{', '}', '+',
 			'-', '*', '/', '%', '!', '=', '<', '>', ':', ';', '&', '|',
-			'.'};
+			'.', ','};
 
 	public boolean isOperatorStart(char c) {
 		for (char o : opStarts) {
