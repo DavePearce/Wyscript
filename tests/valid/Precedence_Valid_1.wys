@@ -1,4 +1,4 @@
-void main():
+function main() => void:
   print (4 * (2 + 3))
   print 4 * 2 + 3
   print 4 + 2 * 3

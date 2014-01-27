@@ -1,4 +1,4 @@
-string rep(char old, char n, string str):
+function rep(char old, char n, string str) => string:
     int i = 0
     while i < |str|:
         if str[i] == old:
@@ -6,7 +6,7 @@ string rep(char old, char n, string str):
         i = i + 1
     return str
 
-void main():
+function main() => void:
     print rep('e', 'w', "Hello")
     print rep('H', 'z', "Hello")
     print rep('o', '1', "Hello")

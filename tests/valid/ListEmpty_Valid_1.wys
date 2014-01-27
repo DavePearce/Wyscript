@@ -1,7 +1,7 @@
-[int] f([int] xs):
+function f([int] xs) => [int]:
     return xs
 
-void main():
+function main() => void:
     print f([1, 4])
     print f([])
 

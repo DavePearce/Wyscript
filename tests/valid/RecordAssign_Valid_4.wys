@@ -1,9 +1,9 @@
 type bytes is {int b1, int b2}
 
-bytes f(int b):
+function f(int b) => bytes:
     return {b1: b, b2: 2}
 
-void main():
+function main() => void:
     int b = 1
     bytes bs = f(b)
     print bs

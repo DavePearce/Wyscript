@@ -1,0 +1,7 @@
+function main() => void:
+    &int x = new (4)
+    print (x is &int)
+    print (x is &real)
+    print (*x is int)
+    print (x is null | &int)
+    print (new(x) is &&int)

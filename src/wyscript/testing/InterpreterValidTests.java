@@ -477,6 +477,16 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void References_Valid_5() {
+		runInterpreterTest("References_Valid_5");
+	}
+
+	@Test
+	public void References_Valid_6() {
+		runInterpreterTest("References_Valid_6");
+	}
+
+	@Test
 	public void Remainder_Valid_1() {
 		runInterpreterTest("Remainder_Valid_1");
 	}

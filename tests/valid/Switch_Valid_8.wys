@@ -2,7 +2,7 @@ constant Red is 1
 constant Blue is 2
 constant Green is 3
 
-int f(int c):
+function f(int c) => int:
     switch(c):
         case Red:
             return 123
@@ -11,7 +11,7 @@ int f(int c):
         default:
             return 456
 
-void main():
+function main() => void:
     print "NUM: " ++ f(Red)
     print "NUM: " ++ f(Green)
     print "NUM: " ++ f(Blue)

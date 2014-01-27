@@ -113,6 +113,7 @@ public class TypeErrorHandler {
 				Type expected = ((Expr.Cast)data.found()).getType();
 				msg = String.format("Error: %s has type %s, expected %s or subtype of %s", data.expected(), found, expected, expected);
 				suggestion = getExampleOfType(expected, userTypes);
+				break;
 
 			case UNDECLARED_VARIABLE:
 				msg = "Error: variable " + data.found().toString() + " has not been declared";

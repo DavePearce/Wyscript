@@ -1,4 +1,4 @@
-bool has(char c, string str):
+function has(char c, string str) => bool:
     int i = 0
     while i < |str|:
         if str[i] == c:
@@ -6,7 +6,7 @@ bool has(char c, string str):
         i = i + 1
     return false
 
-void main():
+function main() => void:
     string s = "Hello World"
     print has('l', s)
     print has('e', s)

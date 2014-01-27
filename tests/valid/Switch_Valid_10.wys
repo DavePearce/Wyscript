@@ -1,4 +1,4 @@
-void f(int x):
+function f(int x) => void:
     switch (x):
         default:
             switch (x):
@@ -9,7 +9,7 @@ void f(int x):
                 default:
                     print x
 
-void main():
+function main() => void:
     f(1)
     f(2)
     f(4)

@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     int x = 0
     (x) = 4
     print (x)

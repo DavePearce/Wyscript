@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     real x = 1.0
     real y = 2.5
     print x + y

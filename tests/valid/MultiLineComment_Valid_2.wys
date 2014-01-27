@@ -3,6 +3,6 @@
  *  etc etc.
  */
 
- void main():
+ function main() => void:
 	print "OK"
 

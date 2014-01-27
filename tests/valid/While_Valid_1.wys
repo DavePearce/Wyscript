@@ -1,4 +1,4 @@
-[int] reverse([int] ls):
+function reverse([int] ls) => [int]:
     int i = |ls|
     [int] r = []
     while i > 0:
@@ -6,6 +6,6 @@
         r = r ++ [ls[i]]
     return r
 
-void main():
+function main() => void:
     print reverse([1, 2, 3, 4, 5])
 

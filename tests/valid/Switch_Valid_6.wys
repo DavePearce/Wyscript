@@ -1,4 +1,4 @@
-int f(int x):
+function f(int x) => int:
     int y
     switch(x):
         case 1:
@@ -9,7 +9,7 @@ int f(int x):
             y = 0
     return y
 
-void main():
+function main() => void:
     print f(1)
     print f(2)
     print f(3)

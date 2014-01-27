@@ -194,14 +194,21 @@ public class Parser {
 		if (tryAndMatch(Native, true) != null) {
 			isNative = true;
 		}
-
-		Token.Kind follow = Identifier;
+		Token.Kind follow = Token.Kind.Identifier;
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
-
-		Type ret = parseType(errors, true, followSet);
-		if (ret == null)
+		if (match(errors, Function, follow) == null) {
 			valid = false;
+			if (! followSet.contains(tokens.get(index))) {
+				index++;
+				return null;
+			}
+
+		}
+
+		follow = Token.Kind.LeftBrace;
+		followSet = new HashSet<Token.Kind>();
+		followSet.add(follow);
 
 		skipWhiteSpace();
 		follow = LeftBrace;
@@ -250,6 +257,16 @@ public class Parser {
 				paramTypes.add(new Parameter(t, n.text, sourceAttr(pstart,
 					index - 1)));
 		}
+
+		follow = Colon;
+		followSet.add(Colon);
+		followSet.remove(RightBrace);
+
+		Token n = match(errors, DoubleArrow, followSet);
+		if (n == null)
+			valid = false;
+
+		Type ret = parseType(errors, true, followSet);
 
 		//If parsing a native function, stop here
 		if (isNative) {
@@ -302,7 +319,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Type t = parseType(errors, false, followSet);
+		Type t = parseType(errors, true, followSet);
 		if (t == null)
 			valid = false;
 
@@ -334,7 +351,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>();
 		followSet.add(follow);
 
-		Expr e = parseExpression(errors, false, followSet);
+		Expr e = parseExpression(errors, true, followSet);
 		if (e == null)
 			valid = false;
 
@@ -1471,6 +1488,7 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(LeftSquare);
 		followSet.add(Dot);
+		followSet.add(Arrow);
 
 		Expr lhs = parseTerm(errors, terminated, followSet);
 		if (lhs == null) {
@@ -1478,6 +1496,7 @@ public class Parser {
 
 			case LeftSquare:
 			case Dot:
+			case Arrow:
 				break;
 
 			default:
@@ -1488,13 +1507,16 @@ public class Parser {
 		Token token;
 
 		while ((token = tryAndMatch(LeftSquare, terminated)) != null
-				|| (token = tryAndMatch(Dot, terminated)) != null) {
+				|| (token = tryAndMatch(Dot, terminated)) != null
+				|| (token = tryAndMatch(Arrow, terminated)) != null) {
 			start = index;
 
 			if (!parentFollow.contains(LeftSquare))
 				followSet.remove(LeftSquare);
 			if (!parentFollow.contains(Dot))
 				followSet.remove(Dot);
+			if (!parentFollow.contains(Arrow))
+				followSet.remove(Arrow);
 
 			if (token.kind == LeftSquare) {
 
@@ -1515,8 +1537,8 @@ public class Parser {
 				if (id == null)
 					return null;
 
-				lhs = new Expr.RecordAccess(lhs, id.text, sourceAttr(start,
-						index - 1));
+				lhs = (token.kind == Arrow) ? new Expr.RecordAccess(new Expr.Deref(lhs), id.text, sourceAttr(start,index - 1))
+											: new Expr.RecordAccess(lhs, id.text, sourceAttr(start,index - 1));
 			}
 		}
 		return lhs;
@@ -1618,12 +1640,6 @@ public class Parser {
 			if (ex == null)
 				return null;
 			return new Expr.Deref(ex, sourceAttr(start, index-1));
-
-		case Ampersand:
-			Expr ref = parseTerm(errors, terminated, parentFollow);
-			if (ref == null)
-				return null;
-			return new Expr.Ref(ref, sourceAttr(start, index-1));
 		}
 
 		//Couldn't parse, may have hit garbage values. Skip until we match something in the follow set
@@ -1812,24 +1828,14 @@ public class Parser {
 		Set<Token.Kind> followSet = new HashSet<Token.Kind>(parentFollow);
 		followSet.add(VerticalBar);
 
-		//First, try and parse a reference type
-		Token tok = tryAndMatch(Ampersand, terminated);
-		if (tok == null) tok = tryAndMatch(LogicalAnd, terminated);
-		if (tok != null) {
-			Type ref = parseType (errors, terminated, parentFollow);
-			if (ref == null)
-				return null;
-			return (tok.kind == Ampersand) ? new Type.Reference(ref, sourceAttr(start, index-1))
-										 : new Type.Reference(new Type.Reference(ref), sourceAttr(start, index-1));
-		}
-
 		Type t = parseBaseType(errors, terminated, followSet);
 		if (t == null) {
 			if (tokens.get(index).kind != VerticalBar)
 				return null;
 		}
 
-		// Now, attempt to look for union or reference types
+
+		// Now, attempt to look for union types
 		if (tryAndMatch(VerticalBar, terminated) != null) {
 			// this is a union type
 			ArrayList<Type> types = new ArrayList<Type>();
@@ -1945,6 +1951,16 @@ public class Parser {
 
 		case Identifier:
 			return new Type.Named(token.text, sourceAttr(start, index - 1));
+
+		case Ampersand:
+		case LogicalAnd:
+			t = parseType(errors, terminated, parentFollow);
+			if (t == null)
+				return null;
+
+			return (token.kind == Ampersand) ? new Type.Reference(t, sourceAttr(start, index -1))
+											 : new Type.Reference(new Type.Reference(t), sourceAttr(start, index-1));
+
 		default:
 			errors.add(new ParserErrorData(filename, token, null, INVALID_TYPE));
 			//Unable to find type, may be on garbled data, synchronize with parent methods

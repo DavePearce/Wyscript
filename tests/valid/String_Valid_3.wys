@@ -1,4 +1,4 @@
-string repl(char old, char n, string str):
+function repl(char old, char n, string str) => string:
     int i = 0
     while i < |str|:
         if str[i] == old:
@@ -6,7 +6,7 @@ string repl(char old, char n, string str):
         i = i + 1
     return str
 
-void main():
+function main() => void:
     string s = "Hello World"
     s = repl('l', '1', s)
     print s

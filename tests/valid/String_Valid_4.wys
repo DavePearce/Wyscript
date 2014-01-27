@@ -1,10 +1,10 @@
-int|null indexOf(char c1, string str):
+function indexOf(char c1, string str) => int|null:
 	for j in 0 .. |str|:
 		if (str[j] == c1):
 			return j
 	return null
 
-void main():
+function main() => void:
     print indexOf('H', "Hello World")
     print indexOf('e', "Hello World")
     print indexOf('l', "Hello World")

@@ -2,9 +2,9 @@ constant POINT is {x: 1, y: 1}
 
 type Point is {int y, int x}
 
-int sum(Point p):
+function sum(Point p) => int:
     return p.x + p.y
 
-void main():
+function main() => void:
     print sum(POINT)
 

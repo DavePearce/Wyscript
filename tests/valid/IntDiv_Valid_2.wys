@@ -1,6 +1,6 @@
-int f(int x):
+function f(int x) => int:
     return x / 3
 
-void main():
+function main() => void:
     print f(10)
 

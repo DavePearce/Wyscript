@@ -1,4 +1,4 @@
 /*  Single Line Comment Test */
 
-void main():
+function main() => void:
 	print "OK"

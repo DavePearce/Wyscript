@@ -1,4 +1,4 @@
-string f(int x):
+function f(int x) => string:
     if x < 10:
         return "LESS THAN"
     else:
@@ -7,7 +7,7 @@ string f(int x):
         else:
             return "EQUALS"
 
-void main():
+function main() => void:
     print f(1)
     print f(10)
     print f(11)

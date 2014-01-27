@@ -1,4 +1,4 @@
-int f(int x, int y):
+function f(int x, int y) => int:
     bool a = true
     if x < y:
         a = false
@@ -7,6 +7,6 @@ int f(int x, int y):
     else:
         return 123
 
-void main():
+function main() => void:
     print f(1, 1)
 

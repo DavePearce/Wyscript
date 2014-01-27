@@ -1,10 +1,10 @@
-string f(int|null x):
+function f(int|null x) => string:
     if(x is null):
         return "GOT NULL"
     else:
         return "GOT INT"
 
-void main():
+function main() => void:
     null x = null
     print f(x)
     print f(1)

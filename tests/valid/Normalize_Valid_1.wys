@@ -5,6 +5,6 @@ type nint is int|null
 type R1 is {nint x}
 type U1 is {int x} | {null x}
 
-void main():
+function main() => void:
 	R1 r = {x : 1}
 	print (r is U1)

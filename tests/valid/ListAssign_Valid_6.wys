@@ -1,8 +1,8 @@
-string f([int] a):
+function f([int] a) => string:
     a[0] = 5
     return "" ++ a
 
-void main():
+function main() => void:
     [int] b = [1, 2, 3]
     print b
     print f(b)

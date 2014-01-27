@@ -1,7 +1,7 @@
-char iof(string s, int i):
+function iof(string s, int i) => char:
     return s[i]
 
-void main():
+function main() => void:
     print iof("Hello", 0)
     print iof("Hello", 1)
     print iof("Hello", 2)

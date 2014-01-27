@@ -1,9 +1,9 @@
 type point is {int y, int x}
 
-point f(point x):
+function f(point x) => point:
     return x
 
-void main():
+function main() => void:
     point p = f({x: 1, y: 1})
     print p
 

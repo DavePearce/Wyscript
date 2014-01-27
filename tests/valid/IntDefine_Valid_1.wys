@@ -1,12 +1,12 @@
 type ir1nat is int
 
-string f(ir1nat x):
+function f(ir1nat x) => string:
     if x > 2:
         int y = x
         return "" ++ y
     return ""
 
-void main():
+function main() => void:
     print f(1)
     print f(2)
     print f(3)

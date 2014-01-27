@@ -2,9 +2,9 @@ type R1 is {real x}
 
 type R2 is {int x}
 
-R1 f(R2 i):
+function f(R2 i) => R1:
     return ({real x}) i
 
-void main():
+function main() => void:
     print f({x: 123542})
 

@@ -1,12 +1,12 @@
 type fr4nat is int
 
-fr4nat g(fr4nat x):
+function g(fr4nat x) => fr4nat:
     return x + 1
 
-int f(fr4nat x):
+function f(fr4nat x) => int:
     return x
 
-void main():
+function main() => void:
     int y = 1
     print f(g(y))
 

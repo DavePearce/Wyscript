@@ -2,13 +2,13 @@ type IntPoint is {int y, int x}
 
 type RealPoint is {real y, real x}
 
-int sum1(IntPoint vp):
+function sum1(IntPoint vp) => int:
     return vp.x + vp.y
 
-real sum2(RealPoint vp):
+function sum2(RealPoint vp) => real:
     return vp.x + vp.y
 
-void main():
+function main() => void:
     IntPoint ip = {x: 1, y: 2}
     print sum1(ip)
     RealPoint rp = {x: 1.23, y: 2.34}

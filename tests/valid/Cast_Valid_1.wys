@@ -1,6 +1,6 @@
-real f(int i):
+function f(int i) => real:
     return (real) i
 
-void main():
+function main() => void:
     print f(1)
 

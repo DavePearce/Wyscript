@@ -1,12 +1,12 @@
 type expr is [int]|int
 
-string f(expr e):
+function f(expr e) => string:
     if(e is [int]):
         return "GOT [INT]"
     else:
         return "GOT INT"
 
-void main():
+function main() => void:
     expr e = 1
     print f(e)
     e = [1,2,3,4]

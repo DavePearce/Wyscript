@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     [int] arr = [1, 2, 3]
     print arr[0]
 

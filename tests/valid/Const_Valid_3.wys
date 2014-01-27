@@ -1,11 +1,11 @@
 constant LIST is [1, 2, 3]
 
-int sum([int] list):
+function sum([int] list) => int:
     int r = 0
     for i in 0 .. |list|:
         r = r + list[i]
     return r
 
-void main():
+function main() => void:
     print sum(LIST)
 

@@ -2,7 +2,7 @@ type pos is real
 type neg is int
 type expr is pos|neg|[int]
 
-string f(expr e):
+function f(expr e) => string:
     if(e is real && ((real)e) > 0.0):
         return "POSITIVE: " ++ e
     else if(e is neg):
@@ -10,7 +10,7 @@ string f(expr e):
     else:
         return "OTHER"
 
-void main():
+function main() => void:
     print f(-1)
     print f(1.0)
     print f(1.234)

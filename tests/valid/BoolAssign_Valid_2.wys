@@ -1,4 +1,4 @@
-void main():
+function main() => void:
     bool x = true
     bool y = false
     print x

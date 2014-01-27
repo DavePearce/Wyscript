@@ -1,6 +1,5 @@
-void main():
+function main() => void:
     [int] l = [1, 2, 3]
     [real] r = [4.23, 5.5]
-    [int|real] x = r ++ l
+    [int|real] x = r ++ ([real]) l
     print x
-
