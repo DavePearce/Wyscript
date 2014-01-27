@@ -597,9 +597,23 @@ public class Interpreter {
 		else if(t instanceof Type.Named) {
 			return doCast(userTypes.get(t.toString()), o, elem);
 		}
+		else if(t instanceof Type.Tuple) {
+			return doTupleCast((Type.Tuple)t, (Tuple)o, elem);
+		}
 
 		else return doPrimitiveCast(t, o, elem);
+	}
 
+	private Object doTupleCast(Type.Tuple type, Tuple obj, SyntacticElement elem) {
+
+		ArrayList<Object> newTupleList = new ArrayList<Object>();
+		List<Type> types = type.getTypes();
+		List<Object> objects = obj.getValues();
+		for (int i = 0; i < types.size(); i++) {
+			Object o = doCast(types.get(i), objects.get(i), elem);
+			newTupleList.add(o);
+		}
+		return new Tuple(newTupleList);
 	}
 
 	private Object doRecordCast(Type.Record t, HashMap o, SyntacticElement elem) {
@@ -622,9 +636,13 @@ public class Interpreter {
 	private Object doPrimitiveCast(Type t, Object o, SyntacticElement elem) {
 		Class c = getJavaClass(t);
 
+		//Need to handle the case where casting a null - just return null
+		if (c == null) {
+			return null;
+		}
+
 		//Need to have explicit conversions for the number types
 		//As Double cannot be cast to Integer, and vice versa
-
 		if (c.equals(Double.class)) {
 			Double d = 0.0;
 
@@ -866,7 +884,20 @@ public class Interpreter {
 				r += field + ":" + toString(m.get(field));
 			}
 			return r + "}";
-		} else if(o != null) {
+		} else if (o instanceof Tuple) {
+			Tuple t = (Tuple) o;
+			String r = "(";
+			boolean first = true;
+			for (Object obj : t.getValues()) {
+				if (!first)
+					r += ", ";
+				first = false;
+				r += toString(obj);
+			}
+			return r + ")";
+		}
+
+		else if(o != null) {
 			// other cases can use their default toString methods.
 			return o.toString();
 		} else {

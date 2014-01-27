@@ -1,0 +1,12 @@
+type R1 is {int x}
+type T1 is (R1, null)
+type R2 is {real x}
+type T2 is (R2, null)
+
+function cast (T1 x) => T2:
+    return (T2) x
+
+function main() => void:
+    T1 x = ({x:0}, null)
+    print (x is T1)
+    print ((cast(x)) is T2)
