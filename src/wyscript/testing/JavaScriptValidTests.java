@@ -233,6 +233,31 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
+	public void Equality_Valid_1() {
+		runTest("Equality_Valid_1");
+	}
+
+	@Test
+	public void Equality_Valid_2() {
+		runTest("Equality_Valid_2");
+	}
+
+	@Test
+	public void Equality_Valid_3() {
+		runTest("Equality_Valid_3");
+	}
+
+	@Test
+	public void Equality_Valid_4() {
+		runTest("Equality_Valid_4");
+	}
+
+	@Test
+	public void Equality_Valid_5() {
+		runTest("Equality_Valid_5");
+	}
+
+	@Test
 	public void Function_Valid_1() {
 		runTest("Function_Valid_1");
 	}

@@ -160,6 +160,31 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Equality_Valid_1() {
+		runInterpreterTest("Equality_Valid_1");
+	}
+
+	@Test
+	public void Equality_Valid_2() {
+		runInterpreterTest("Equality_Valid_2");
+	}
+
+	@Test
+	public void Equality_Valid_3() {
+		runInterpreterTest("Equality_Valid_3");
+	}
+
+	@Test
+	public void Equality_Valid_4() {
+		runInterpreterTest("Equality_Valid_4");
+	}
+
+	@Test
+	public void Equality_Valid_5() {
+		runInterpreterTest("Equality_Valid_5");
+	}
+
+	@Test
 	public void Function_Valid_1() {
 		runInterpreterTest("Function_Valid_1");
 	}

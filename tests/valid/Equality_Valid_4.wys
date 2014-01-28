@@ -1,0 +1,8 @@
+function main() => void:
+    (int, int) x = (0, 1)
+    (int, int) x2 = (0, 1)
+    (int, int) x3 = x
+    (int, int) y = (1, 1)
+    print (x == x2)
+    print (x == x3)
+    print (x == y)
