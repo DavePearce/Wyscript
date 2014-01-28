@@ -12,6 +12,7 @@ import wyscript.error.TypeErrorData.ErrorType;
 import wyscript.error.TypeErrorHandler;
 import wyscript.lang.*;
 import wyscript.lang.Type.Reference;
+import wyscript.lang.Type.Void;
 import static wyscript.util.SyntaxError.*;
 
 /**
@@ -399,7 +400,11 @@ public class TypeChecker {
 	}
 
 	public Type check(Expr.Cast expr, Map<String,Type> environment) {
-
+		if (expr.getType() instanceof Type.Reference) {
+			errors.add(new TypeErrorData(filename, expr.getSource(), null,
+					expr.attribute(Attribute.Source.class), ErrorType.BAD_REFERENCE_CAST));
+			return new Type.Void();
+		}
 		checkSubtype(check(expr.getSource(), environment), expr.getType(), true, expr.getSource());
 		return expr.getType();
 	}
@@ -668,8 +673,6 @@ public class TypeChecker {
 		} else if (t1 instanceof Type.Void && t2 instanceof Type.Void) {
 			return true;
 		} else if (t1 instanceof Type.Null && t2 instanceof Type.Null) {
-			return true;
-		} else if (cast && t1 instanceof Type.Real && t2 instanceof Type.Int) {
 			return true;
 		} else if (cast && t1 instanceof Type.Int && t2 instanceof Type.Real) {
 			return true;

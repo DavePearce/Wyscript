@@ -671,12 +671,6 @@ public class Interpreter {
 					i = (Integer)o;
 					return i;
 				}
-
-				else if (o instanceof Double) {
-					i = ((Double)o).intValue();
-					return i;
-				}
-
 				else {
 					//Shouldn't happen, indicates a type checking failure
 					internalFailure("Casting error - cannot cast between types", file.filename, elem);

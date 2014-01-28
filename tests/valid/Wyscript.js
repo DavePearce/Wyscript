@@ -34,10 +34,6 @@ Wyscript.Float.prototype.div = function(other) {
 Wyscript.Float.prototype.rem = function(other) {
 	return new Wyscript.Float(this.num % other.num);
 };
-		
-Wyscript.Float.prototype.cast = function() {	
-   return new Wyscript.Integer(this.num);
-};
 
 Wyscript.Float.prototype.toString = function() {
     var tmp = this.num.toString();
@@ -763,8 +759,8 @@ Wyscript.cast = function(type, obj) {
 		return obj.clone();
 	}
 	
-	//Handle the case where casting an int or real
-	if (obj instanceof Wyscript.Integer || obj instanceof Wyscript.Float)
+	//Handle the case where casting an int
+	if (obj instanceof Wyscript.Integer)
 	    return obj.cast();
 	    
 	//Handle the case where casting a list

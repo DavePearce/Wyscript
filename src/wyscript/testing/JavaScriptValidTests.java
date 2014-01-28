@@ -188,11 +188,6 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
-	public void Cast_Valid_6() {
-		runTest("Cast_Valid_6");
-	}
-
-	@Test
 	public void Char_Valid_1() {
 		runTest("Char_Valid_1");
 	}
