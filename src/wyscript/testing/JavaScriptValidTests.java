@@ -188,11 +188,6 @@ public class JavaScriptValidTests {
 	}
 
 	@Test
-	public void Cast_Valid_6() {
-		runTest("Cast_Valid_6");
-	}
-
-	@Test
 	public void Char_Valid_1() {
 		runTest("Char_Valid_1");
 	}
@@ -235,6 +230,31 @@ public class JavaScriptValidTests {
 	@Test
 	public void Define_Valid_2() {
 		runTest("Define_Valid_2");
+	}
+
+	@Test
+	public void Equality_Valid_1() {
+		runTest("Equality_Valid_1");
+	}
+
+	@Test
+	public void Equality_Valid_2() {
+		runTest("Equality_Valid_2");
+	}
+
+	@Test
+	public void Equality_Valid_3() {
+		runTest("Equality_Valid_3");
+	}
+
+	@Test
+	public void Equality_Valid_4() {
+		runTest("Equality_Valid_4");
+	}
+
+	@Test
+	public void Equality_Valid_5() {
+		runTest("Equality_Valid_5");
 	}
 
 	@Test

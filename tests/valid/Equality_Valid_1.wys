@@ -1,0 +1,7 @@
+function main() => void:
+    {int x} r1 = {x : 1}
+    {int x} r2 = {x : 0}
+    {int x} r3 = {x : 1}
+    print (r1 == r2)
+    print (r1 == r3)
+    print (r1 == r1)

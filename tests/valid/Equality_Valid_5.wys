@@ -1,0 +1,10 @@
+function main() => void:
+    (int, int) x = (1, 2)
+    (real, int) x2 = ((real, int)) x
+    (real, real) x3 = ((real, real)) x2
+    print (x == x2)
+    print (x == x3)
+    print (x2 == x3)
+    print (((real, int))x == x2)
+    print (((real, real))x == x3)
+    print (((real, real))x2 == x3)

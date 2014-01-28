@@ -1,0 +1,5 @@
+function main() => void:
+    {int x} r1 = {x:1}
+    {real x} r2 = ({real x}) r1
+    print (r1 == r2)
+    print ((({real x}) r1) == r2)

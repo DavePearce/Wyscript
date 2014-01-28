@@ -535,10 +535,19 @@ public class Parser {
 			if (!(isStartOfType(index + 1)))
 				return false;
 
-			int next = index + 2;
-			while (next < tokens.size() && tokens.get(next).kind != RightBrace) {
-				if (tokens.get(next).kind == Comma)
+			int next = index + 1;
+			int scopeCount = 0;
+			while (next < tokens.size()) {
+				if (tokens.get(next).kind == Comma && scopeCount == 0)
 					return true;
+				if (tokens.get(next).kind == RightBrace && scopeCount == 0)
+					return false;
+				if (tokens.get(next).kind == RightBrace)
+					scopeCount--;
+				if (tokens.get(next).kind == LeftBrace)
+					scopeCount++;
+
+				next++;
 			}
 			return false;
 		}

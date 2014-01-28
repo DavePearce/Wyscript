@@ -1,0 +1,7 @@
+function main() => void:
+   {int x, real y} r1 = {x: 0, y: 1.0}
+   {int y, real x} r2 = {y: 0, x: 1.0}
+   {real y, int x} r3 = {y: 1.0, x: 0}
+   
+   print (r1 == r2)
+   print (r1 == r3)

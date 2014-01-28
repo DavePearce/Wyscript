@@ -34,10 +34,6 @@ Wyscript.Float.prototype.div = function(other) {
 Wyscript.Float.prototype.rem = function(other) {
 	return new Wyscript.Float(this.num % other.num);
 };
-		
-Wyscript.Float.prototype.cast = function() {	
-   return new Wyscript.Integer(this.num);
-};
 
 Wyscript.Float.prototype.toString = function() {
     var tmp = this.num.toString();
@@ -144,6 +140,16 @@ Wyscript.range = function(lower, upper) {
 //Checks if two objects are equal (or not equal, based on the isEqual parameter)
 Wyscript.equals = function(lhs, rhs, isEqual) {
   var left = lhs;
+  if (left.type !== undefined) {
+  		if (!Wyscript.is(rhs, left.type))
+  			return false;
+  }
+  
+  if (rhs.type !== undefined) {
+  		if (!Wyscript.is(left, rhs.type))
+  			return false;
+  }
+  
   if (left.num !== undefined) {
   		left = left.num;
   }
@@ -694,7 +700,7 @@ Wyscript.Tuple = function(values, type) {
 	this.type = type;
 };
 
-Wyscript.Tuple.equals = function(other) {
+Wyscript.Tuple.prototype.equals = function(other) {
 	if (!(other instanceof Wyscript.Tuple))
 		return false;
 		
@@ -763,8 +769,8 @@ Wyscript.cast = function(type, obj) {
 		return obj.clone();
 	}
 	
-	//Handle the case where casting an int or real
-	if (obj instanceof Wyscript.Integer || obj instanceof Wyscript.Float)
+	//Handle the case where casting an int
+	if (obj instanceof Wyscript.Integer)
 	    return obj.cast();
 	    
 	//Handle the case where casting a list

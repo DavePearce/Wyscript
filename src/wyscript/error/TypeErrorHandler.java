@@ -125,6 +125,11 @@ public class TypeErrorHandler {
 				Type fnd = data.found().attribute(Attribute.Type.class).type;
 				suggestion = getExampleOfType(fnd, userTypes);
 				break;
+
+			case BAD_REFERENCE_CAST:
+				msg = "Error: Cannot cast expression " + data.found() + " with a reference type";
+				suggestion = null; //If their code relied on this, there's no easy fix
+				break;
 			}
 
 			outputSourceError(Main.errout, msg, data.filename(), data.start(), data.end());
