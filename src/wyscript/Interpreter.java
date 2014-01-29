@@ -442,8 +442,14 @@ public class Interpreter {
 						break;
 					}
 
-				case ADD:
 				case SUB:
+					//Mixing mathematical and logical operators - do nothing
+					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
+						break;
+					//Addition has a lower precedence than subtraction
+					if (op == Expr.BOp.ADD)
+						break;
+				case ADD:
 					//Mixing mathematical and logical operators - do nothing
 					if (op == Expr.BOp.AND || op == Expr.BOp.OR)
 						break;
