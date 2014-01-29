@@ -1281,7 +1281,7 @@ public class Parser {
 		}
 		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
 
-		if (next < tokens.size()) {
+		while (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -1296,13 +1296,16 @@ public class Parser {
 				return lhs;
 			}
 			index = next+1; // match the operator
-			Expr rhs = parseLogicalExpression(errors, terminated, parentFollow);
-			if (rhs == null)
+			Expr term = parseConditionExpression(errors, terminated, parentFollow);
+			if (term == null)
 				return null;
-			else
-				return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+
+			else {
+				next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
+				lhs = new Expr.Binary(bop, lhs, term, sourceAttr(start, index - 1));
+			}
 		}
-		else return lhs;
+		return lhs;
 	}
 
 	private Expr parseConditionExpression(List<ParserErrorData> errors,
@@ -1338,7 +1341,8 @@ public class Parser {
 		}
 
 		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
-		if (next < tokens.size()) {
+		boolean hasMatched = false;
+		while (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -1361,6 +1365,8 @@ public class Parser {
 				bop = Expr.BOp.NEQ;
 				break;
 			case Is:
+				if (hasMatched)
+					return lhs;
 				index = next + 1; // match the operator
 				Type rhs = parseType(errors, terminated, parentFollow);
 				if (rhs == null)
@@ -1372,14 +1378,17 @@ public class Parser {
 			}
 
 			index = next + 1; // match the operator
-			Expr rhs = parseConditionExpression(errors, terminated, parentFollow);
-			if (rhs == null)
+			Expr term = parseAppendExpression(errors, terminated, parentFollow);
+			if (term == null)
 				return null;
 
-			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+			hasMatched = true; //prevents parsing a statement like (a <= b is bool)
+			next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
+			lhs = new Expr.Binary(bop, lhs, term, sourceAttr(start, index - 1));
 		}
 		return lhs;
 	}
+
 
 	private Expr parseAppendExpression(List<ParserErrorData> errors,
 			boolean terminated, Set<Token.Kind> parentFollow) {
@@ -1465,7 +1474,7 @@ public class Parser {
 		}
 
 		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
-		if (next < tokens.size()) {
+		while (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -1479,11 +1488,12 @@ public class Parser {
 				return lhs;
 			}
 			index = next + 1; // match the operator
-			Expr rhs = parseAddSubExpression(errors, terminated, parentFollow);
+			Expr rhs = parseMulDivExpression(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 
-			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+			next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
+			lhs = new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
 		return lhs;
 	}
@@ -1514,7 +1524,7 @@ public class Parser {
 
 
 		int next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
-		if (next < tokens.size()) {
+		while (next < tokens.size()) {
 			Token token = tokens.get(next);
 			Expr.BOp bop;
 			switch (token.kind) {
@@ -1531,11 +1541,12 @@ public class Parser {
 				return lhs;
 			}
 			index = next + 1; // match the operator
-			Expr rhs = parseMulDivExpression(errors, terminated, parentFollow);
+			Expr rhs = parseIndexTerm(errors, terminated, parentFollow);
 			if (rhs == null)
 				return null;
 
-			return new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
+			next = (terminated) ? skipWhiteSpace(index) : skipLineSpace(index);
+			lhs = new Expr.Binary(bop, lhs, rhs, sourceAttr(start, index - 1));
 		}
 		return lhs;
 	}

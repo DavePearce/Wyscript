@@ -415,6 +415,21 @@ public class InterpreterValidTests {
 	}
 
 	@Test
+	public void Precedence_Valid_1() {
+		runInterpreterTest("Precedence_Valid_1");
+	}
+
+	@Test
+	public void Precedence_Valid_2() {
+		runInterpreterTest("Precedence_Valid_2");
+	}
+
+	@Test
+	public void Precedence_Valid_3() {
+		runInterpreterTest("Precedence_Valid_3");
+	}
+
+	@Test
 	public void RealDiv_Valid_1() {
 		runInterpreterTest("RealDiv_Valid_1");
 	}
