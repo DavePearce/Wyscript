@@ -445,6 +445,13 @@ public class TypeChecker {
 
 	public Type check(Expr.Invoke expr, Map<String,Type> environment) {
 		WyscriptFile.FunDecl fn = functions.get(expr.getName());
+
+		if (fn == null) {
+			errors.add(new TypeErrorData(filename, expr, null,
+					expr.attribute(Attribute.Source.class), ErrorType.MISSING_FUNCTION));
+			return new Type.Void();
+		}
+
 		List<Expr> arguments = expr.getArguments();
 		List<WyscriptFile.Parameter> parameters = fn.parameters;
 		if(arguments.size() != parameters.size()) {

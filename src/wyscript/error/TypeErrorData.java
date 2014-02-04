@@ -59,6 +59,7 @@ public class TypeErrorData implements ErrorData {
 	 * - for loop declared with non-list expression
 	 * - Switch expression is a record type (which is invalid)
 	 * - Next statement outside of a switch
+	 * - Called a function that didn't exist
 	 * - Incorrect number of function arguments
 	 * - Tried to access field of non-record type
 	 * - Tried to access field that doesn't exist
@@ -69,8 +70,8 @@ public class TypeErrorData implements ErrorData {
 	 * - Tried to cast a reference type
 	 */
 	public static enum ErrorType {
-		MISSING_RETURN, DUPLICATE_VARIABLE, BAD_FOR_LIST, BAD_SWITCH_TYPE, BAD_NEXT, BAD_FUNC_PARAMS,
-		BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH, UNDECLARED_VARIABLE,
+		MISSING_RETURN, DUPLICATE_VARIABLE, BAD_FOR_LIST, BAD_SWITCH_TYPE, BAD_NEXT, MISSING_FUNCTION,
+		BAD_FUNC_PARAMS, BAD_FIELD_ACCESS, MISSING_FIELD, TYPE_MISMATCH, SUBTYPE_MISMATCH, UNDECLARED_VARIABLE,
 		BAD_TUPLE_ASSIGN, BAD_REFERENCE_CAST
 	}
 }

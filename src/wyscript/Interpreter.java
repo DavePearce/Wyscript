@@ -420,62 +420,82 @@ public class Interpreter {
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) + ((Integer)rhs);
 			} else {
-				return ((Double)lhs) + ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) + ((Double)rhs);
+				else return ((Double)lhs) + ((Integer)rhs);
 			}
 		case SUB:
 
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) - ((Integer)rhs);
 			} else {
-				return ((Double)lhs) - ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) - ((Double)rhs);
+				else return ((Double)lhs) - ((Integer)rhs);
 			}
 
 		case MUL:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) * ((Integer)rhs);
 			} else {
-				return ((Double)lhs) * ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) * ((Double)rhs);
+				else return ((Double)lhs) * ((Integer)rhs);
 			}
 		case DIV:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) / ((Integer)rhs);
 			} else {
-				return ((Double)lhs) / ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) / ((Double)rhs);
+				else return ((Double)lhs) / ((Integer)rhs);
 			}
 		case REM:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) % ((Integer)rhs);
 			} else {
-				return ((Double)lhs) % ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) % ((Double)rhs);
+				else return ((Double)lhs) % ((Integer)rhs);
 			}
-		case EQ:
-			return lhs.equals(rhs);
-		case NEQ:
-			return !lhs.equals(rhs);
 		case LT:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) < ((Integer)rhs);
 			} else {
-				return ((Double)lhs) < ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) < ((Double)rhs);
+				else return ((Double)lhs) < ((Integer)rhs);
 			}
 		case LTEQ:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) <= ((Integer)rhs);
 			} else {
-				return ((Double)lhs) <= ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) <= ((Double)rhs);
+				else return ((Double)lhs) <= ((Integer)rhs);
 			}
 		case GT:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) > ((Integer)rhs);
 			} else {
-				return ((Double)lhs) > ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) > ((Double)rhs);
+				else return ((Double)lhs) > ((Integer)rhs);
 			}
 		case GTEQ:
 			if(lhs instanceof Integer) {
 				return ((Integer)lhs) >= ((Integer)rhs);
 			} else {
-				return ((Double)lhs) >= ((Double)rhs);
+				if (rhs instanceof Double)
+					return ((Double)lhs) >= ((Double)rhs);
+				else return ((Double)lhs) >= ((Integer)rhs);
 			}
+
+		case EQ:
+			return lhs.equals(rhs);
+		case NEQ:
+			return !lhs.equals(rhs);
+
 		case APPEND:
 			if(lhs instanceof StringBuffer && rhs instanceof StringBuffer) {
 				StringBuffer l = (StringBuffer) lhs;
