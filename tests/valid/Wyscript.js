@@ -134,7 +134,7 @@ Wyscript.range = function(lower, upper) {
   for (tmp = low; tmp < up; tmp++) {
     result[count++] = new Wyscript.Integer(tmp);
   }
-  return result;
+  return new Wyscript.List(result, new Wyscript.Type.List(new Wyscript.Type.Int));
 };
 
 //Checks if two objects are equal (or not equal, based on the isEqual parameter)

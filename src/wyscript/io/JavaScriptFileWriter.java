@@ -232,10 +232,10 @@ public class JavaScriptFileWriter {
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
 		out.print("for(" + name + ".count = 0; ");
-		out.print(name + ".count < " + name + ".list.length; ");
+		out.print(name + ".count < " + name + ".list.length().num; ");
 		out.println(name + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
+		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list.getValue(" + name + ".count);");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
