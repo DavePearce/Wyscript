@@ -1,0 +1,57 @@
+\chapter{Functions}
+
+In addition to encoding objects to represent Wyscript's type system, the Wyscript.js library also contains a handful of functions - these are generally functions that encode an expression that was too complex to be translated on a single line, such as a type casting operation.
+
+\section{Binary Expressions}
+\label{c_functions_binary}
+
+These operations were moved into a function, and not made into a method of one of the type objects, either because they operate on too many possible types (equality, and to a lesser extend less than/greater than) and so would result in too much duplicated code, or because the function in question made more sense as a standalone method (the range function).
+
+\subsection{Range}
+\label{c_functions_range}
+
+The {\em range} function is called with the \lstinline{..} operator. It takes two parameters for its lower and upper bounds, both integers (these can be Wyscript or native ints, though in practice always Wyscript integers). It returns a Wyscript list of size (upper-lower), filled with the integers from lower (inclusive) to upper (exclusive), with type \lstinline{[int]}.
+
+\begin{lstlisting}
+[int] range = 0..10  ->  var range = Wyscript.range(
+                           new Wyscript.Integer(0),
+                           new Wyscript.Integer(10));
+\end{lstlisting}
+
+\subsection{Equality}
+\label{c_functions_equality}
+
+Wyscript encodes functions for three different equality methods ({\em gt}, {\em lt} and {\em equals}), which all take three parameters - the lhs, the rhs, and a boolean {\em isEqual} flag, which is used to encode whether or the method will return true if the values are equal. Besides that, the methods are straightforward - the largest of the three methods is the equals method, as it needs to convert any of the primitive types into their native equivalents before checking for (in)equality (the compound types all have an equals method defined).
+
+\begin{syntax}
+  \verb+Logical Operator+ & $::=$ & \\
+  & $|$ & \verb+x <  y  ->  Wyscript.lt(x, y, false)+\\
+  & $|$ & \verb+x <= y  ->  Wyscript.lt(x, y, true)+\\
+  & $|$ & \verb+x >  y  ->  Wyscript.gt(x, y, false)+\\
+  & $|$ & \verb+x >= y  ->  Wyscript.gt(x, y, true)+\\
+  & $|$ & \verb+x != y  ->  Wyscript.equals(x, y, false)+\\
+  & $|$ & \verb+x == y  ->  Wyscript.equals(x, y, true)+\\
+\end{syntax}
+
+\section{Typechecking and Casting}
+\label{c_functions_typecasting}
+
+Although relatively straightforward in Wyscript, these operations are quite complex in javascript, as they require either the analysis or the alteration (possibly recursive) of type information.
+
+\subsection{Typechecking}
+\label{c_functions_typechecking}
+
+All typechecking operations (\lstinline{Expr.Is}) are turned into a call to {\em Wyscript.Is(object, type)}. This method first checks if type is one of the primitive types, and if so, returns whether or not object is an instance of the associated type. If type is a compound tpe, it calls {\em object.type.subType(type)}. This method, which all Type objects have, exactly emulates the subtyping rules present in the Wyscript compiler's Typechecker. The one exception is if type is a union type, as in this case there is no guarantee that object will have a \lstinline{type} field (it may be a native javascript data type). In this case it first calls {\em Wyscript.getType(object)}, which returns the type of any object.
+
+\subsection{Casting}
+\label{c_functions_casting}
+
+All typecasting operations (\lstinline{Expr.Cast}) are turned into a call to {\em Wyscript.cast(object, type)}. As these casts have already been checked by the typechecker, they are guaranteed to be valid - currently the only valid non-trivial cast is one where an int is casted to a real (either as a primitive or part of a compound type), or where a union type is casted to one of it's sub-types (though casts of that type have no effect on Javascript code and so are simply omitted).\\
+
+The cast method first checks the object being casted, and the type it is being casted to. If it is a primitive type, it returns the object, unless it is a cast from an int to a real, in which case it returns {\em object.cast()}. It also checks for the trivial case where the object is already the given type - in that case it returns object (or {\em object.clone()} if available).\\
+
+Next it checks for the compound types (note that attempting to cast a reference is a syntax error). If it is a list, it first creates a new array. It then calls {\em Wyscript.cast} for every element of the list, passing in that element and the element type of the original cast list type, placing the resulting elements in the new array. Finally, it creates and returns a new \lstinline{Wyscript.List} using the new array and the cast type.\\
+
+If the element is a tuple, it again creates a new array, stepping through and calling {\em Wyscript.cast} on the elements of the original tuple - the only diffference being each element is casted to the appropriate element type from the new tuple type's typelist. Once done it creates and returns a new tuple.\\
+
+The case for casting records is very similar, with the exception that a new names array is created (identical to the old names array) to properly clone the casted record - other than that, the process of stepping through the values array and casting to the associated new type is identical.

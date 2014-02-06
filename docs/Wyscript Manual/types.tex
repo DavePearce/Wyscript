@@ -1,0 +1,171 @@
+\chapter{Types}
+The Whiley programming language is {\em statically typed}, meaning that every expression has a type determined at compile time.  By contrast, Javascript is dynamically typed, and will readily coerce variables of one type into another type. Because the default Javascript objects contain very little type information, it was necessary to create custom objects to represent Wyscript types in Javascript code - without these, nearly all type information would be lost once the code began running, making cast and instance-of checking impossible.
+
+\section{Primitive Types}
+\label{c_types_primitive_types}
+
+Primitive values are the atomic building blocks of all data types in WyScript. Of all the primitive types, only the null, bool and void types are represented in Javascript with their corresponding primitive value - this is because these three types cannot be cast, and typechecking on them is trivial. Every other primitive type is represented as a specialised Javascript object, all of which are stored within the Wyscript object in the Wyscript.js library. These objects exist as {\em Expr.Constant}s in the AST, and are handled by the FileWriter when writing those expressions. 
+
+\begin{syntax}
+  \verb+Primitive Value+ & $::=$ & \\
+  & $|$ & \verb+Null    ->  null+\\
+  & $|$ & \verb+Void    ->  (Cannot be instantiated)+\\
+  & $|$ & \verb+Bool    ->  boolean+\\
+  & $|$ & \verb+Int     ->  Wyscript.Integer+\\
+  & $|$ & \verb+Real    ->  Wyscript.Float+\\
+  & $|$ & \verb+Char    ->  Wyscript.Char+\\
+  & $|$ & \verb+String  ->  Wyscript.String+\\
+\end{syntax}
+
+% =======================================================================
+% Numbers
+% =======================================================================
+
+\subsection{Numbers}
+\label{c_types_number}
+
+\paragraph{FileWriter.} In the JavaScriptFileWriter, whenever a number literal is encountered (in the form of an \lstinline{Expr.Constant}), it is wrapped in the corresponding Wyscript object - as all number literals are parsed into constants, this ensures that no native number literals are left in the converted file. In addition, any call to a binary expression (\lstinline{Expr.Binary}) on the number is transformed into the appropriate method call.
+
+\begin{lstlisting}
+int x = 1      ->  var x = new Wyscript.Integer(1);
+int y = 2      ->  var y = new Wyscript.Integer(2);
+int z = x - y  ->  var z = new Wyscript.Integer(x.sub(y));
+\end{lstlisting}
+
+\paragraph{Library.} The two number types are almost identical - they contain the {\em add()}, {\em sub()}, {\em mul()}, {\em div()} and {\em rem()} methods, which takes another number as a parameter and returns a new object containing the result (a real will always return a \lstinline{Wyscript.Float}, an int will return either a \lstinline{Wyscript.Integer} or a \lstinline{Wyscript.Float} depending on the type of the parameter). These methods exist because there is no way to overload operators in Javascript. They also contain the equals and toString methods, and finally the \lstinline{Wyscript.Integer} contains a cast method, which is used to promote it to a real (the only valid cast from one primitive type to another).
+
+\paragraph{Notes.} Note that all the methods of the number types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Also note that none of these methods, nor any other methods that return a number value, will return a native Javascript number - all numbers are wrapped in one of these two objects.
+
+% =======================================================================
+% Text Values 
+% =======================================================================
+
+\subsection{Text Values}
+\label{c_types_text}
+
+\paragraph{FileWriter.} Much like the number constants above, whenever a text literal is encountered (as an \lstinline{Expr.Constant}) it is wrapped in the corresponding Wyscript object. In addition, any attempts to get the index'th character of the string (an \lstinline{Expr.IndexOf}) are transformed into a {\em getValue(index)} call. Length expressions (\lstinline{Expr.Unary}) are converted into a call to {\em length()}, and append expressions (\lstinline{Expr.Binary}) are converted into a call to {\em append(other)}. Finally, when converting an assignment statement, a check is made for assigning a character of a string - this is transformed into an assignment with the value of a call to {\em assign(index, char)}.
+
+\begin{lstlisting}
+string s = "Hello"  ->  var s = new Wyscript.String("Hello");
+s[0] = 'Z'          ->  s = s.assign(0, 'Z');
+\end{lstlisting}
+
+\paragraph{Library.} The \lstinline{Wyscript.Char} object is very simple - it simply has a {\em toString()} method. The \lstinline{Wyscript.String} object is more complex, as it shares a couple of methods with the \lstinline{Wyscript.List} object - {\em getValue(index)} returns the index'th character of the string, {\em assign(index, char)} returns a new string with the index'th character replaced with char, {\em length()} returns the length of the string and {\em append(other)} returns the concatenation of the string with the string representation of other.
+
+\paragraph{Notes.} Note that all the methods of the text types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Finally, note that all the toString methods return an instance of \lstinline{Wyscript.String}, with the exception of \lstinline{Wyscript.String} itself, which returns a native string. To ensure you have a native string, call {\em toString()} twice - as Javascript native strings also have a (trivial) toString() method.
+
+% =======================================================================
+% Composed Objects 
+% =======================================================================
+
+\section{Composed Types}
+\label{c_types_composed_types}
+
+These are the objects that are composed from one or more other objects - due to their complexity they all have Javascript object representations. In addition, their type field is not determined statically, but created from an additional parameter passed to the constructor.
+
+\begin{syntax}
+  \verb+ComposedType+ & $::=$ & \\
+  & $|$ & \verb+ReferenceType  ->  Wyscript.Ref+\\
+  & $|$ & \verb+ListType       ->  Wyscript.List+\\
+  & $|$ & \verb+RecordType     ->  Wyscript.Record+\\
+  & $|$ & \verb+TupleType      ->  Wyscript.Tuple+\\
+\end{syntax}
+
+% =======================================================================
+% References
+% =======================================================================
+
+
+\subsection{References}
+\label{c_types_reference}
+
+\paragraph{FileWriter.} References are handled in three places in the FileWriter - when handling an \lstinline{Expr.New} (converted into creating a new \lstinline{Wyscript.Ref}), when handling a dereference (converted into a call to {\em deref()}), and when handling a dereference assignment - this is transformed into a call to {\em setValue(value)}.
+
+\paragraph{Library.} A \lstinline{Wyscript.Ref} consists of a value and a type - the type is an instance of \lstinline{Wyscript.Type.Reference}, with the value's type as a parameter. in addition to the standard {\em toString} method, it has a {\em deref()} method, which returns its inner value, and the {\em setValue(newValue)} method, which reassigns the reference to a new value.
+
+\paragraph{Notes.} Note that reference values are not cloned and have no clone method - as reference values, they are the only objects which do not follow WyScript's pass-by-value semantics.
+
+
+% =======================================================================
+% Lists
+% =======================================================================
+
+\subsection{Lists}
+\label{c_types_list}
+
+\paragraph{FileWriter.} Lists are handled in several different places in the FileWriter, most of which are exactly the same as for strings. The only exception is that lists are initialised (and converted to their Wyscript equivalent), in a \lstinline{Expr.ListConstructor}. Note this method also writes the type of the list, as it is required by the constructor.
+
+\paragraph{Library.} A \lstinline{Wyscript.List} consists of an inner native array, and a type, which is passed as a parameter to the constructor (it will always be an instance of \lstinline{Wyscript.Type.List}). In addition to the standard {\em toString()} and {\em equals(other)} methods, lists have a handful of other methods - they share {\em getValue(index)}, {\em setValue(index, value)} and {\em length()} with the \lstinline{Wyscript.String} type, and it also has a {\em clone()} method, which performs a deep clone of the object (to ensure pass-by-value is upheld).
+
+\paragraph{Notes.} Many constructors take an array as a parameter (lists, records, tuples and their associated type objects) - do not pass these a \lstinline{Wyscript.List}, as they are expecting a native array (this was done to keep code as brief as possible, and also prevents an infinite loop when writing a list constructor).\pagebreak
+
+% =======================================================================
+% Records
+% =======================================================================
+
+\subsection{Records}
+\label{c_types_record}
+
+\paragraph{FileWriter.} Record literals (\lstinline{Expr.RecordConstructor}) are converted into their Wyscript equivalent when the FileWriter writes an expression of that type. The other cases in the FileWriter involving records are when writing a \lstinline{Expr.RecordAccess}, which is converted into a call to {\em getValue(name)}, and the case where assigning a value to a record's field, which is converted into a call to {\em setValue(name, value)}.
+
+\begin{lstlisting}
+{int x, int y} point = {x:1, y:2}  ->  var point = new Wyscript.Record(
+                                         ['x', 'y'],[1, 2],
+                                         new Wyscript.Type.Record(
+                                            ['x', 'y'],
+                                            [new Wyscript.Type.Int(),
+                                            new Wyscript.Type.Int()]));
+point.x = 2                        ->  point.setValue('x', 2);
+\end{lstlisting}
+
+\paragraph{Library.} A \lstinline{Wyscript.Record} consists of two arrays and a type. The first array is a list of the names of the fields in the Record, the second array is a list of the corresponding types for each field (These lists must be equal in size). The type is passed to the constructor, but is guaranteed to be an instance of \lstinline{Wyscript.Type.Record}. In addition to the standard {\em toString()} and {\em equals(other)} methods, records have a handful of other methods - {\em getValue(name)} returns the value associated with a given field (or null), {\em hasKey(name)} returns whether or not the record has a field with the given name, and {\em setValue(name, value)} associates the given value to the given name (name must be an existing field of the record). Finally, like the list and tuple types, it has the {\em clone()} method, which performs a deep clone of the object (to ensure pass-by-value is upheld).
+
+\paragraph{Notes.} The order of names passed into a record does not matter (so long as the types passed in have their order changed accordingly) - when printed a record sorts its field names, so that a record with the same effective type will always output the same way, regardless of how that type was declared.
+
+% =======================================================================
+% Tuples
+% =======================================================================
+
+\subsection{Tuples}
+\label{c_types_tuple}
+
+\paragraph{FileWriter.} Tuples in Wyscript can be thought of as records with anonymous fields - however, unlike records they do not have setter/getter methods, as unlike records, the internal values of a tuple cannot be changed once
+instantiated. The only places where the FileWriter deals with tuples is in the \lstinline{Expr.Tuple}, where tuples are created (this is converted into a new {\em Wyscript.Tuple}), and in assignment, where the values in a tuple are decomposed into some variables - in this case, the FileWriter stores the tuple in a temporary variable, and creates an assignment statement for each variable on the lhs.
+
+\begin{lstlisting}
+(int, int) point = (0, 1)  ->  var point = new Wyscript.Tuple([0, 1],
+                                 new Wyscript.Type.Tuple([int, int]));
+int x                      ->  var x;
+int y                      ->  var y;
+(x, y) = point             ->  var WyscriptTupleVal = point;
+                               x =  WyscriptTupleVal.values[0];
+                               y =  WyscriptTupleVal.values[1];
+\end{lstlisting}
+
+\paragraph{Library.} A \lstinline{Wyscript.Tuple} consists of an array and a type. The array is simply the list of all the values in the tuple. The type is passed to the constructor, but is guaranteed to be an instance of \lstinline{Wyscript.Type.Tuple}. Tuples have no specialised methods - they only have the {\em toString()}, {\em equals(other)}, and {\em clone()} methods. The values in a tuple object are instead accessed by accessing the tuple's
+inner {\em values} field.
+
+% =======================================================================
+% Type Objects
+% =======================================================================
+
+\section{Type Objects}
+\label{c_types_type_objects}
+
+In addition to the objects representing Wyscript data values, there exists Javascript object representations of the types themselves as well - these are mainly used for casting, and for checking instance-of with the {\em is} operator. They are written with the FileWriter's {\em write(Type t)} method, which operates similarly to the other {\em write} methods.
+
+
+\begin{syntax}
+  \verb+Type+ & $::=$ & \\
+  & $|$ & \verb+Null       ->  Wyscript.Type.Null+\\
+  & $|$ & \verb+Void       ->  Wyscript.Type.Void+\\
+  & $|$ & \verb+Bool       ->  Wyscript.Type.Bool+\\
+  & $|$ & \verb+Int        ->  Wyscript.Type.Int+\\
+  & $|$ & \verb+Real       ->  Wyscript.Type.Real+\\
+  & $|$ & \verb+Char       ->  Wyscript.Type.Char+\\
+  & $|$ & \verb+String     ->  Wyscript.Type.String+\\
+  & $|$ & \verb+Reference  ->  Wyscript.Type.Reference+\\
+  & $|$ & \verb+List       ->  Wyscript.Type.List+\\
+  & $|$ & \verb+Record     ->  Wyscript.Type.Record+\\
+  & $|$ & \verb+Tuple      ->  Wyscript.Type.Tuple+\\
+\end{syntax}
