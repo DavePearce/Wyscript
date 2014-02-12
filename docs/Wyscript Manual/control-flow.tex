@@ -1,0 +1,135 @@
+\chapter{Control Flow Statements}
+
+The most difficult language features to convert from Wyscript to Javascript were control flow statements that did not operate the same in the two languages - namely, switch statements and for-each loops, in part because the entire conversion process had to happen in the FileWriter - there was no way to use the Wyscript.js library to ease the conversion.
+
+%------------------------------------
+%SWITCH STATEMENTS                  |
+%------------------------------------
+
+\section{Switch Statements}
+\label{c_control_switch}
+
+In Wyscript, switches have explicit fallthrough with the \lstinline{next} command. In addition, the switch expression can be more than just an integer value - it can also be a real, string, or list. However, Javascript switches follow C switches, with implicit fall-through, no equivalent to the next statement (a break statement which has no equivalent in Wyscript), and only able to have an enumerable type as the switch expression. For these reasons, it was not feasible to represent a Wyscript switch statement as a Javascript switch statement.\\
+
+\begin{lstlisting}
+Fig. 1: Use of next statement:
+
+switch(x):
+    case(0):
+        print (x)
+        next
+    case(1):
+        print (x+1)
+    case(2):
+        print (x-1)
+        next
+\end{lstlisting}
+
+Instead, switches are converted into a long if-else chain, held inside a labelled while(true) loop. The label is always {\em \$label}, with the value of the FileWriter's {\em switchCount} variable appended ({\em switchCount} is incremented whenever a switch statement starts being written, and decremented when the statement has been written). Just before the while loop, a variable ({\em \$WySwitch}, with {\em switchCount} appended) is declared. This variable is used to hold the value the if-else conditions evaluate.\pagebreak
+
+\begin{lstlisting}
+Fig. 2: Switch turned into labelled while loop
+
+switch(x):
+    ...
+
+BECOMES
+
+var WySwitch0 = x;
+label0: while(true) {
+    ...
+}
+\end{lstlisting}
+
+Each case statement (and the optional default statement) are converted into an if condition - if it isn't the first statement being evaluated, it is an else-if condition. The default statement is always written last, as the final else block. If no default is given, an else block containing only a break statement is created. This is to handle the case in Fig 1 above, where there is a next in the final case body. This is syntactically valid, but can cause the code to be stuck in an infinite loop if there is no corresponding else block to handle it.\\
+
+\begin{lstlisting}
+Fig. 3: Next statement handled with empty else block
+
+switch(x):
+
+    case(0):
+        next
+
+BECOMES:
+
+var WySwitch0 = x;
+label0: while(true) {
+    if (Wyscript.equals(x, new Wyscript.Integer(0), true)) {
+        WySwitch0 = 'DEFAULT'
+    }
+    else {
+        break label0;
+    }
+}
+\end{lstlisting}
+
+At the end of every if/else body, a call to break the outer loop is appended, simulating the explicit fallthrough. In addition, when writing a case/default, the value of the next case expression (or null if none or the next is a default) is passed to the FileWriter's {\em write} methods. If a next statement is written, the current {\em \$WySwitch} variable is set to have the value of that expression (or a random default value if the expression is null), and a call to continue the outer-loop is made, simulating fallthrough.\pagebreak
+
+\begin{lstlisting}
+Fig. 4: Full switch example
+
+switch(x):
+    case (0):
+        print x
+        next
+    case (1):
+        print x+1
+
+BECOMES:
+
+var WySwitch0 = x;
+label0: while(true) {
+    if(Wyscript.equals(WySwitch0, new Wyscript.Integer(0))) {
+        sysout.print(x);
+        WySwitch0 = new Wyscript.Integer(1);
+        continue label0;
+        break label0;
+    }
+    else if (Wyscript.equals(WySwitch0, new Wyscript.Integer(1))) {
+        sysout.print(x.add(new Wyscript.Integer(1)));
+        break label0;
+    }
+    else {
+        break label0;
+    }
+}
+    
+\end{lstlisting}
+(Note the \$ have been omitted from the figures above for formatting reasons)
+
+%------------------------------------
+%FOR-EACH LOOPS                     |
+%------------------------------------
+
+\section{For-Each Loops}
+\label{c_control_foreach}
+
+In Wyscript, all for-loops have the form:
+\begin{lstlisting}
+for i in list:
+\end{lstlisting}
+Where i is an index into the given list, and the loop iterates once for every element in the list. Javascript only has the classical for loop:
+\begin{lstlisting}
+for (i = 0; i < 3; i++) {
+\end{lstlisting}
+As a result, it is necessary to translate a Wyscript for-each loop into a Javascript for loop. (Javascript does have a for-each loop, but it iterates over the enumerable properties of the object - not the desired behaviour).\\
+
+Whenever the FileWriter begins writing a for-each loop, it first creates an empty object to hold all the temporary variables. The object is called {\em \$WyTmp}, with the value of {\em forCount} appended. ({\em forCount} serves the same purpose as {\em switchCount}, and is incremented/decremented in the same way). That object then has two properties added - {\em list}, which holds the list being iterated over, and {\em count}, which holds the current index into the list. Then the for-each loop is rewritten as a classical for loop iterating from 0 to the size of the list. The loop body is written as normal, but an additional line is inserted in the beginning, initialising the index value to be the value at list[count]. This ensures any reference to the index variable of the original for-each loop are still valid. \pagebreak
+
+\begin{lstlisting}
+for i in list1:
+        print i
+
+BECOMES:
+
+var WyTmp0 = {}
+WyTmp0.list = list1.clone();
+WyTmp0.count = 0;
+for (WyTmp0.count = 0; WyTmp0.count < WyTmp0.list.length();
+        WyTmp0.count++) {
+    var i = WyTmp0.list.getValue(WyTmp0.count);
+    sysout.print(i);
+}
+\end{lstlisting}
+(Note that the list is a \lstinline{Wyscript.List}, not a native javascript array. Also, \$ have been omitted for formatting reasons).

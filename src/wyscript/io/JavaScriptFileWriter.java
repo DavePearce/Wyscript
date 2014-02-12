@@ -153,7 +153,7 @@ public class JavaScriptFileWriter {
 
 			out.println(";");
 			indent(indent);
-			out.println("continue label" + (switchCount-1) + ";");
+			out.println("continue $label" + (switchCount-1) + ";");
 		}
 		else {
 			internalFailure("unknown statement encountered (" + stmt + ")", file.filename,stmt);
@@ -232,10 +232,10 @@ public class JavaScriptFileWriter {
 		//Simulate a for-each loop by iterating over the list, and defining the index value to be equal
 		//to the element at the current index
 		out.print("for(" + name + ".count = 0; ");
-		out.print(name + ".count < " + name + ".list.length; ");
+		out.print(name + ".count < " + name + ".list.length().num; ");
 		out.println(name + ".count++) {");
 		indent(indent+1);
-		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list[" + name + ".count];");
+		out.println("var " + stmt.getIndex().getName() + " = " + name + ".list.getValue(" + name + ".count);");
 		write(stmt.getBody(),indent+1, expr);
 		indent(indent);
 		out.println("}");
@@ -258,7 +258,7 @@ public class JavaScriptFileWriter {
 		write(stmt.getExpr());
 		out.println(";");
 		indent(indent);
-		out.println("label" + switchCount++ + ": while(true) {");
+		out.println("$label" + switchCount++ + ": while(true) {");
 
 		//Now write the actual switch body
 		writeSwitchStatements(stmt.cases(), indent+1);
@@ -317,7 +317,7 @@ public class JavaScriptFileWriter {
 
 			//Finally, break the switch - if a next was used it will be evaluated before this is reached
 			indent(indent+1);
-			out.println("break label" + (switchCount-1) + ";");
+			out.println("break $label" + (switchCount-1) + ";");
 			indent(indent);
 			out.println("}\n");
 		}
@@ -336,7 +336,7 @@ public class JavaScriptFileWriter {
 			write(((Stmt.Default)block.get(defIndex)).getStmts(), indent+1, defExpr);
 		}
 		indent(indent+1);
-		out.println("break label" + (switchCount-1) + ";");
+		out.println("break $label" + (switchCount-1) + ";");
 
 		if (block.size() > 1) {
 			indent(indent);

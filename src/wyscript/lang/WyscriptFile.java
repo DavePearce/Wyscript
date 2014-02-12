@@ -128,38 +128,27 @@ public class WyscriptFile {
 	 	if (d instanceof IncludeDecl)
 	 		continue;
 
-			for (Decl other : decs) {
+	 		for (Decl other : decs) {
 				if (other.name().equals(d.name())) {
 					if (other.getClass().equals(d.getClass())) {
 						if (other instanceof FunDecl) {
-							FunDecl fd2 = (FunDecl) other;
-							FunDecl fd1 = (FunDecl) d;
+							//Match found, add to errors
+							Token.Kind kind;
+							if (d instanceof TypeDecl) {
+								kind = Token.Kind.Type;
+							} else if (d instanceof ConstDecl)
+								kind = Token.Kind.Constant;
+							else
+								kind = Token.Kind.Void;
 
-							if (fd1.parameters.size() != fd2.parameters.size())
-								continue;
-							for (int i = 0; i < fd1.parameters.size(); i++) {
-								if (!(fd1.parameters.get(i).equals(fd2.parameters.get(i))))
-									continue;
-							}
+							Attribute.Source source = d.attribute(Attribute.Source.class);
+							Token t = new Token(null, d.toString(), 0);
 
+							errors.add(new ParserExprErrorData(filename, new Expr.Constant(d.name()),
+									t, kind, source.start, source.end, ErrorType.NAME_CLASH));
+
+							continue outer;
 						}
-
-						//Match found, add to errors
-						Token.Kind kind;
-						if (d instanceof TypeDecl) {
-							kind = Token.Kind.Type;
-						} else if (d instanceof ConstDecl)
-							kind = Token.Kind.Constant;
-						else
-							kind = Token.Kind.Void;
-
-						Attribute.Source source = d.attribute(Attribute.Source.class);
-						Token t = new Token(null, d.toString(), 0);
-
-						errors.add(new ParserExprErrorData(filename, new Expr.Constant(d.name()),
-								t, kind, source.start, source.end, ErrorType.NAME_CLASH));
-
-						continue outer;
 					}
 				}
 			}

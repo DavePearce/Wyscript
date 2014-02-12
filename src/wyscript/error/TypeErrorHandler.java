@@ -92,6 +92,12 @@ public class TypeErrorHandler {
 				suggestion = null; //Can't make a suggestion without more info of user's intent
 				break;
 
+			case MISSING_FUNCTION:
+				Expr.Invoke inv = (Expr.Invoke) data.found();
+				msg = String.format("Error: function %s does not exist", inv.getName());
+				suggestion = null; //As above - if it is a simple misspelling the user can fix it easier than we can
+				break;
+
 			case MISSING_RETURN:
 				FunDecl f = (FunDecl) data.expected();
 				msg = String.format("Error: non-void function %s must return a value of type %s", f.name, f.ret);

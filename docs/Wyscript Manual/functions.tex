@@ -1,0 +1,75 @@
+\chapter{Functions}
+
+In addition to encoding objects to represent Wyscript's type system, the \verb+Wyscript.js+ library also contains a handful of functions - these are generally functions that encode an expression that was too complex to be translated on a single line, such as a type casting operation.
+
+\section{Binary Expressions}
+\label{c_functions_binary}
+
+These operations were moved into a function, and not made into a method of one of the type objects, either because they operate on too many possible types (equality, and to a lesser extent\\less than/greater than) and so would result in too much duplicated code, or because the operator in question made more sense as a standalone method (the range function).
+
+\subsection{Range}
+\label{c_functions_range}
+
+The {\em range} function is called with the \lstinline{..} operator. It takes two parameters for its lower and upper bounds, both integers (these can be Wyscript or native ints, though in practice always Wyscript integers). It returns a Wyscript list of size (upper-lower), filled with the integers from lower (inclusive) to upper (exclusive), with type \lstinline{[int]}. In other words, it returns a list filled with all the ints in the range from the lower bound up to (but not including) the upper bound.
+
+\begin{lstlisting}
+[int] range = 0..10  ->  var range = Wyscript.range(
+                           new Wyscript.Integer(0),
+                           new Wyscript.Integer(10));
+\end{lstlisting}
+
+\subsection{Equality}
+\label{c_functions_equality}
+
+Wyscript encodes functions for three different equality methods ({\em gt}, {\em lt} and {\em equals}), which all take three parameters - the lhs, the rhs, and a boolean {\em isEqual} flag, which is used to encode whether or the method will return true if the values are equal. Besides that, the methods are straightforward - the largest of the three methods is the equals method, as it needs to convert any of the primitive types into their native equivalents before checking for (in)equality (the compound types all have an equals method defined).
+
+\begin{syntax}
+  \verb+Logical Operator+ & $::=$ & \\
+  & $|$ & \verb+x <  y  ->  Wyscript.lt(x, y, false)+\\
+  & $|$ & \verb+x <= y  ->  Wyscript.lt(x, y, true)+\\
+  & $|$ & \verb+x >  y  ->  Wyscript.gt(x, y, false)+\\
+  & $|$ & \verb+x >= y  ->  Wyscript.gt(x, y, true)+\\
+  & $|$ & \verb+x != y  ->  Wyscript.equals(x, y, false)+\\
+  & $|$ & \verb+x == y  ->  Wyscript.equals(x, y, true)+\\
+\end{syntax}
+
+\section{Typechecking and Casting}
+\label{c_functions_typecasting}
+
+WyScript features two expressions that act on the type information of an object - the \verb+is+ operator, which checks if an object is a subtype of a given type, and cast expressions, which function similarly to casts in C and its derivatives. As both of these deal with type information not present in native JavaScript, they are handled as functions in the \verb+Wyscript.js+ library.
+
+\subsection{Typechecking}
+\label{c_functions_typechecking}
+
+All type-checking operations (\lstinline{Expr.Is}) are turned into a call to {\em Wyscript.Is(object, type)}. This method determines whether or not the given object is a subtype of the given type, and returns a boolean for the result. The subtyping logic is mostly trivial, with most types only being subtypes of themselves. The only exception is a union type, which is a supertype of every type within its bounds.
+
+\begin{lstlisting}
+int | null x = 4
+return x is real
+
+BECOMES:
+
+var x = new Wyscript.Integer(4);
+return Wyscript.Is(x, new Wyscript.Type.Real()); 
+\end{lstlisting}
+
+\subsection{Casting}
+\label{c_functions_casting}
+
+It should be noted that there are currently only three valid casts in WyScript - the trivial cast, where an object is cast to its own type (eg. casting an int to an int), a union subtype cast, where an instance of a union type is cast to a subtype of that union (increasing the fidelity of the type information), and the widening cast from an int to a real, whether as part of a compound type or on its own.\\
+
+As the trivial cast and the union cast have no effect on the underlying object (they just affect what is known about the type of the object), they are ignored in the conversion process. As ints and reals are represented differently, however, widening casts are turned into a call to {\em Wyscript.cast(object, type)}.\\
+
+The cast method steps through the object (recursively if the object is a compound type), calling the {\em cast()} method of the \lstinline{Wyscript.Integer} where appropriate. It uses the type parameter to ensure that, for Tuples and Records, it casts only the elements affected by the cast.
+
+\pagebreak
+\begin{lstlisting}
+int x = 1
+real y = (real) x
+
+BECOMES:
+
+var x = new Wyscript.Integer(1);
+var y = Wyscript.cast(x, new Wyscript.Type.Real());
+\end{lstlisting}
+
