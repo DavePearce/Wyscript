@@ -1,13 +1,13 @@
 \chapter{Types}
-The Whiley programming language is {\em statically typed}, meaning that every expression has a type determined at compile time.  By contrast, Javascript is dynamically typed, and will readily coerce variables of one type into another type. Because the default Javascript objects contain very little type information, it was necessary to create custom objects to represent Wyscript types in Javascript code - without these, nearly all type information would be lost once the code began running, making cast and instance-of checking impossible.
+The Whiley and WyScript programming languages are {\em statically typed}, meaning that every expression has a type determined at compile time.  By contrast, JavaScript is dynamically typed, and will readily coerce variables of one type into another type. As a result, it was necessary to encode WyScript's type system as a collection of JavaScript objects, to ensure there was no loss of type information when the code was converted.
 
 \section{Primitive Types}
 \label{c_types_primitive_types}
 
-Primitive values are the atomic building blocks of all data types in WyScript. Of all the primitive types, only the null, bool and void types are represented in Javascript with their corresponding primitive value - this is because these three types cannot be cast, and typechecking on them is trivial. Every other primitive type is represented as a specialised Javascript object, all of which are stored within the Wyscript object in the Wyscript.js library. These objects exist as {\em Expr.Constant}s in the AST, and are handled by the FileWriter when writing those expressions. 
+Primitive values are the atomic building blocks of all data types in WyScript. Of all the primitive types, only the null, bool and void types are represented in JavaScript with their corresponding primitive value - this is because these three types cannot be cast, and typechecking on them is trivial. Every other primitive type is represented as a specialised JavaScript object, all of which are stored within the Wyscript object in the \verb+Wyscript.js+ library. These objects exist as {\em Expr.Constant}s in the AST, and are handled by the FileWriter when writing those expressions. 
 
 \begin{syntax}
-  \verb+Primitive Value+ & $::=$ & \\
+  \verb+Primitive Value+ & $::=$ & \verb+JavaScript type+\\
   & $|$ & \verb+Null    ->  null+\\
   & $|$ & \verb+Void    ->  (Cannot be instantiated)+\\
   & $|$ & \verb+Bool    ->  boolean+\\
@@ -32,9 +32,9 @@ int y = 2      ->  var y = new Wyscript.Integer(2);
 int z = x - y  ->  var z = new Wyscript.Integer(x.sub(y));
 \end{lstlisting}
 
-\paragraph{Library.} The two number types are almost identical - they contain the {\em add()}, {\em sub()}, {\em mul()}, {\em div()} and {\em rem()} methods, which takes another number as a parameter and returns a new object containing the result (a real will always return a \lstinline{Wyscript.Float}, an int will return either a \lstinline{Wyscript.Integer} or a \lstinline{Wyscript.Float} depending on the type of the parameter). These methods exist because there is no way to overload operators in Javascript. They also contain the equals and toString methods, and finally the \lstinline{Wyscript.Integer} contains a cast method, which is used to promote it to a real (the only valid cast from one primitive type to another).
+\paragraph{Library.} The two number types are almost identical - they contain the {\em add()}, {\em sub()}, {\em mul()}, {\em div()} and {\em rem()} methods, which takes another number as a parameter and returns a new object containing the result (a real will always return a \lstinline{Wyscript.Float}, an int will return either a \lstinline{Wyscript.Integer} or a \lstinline{Wyscript.Float} depending on the type of the parameter). These methods exist because there is no way to overload operators in JavaScript. They also contain the equals and toString methods, and finally the \lstinline{Wyscript.Integer} contains a cast method, which is used to promote it to a real (the only valid cast from one primitive type to another).
 
-\paragraph{Notes.} Note that all the methods of the number types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Also note that none of these methods, nor any other methods that return a number value, will return a native Javascript number - all numbers are wrapped in one of these two objects.
+\paragraph{Notes.} Note that all the methods of the number types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Also note that none of these methods, nor any other methods that return a number value, will return a native JavaScript number - all numbers are wrapped in one of these two objects.
 
 % =======================================================================
 % Text Values 
@@ -43,7 +43,7 @@ int z = x - y  ->  var z = new Wyscript.Integer(x.sub(y));
 \subsection{Text Values}
 \label{c_types_text}
 
-\paragraph{FileWriter.} Much like the number constants above, whenever a text literal is encountered (as an \lstinline{Expr.Constant}) it is wrapped in the corresponding Wyscript object. In addition, any attempts to get the index'th character of the string (an \lstinline{Expr.IndexOf}) are transformed into a {\em getValue(index)} call. Length expressions (\lstinline{Expr.Unary}) are converted into a call to {\em length()}, and append expressions (\lstinline{Expr.Binary}) are converted into a call to {\em append(other)}. Finally, when converting an assignment statement, a check is made for assigning a character of a string - this is transformed into an assignment with the value of a call to {\em assign(index, char)}.
+\paragraph{FileWriter.} Much like the number constants above, whenever a text literal is encountered (as an \lstinline{Expr.Constant}) it is wrapped in the corresponding Wyscript object. In addition, any attempts to get the character at an index of the string (an \lstinline{Expr.IndexOf}) are transformed into a {\em getValue(index)} call. Length expressions (\lstinline{Expr.Unary}) are converted into a call to {\em length()}, and append expressions (\lstinline{Expr.Binary}) are converted into a call to {\em append(other)}. Finally, when converting an assignment statement, a check is made for assigning a character of a string - this is transformed into an assignment with the value of a call to {\em assign(index, char)}.
 
 \begin{lstlisting}
 string s = "Hello"  ->  var s = new Wyscript.String("Hello");
@@ -52,7 +52,7 @@ s[0] = 'Z'          ->  s = s.assign(0, 'Z');
 
 \paragraph{Library.} The \lstinline{Wyscript.Char} object is very simple - it simply has a {\em toString()} method. The \lstinline{Wyscript.String} object is more complex, as it shares a couple of methods with the \lstinline{Wyscript.List} object - {\em getValue(index)} returns the index'th character of the string, {\em assign(index, char)} returns a new string with the index'th character replaced with char, {\em length()} returns the length of the string and {\em append(other)} returns the concatenation of the string with the string representation of other.
 
-\paragraph{Notes.} Note that all the methods of the text types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Finally, note that all the toString methods return an instance of \lstinline{Wyscript.String}, with the exception of \lstinline{Wyscript.String} itself, which returns a native string. To ensure you have a native string, call {\em toString()} twice - as Javascript native strings also have a (trivial) toString() method.
+\paragraph{Notes.} Note that all the methods of the text types return a new object, and do not alter the original object, ensuring Wyscript's pass by value semantics. Also, both objects have a type field, which is automatically assigned when the object is created. Finally, note that all the toString methods return an instance of \lstinline{Wyscript.String}, with the exception of \lstinline{Wyscript.String} itself, which returns a native string. To ensure you have a native string, call {\em toString()} twice - as JavaScript native strings also have a (trivial) toString() method.
 
 % =======================================================================
 % Composed Objects 
@@ -61,10 +61,10 @@ s[0] = 'Z'          ->  s = s.assign(0, 'Z');
 \section{Composed Types}
 \label{c_types_composed_types}
 
-These are the objects that are composed from one or more other objects - due to their complexity they all have Javascript object representations. In addition, their type field is not determined statically, but created from an additional parameter passed to the constructor.
+These are the objects that are composed from one or more other objects - due to their complexity they all have JavaScript object representations. In addition, their type field is not determined statically, but created from an additional parameter passed to the constructor.
 
 \begin{syntax}
-  \verb+ComposedType+ & $::=$ & \\
+  \verb+ComposedType+ & $::=$ & \verb+JavaScript type+\\
   & $|$ & \verb+ReferenceType  ->  Wyscript.Ref+\\
   & $|$ & \verb+ListType       ->  Wyscript.List+\\
   & $|$ & \verb+RecordType     ->  Wyscript.Record+\\
@@ -152,11 +152,11 @@ inner {\em values} field.
 \section{Type Objects}
 \label{c_types_type_objects}
 
-In addition to the objects representing Wyscript data values, there exists Javascript object representations of the types themselves as well - these are mainly used for casting, and for checking instance-of with the {\em is} operator. They are written with the FileWriter's {\em write(Type t)} method, which operates similarly to the other {\em write} methods.
+In addition to the objects representing Wyscript data values, there exists JavaScript object representations of the types themselves as well - these are mainly used for casting, and for checking instance-of with the {\em is} operator. They are written with the FileWriter's {\em write(Type t)} method, which operates similarly to the other {\em write} methods. Each type is a subtype of Wyscript.Type, and you can visit section~\ref{c_functions_typecasting} for more detail on their function.
 
 
 \begin{syntax}
-  \verb+Type+ & $::=$ & \\
+  \verb+Type+ & $::=$ & \verb+Javascript type+\\
   & $|$ & \verb+Null       ->  Wyscript.Type.Null+\\
   & $|$ & \verb+Void       ->  Wyscript.Type.Void+\\
   & $|$ & \verb+Bool       ->  Wyscript.Type.Bool+\\

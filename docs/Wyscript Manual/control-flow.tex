@@ -11,11 +11,64 @@ The most difficult language features to convert from Wyscript to Javascript were
 
 In Wyscript, switches have explicit fallthrough with the \lstinline{next} command. In addition, the switch expression can be more than just an integer value - it can also be a real, string, or list. However, Javascript switches follow C switches, with implicit fall-through, no equivalent to the next statement (a break statement which has no equivalent in Wyscript), and only able to have an enumerable type as the switch expression. For these reasons, it was not feasible to represent a Wyscript switch statement as a Javascript switch statement.\\
 
-Instead, switches are converted into a long if-else chain, held inside a labelled while(true) loop. The label is always {\em \$label}, with the value of the FileWriter's {\em switchCount} variable appended ({\em switchCount} is incremented whenever a switch statement starts being written, and decremented when the statement has been written). Just before the while loop, a variable ({\em \$WySwitch}, with {\em switchCount} appended) is declared. This variable is used to hold the value the if-else conditions evaluate.\\
+\begin{lstlisting}
+Fig. 1: Use of next statement:
 
-Each case statement (and the optional default statement) are converted into an if condition - if it isn't the first statement being evaluated, it is an else-if condition. The default statement is always written last as the final else, and if no default is given, an empty else is created (to ensure that a next in the final case of a switch properly exits the loop). At the end of every if/else body, a call to break the outer loop is appended, simulating the explicit fallthrough. In addition, when writing a case/default, the value of the next case expression (or null if none or the next is a default) is passed to the FileWriter's {\em write} methods. If a next statement is written, the current {\em \$WySwitch} variable is set to have the value of that expression (or a random default value if the expression is null), and a call to continue the outer-loop is made, simulating fallthrough.\pagebreak
+switch(x):
+    case(0):
+        print (x)
+        next
+    case(1):
+        print (x+1)
+    case(2):
+        print (x-1)
+        next
+\end{lstlisting}
+
+Instead, switches are converted into a long if-else chain, held inside a labelled while(true) loop. The label is always {\em \$label}, with the value of the FileWriter's {\em switchCount} variable appended ({\em switchCount} is incremented whenever a switch statement starts being written, and decremented when the statement has been written). Just before the while loop, a variable ({\em \$WySwitch}, with {\em switchCount} appended) is declared. This variable is used to hold the value the if-else conditions evaluate.\pagebreak
 
 \begin{lstlisting}
+Fig. 2: Switch turned into labelled while loop
+
+switch(x):
+    ...
+
+BECOMES
+
+var WySwitch0 = x;
+label0: while(true) {
+    ...
+}
+\end{lstlisting}
+
+Each case statement (and the optional default statement) are converted into an if condition - if it isn't the first statement being evaluated, it is an else-if condition. The default statement is always written last, as the final else block. If no default is given, an else block containing only a break statement is created. This is to handle the case in Fig 1 above, where there is a next in the final case body. This is syntactically valid, but can cause the code to be stuck in an infinite loop if there is no corresponding else block to handle it.\\
+
+\begin{lstlisting}
+Fig. 3: Next statement handled with empty else block
+
+switch(x):
+
+    case(0):
+        next
+
+BECOMES:
+
+var WySwitch0 = x;
+label0: while(true) {
+    if (Wyscript.equals(x, new Wyscript.Integer(0), true)) {
+        WySwitch0 = 'DEFAULT'
+    }
+    else {
+        break label0;
+    }
+}
+\end{lstlisting}
+
+At the end of every if/else body, a call to break the outer loop is appended, simulating the explicit fallthrough. In addition, when writing a case/default, the value of the next case expression (or null if none or the next is a default) is passed to the FileWriter's {\em write} methods. If a next statement is written, the current {\em \$WySwitch} variable is set to have the value of that expression (or a random default value if the expression is null), and a call to continue the outer-loop is made, simulating fallthrough.\pagebreak
+
+\begin{lstlisting}
+Fig. 4: Full switch example
+
 switch(x):
     case (0):
         print x
@@ -43,7 +96,7 @@ label0: while(true) {
 }
     
 \end{lstlisting}
-(Note the \$ have been omitted for formatting reasons)
+(Note the \$ have been omitted from the figures above for formatting reasons)
 
 %------------------------------------
 %FOR-EACH LOOPS                     |

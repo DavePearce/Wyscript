@@ -1,5 +1,5 @@
 TARGET = JavaScriptFileWriter_Manual
-DEPS = types.tex functions.tex control-flow.tex
+DEPS = introduction.tex types.tex functions.tex control-flow.tex
 
 all: $(TARGET).pdf
 
